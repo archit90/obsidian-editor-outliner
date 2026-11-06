@@ -326,3 +326,26 @@ describe("review fixes", () => {
     expect(spans).not.toContainEqual([4, 11]); // not "![[img."
   });
 });
+
+describe("a list always stays a list", () => {
+  it("outdenting a top-level item changes nothing, in every kind of list", () => {
+    const out = (o: any, a: number, b: number) => outdent(o, a, b, tab);
+    for (const t of [
+      lines("- a", "- b"),
+      lines("# H", "- a"),
+      lines("para", "- a"),
+      lines("1. a", "2. b"),
+      lines("- [ ] task"),
+      lines("> - a", "> - b"),
+      lines("  - a", "  - b"),
+      lines("- a", "", "- b"),
+    ]) {
+      const n = t.split("\n").length;
+      for (let l = 0; l < n; l++) {
+        const o = buildOutline(t.split("\n"));
+        if (o.info[l]!.kind !== "item") continue;
+        expect([t, l, out(o, l, l)]).toEqual([t, l, "noop"]);
+      }
+    }
+  });
+});

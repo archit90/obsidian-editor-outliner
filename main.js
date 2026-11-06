@@ -873,17 +873,26 @@ function usable(view) {
 var nested = (view) => !!view.dom.parentElement?.closest(".cm-editor");
 function runOp(view, kind, logical, check = false) {
   const state = view.state;
-  if (state.selection.ranges.length > 1 || !usable(view) || suggestOpen()) return false;
+  if (state.selection.ranges.length > 1 || !usable(view)) return false;
   const o = outlineOf(state);
   const [l0, l1] = lineSpan(state);
-  const head = state.doc.lineAt(state.selection.main.head).number - 1;
-  if ((kind === "indent" || kind === "outdent") && o.info[head]?.kind === "code") return false;
   const ctx = ctxOf(state, logical);
+  let inList = false;
+  for (let l = l0; l <= l1 && !inList; l++) inList = !!locate(o, l)?.list;
+  const keep = kind === "outdent" && inList;
+  if (suggestOpen()) return keep;
+  const head = state.doc.lineAt(state.selection.main.head).number - 1;
+  const L = o.info[head];
+  if (L?.kind === "code" && kind === "indent") return false;
+  if (L?.kind === "code" && kind === "outdent") {
+    const item = locate(o, head)?.item;
+    return item ? L.col - unitCols(ctx) < item.cc : false;
+  }
   let res;
   if (kind === "indent") res = indent(o, l0, l1, ctx);
   else if (kind === "outdent") res = outdent(o, l0, l1, ctx);
   else res = move(o, l0, l1, kind === "up" ? -1 : 1, ctx);
-  if (res === null) return false;
+  if (res === null) return keep;
   if (check || res === "noop") return true;
   if ("error" in res) {
     new import_obsidian.Notice(res.error);

@@ -4,8 +4,8 @@ import { EditorSelection, EditorState, StateEffect, Text } from "@codemirror/sta
 import { EditorView } from "@codemirror/view";
 import { foldEffect, foldable, foldedRanges, indentUnit, unfoldEffect } from "@codemirror/language";
 import { Notice } from "obsidian";
-import { Outline, buildOutline } from "./parse";
-import { Ctx, OpResult, Row, indent, move, outdent } from "./ops";
+import { Outline, buildOutline, locate } from "./parse";
+import { Ctx, OpResult, Row, indent, move, outdent, unitCols } from "./ops";
 import { steps } from "./select";
 
 const outlines = new WeakMap<Text, Outline>();
@@ -141,18 +141,30 @@ export const nested = (view: EditorView) => !!view.dom.parentElement?.closest(".
  */
 export function runOp(view: EditorView, kind: OpKind, logical: boolean, check = false): boolean {
   const state = view.state;
-  if (state.selection.ranges.length > 1 || !usable(view) || suggestOpen()) return false;
+  if (state.selection.ranges.length > 1 || !usable(view)) return false;
   const o = outlineOf(state);
   const [l0, l1] = lineSpan(state);
-  // Tab inside a code block (also one nested in a list item) is Obsidian's
-  const head = state.doc.lineAt(state.selection.main.head).number - 1;
-  if ((kind === "indent" || kind === "outdent") && o.info[head]?.kind === "code") return false;
   const ctx = ctxOf(state, logical);
+  // A list always stays a list: Shift+Tab inside one never goes to Obsidian, whose outdent removes
+  // indentation line by line and can take lines out of their item, or the item out of the list
+  let inList = false;
+  for (let l = l0; l <= l1 && !inList; l++) inList = !!locate(o, l)?.list;
+  const keep = kind === "outdent" && inList;
+  if (suggestOpen()) return keep;
+  // Tab inside a code block (also one nested in a list item) is Obsidian's; Shift+Tab too, as long as the
+  // line stays inside its item
+  const head = state.doc.lineAt(state.selection.main.head).number - 1;
+  const L = o.info[head];
+  if (L?.kind === "code" && kind === "indent") return false;
+  if (L?.kind === "code" && kind === "outdent") {
+    const item = locate(o, head)?.item;
+    return item ? L.col - unitCols(ctx) < item.cc : false;
+  }
   let res: OpResult;
   if (kind === "indent") res = indent(o, l0, l1, ctx);
   else if (kind === "outdent") res = outdent(o, l0, l1, ctx);
   else res = move(o, l0, l1, kind === "up" ? -1 : 1, ctx);
-  if (res === null) return false;
+  if (res === null) return keep;
   if (check || res === "noop") return true;
   if ("error" in res) {
     new Notice(res.error);

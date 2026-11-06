@@ -39,6 +39,10 @@ not a fence. A paragraph's setext underline (`---` right under it) moves with it
   sibling: nothing happens. The new indent matches the existing children's, else the previous sibling's
   plus one indent unit (tab or spaces, per the editor's settings).
 - **List outdent:** the items move to their parent's level. No parent: nothing happens.
+  - **A list always stays a list.** A top-level item never leaves its list. Inside a list, Shift+Tab never goes to
+    Obsidian's own outdent (which removes indentation line by line), with an autocomplete popup open or on a
+    blank line between items too. Only in a code block inside an item does Obsidian's Shift+Tab apply, and
+    only while the line stays inside the item.
   - **Default:** in place; the siblings that followed become the item's children.
   - **Logical outdenting** (setting): the items move to just after the parent's subtree; the siblings that
     followed stay with the parent.
