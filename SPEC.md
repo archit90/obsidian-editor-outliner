@@ -111,7 +111,8 @@ Escape cancels a drag (also in popout windows). A drop is one undo step.
 
 All are commands. Tab / Shift+Tab are a CodeMirror key, switched by the "Tab indents headings and list
 items" setting, because they must fall through to Obsidian elsewhere. The others are the commands'
-default hotkeys, changed in Settings → Hotkeys (a command that doesn't apply lets the key through):
+default hotkeys, changed in Settings → Hotkeys. They repeat while held, and act on the editor that has focus
+(an Editor Lanes card included):
 
 | Key                                                                                                                                     | Command                                                                 |
 | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |

@@ -14,6 +14,13 @@ import { foldChildren, foldNode, foldToLevel, unfoldAll, unfoldNode, unfoldSubtr
 import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
 import { dragHandles, lineDecorations } from "./view";
 
+/** The CodeMirror editor that has keyboard focus (in any window), if any. */
+function focusedView(): EditorView | null {
+  // no instanceof: a popout window's elements belong to that window's HTMLElement
+  const el = activeDocument.activeElement?.closest(".cm-editor");
+  return el ? EditorView.findFromDOM(el as HTMLElement) : null;
+}
+
 const key = (modifiers: Hotkey["modifiers"], k: string): Hotkey => ({ modifiers, key: k });
 
 export default class EditorOutlinerPlugin extends Plugin {
@@ -65,19 +72,25 @@ export default class EditorOutlinerPlugin extends Plugin {
       name: string,
       icon: string,
       run: (view: EditorView) => unknown,
-      opts: { applies?: (view: EditorView) => boolean; hotkeys?: Hotkey[] } = {},
+      opts: { applies?: (view: EditorView) => boolean; hotkeys?: Hotkey[]; repeatable?: boolean } = {},
     ) =>
       this.addCommand({
         id,
         name,
         icon,
         hotkeys: opts.hotkeys,
+        // Obsidian runs a held-down hotkey only once unless the command is repeatable
+        repeatable: opts.repeatable,
         editorCheckCallback: (checking: boolean, editor: Editor) => {
-          const view = editor.cm;
-          if (!view || nested(view) || (editor.activeCM && editor.activeCM !== view)) return false;
-          // the palette asks first; a hotkey runs straight away, and false lets the key through to the editor
+          // Obsidian hands over workspace.activeEditor, which needn't be the editor being typed in (another
+          // Editor Lanes card, say): act on the focused one
+          const focused = focusedView();
+          const view = focused ?? editor.cm;
+          if (!view || nested(view) || (!focused && editor.activeCM && editor.activeCM !== view)) return false;
+          // the palette asks first; a hotkey runs straight away
           if (checking) return opts.applies ? opts.applies(view) : true;
-          return run(view) !== false;
+          run(view);
+          return true;
         },
       });
     const op = (kind: OpKind) => ({
@@ -91,21 +104,31 @@ export default class EditorOutlinerPlugin extends Plugin {
     const outdentOp = op("outdent");
     const upOp = op("up");
     const downOp = op("down");
-    cmd("indent", "Indent heading or list item", "indent", indentOp.run, { applies: indentOp.applies });
-    cmd("outdent", "Outdent heading or list item", "outdent", outdentOp.run, { applies: outdentOp.applies });
+    cmd("indent", "Indent heading or list item", "indent", indentOp.run, {
+      applies: indentOp.applies,
+      repeatable: true,
+    });
+    cmd("outdent", "Outdent heading or list item", "outdent", outdentOp.run, {
+      applies: outdentOp.applies,
+      repeatable: true,
+    });
     cmd("move-up", "Move up with children", "arrow-up", upOp.run, {
       applies: upOp.applies,
       hotkeys: moveKeys("ArrowUp", "PageUp"),
+      repeatable: true,
     });
     cmd("move-down", "Move down with children", "arrow-down", downOp.run, {
       applies: downOp.applies,
       hotkeys: moveKeys("ArrowDown", "PageDown"),
+      repeatable: true,
     });
     cmd("expand-selection", "Expand selection", "text-select", expandSelection, {
       hotkeys: [key(["Alt"], "ArrowUp")],
+      repeatable: true,
     });
     cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection, {
       hotkeys: [key(["Alt"], "ArrowDown")],
+      repeatable: true,
     });
     cmd("fold", "Fold heading or list item", "fold-vertical", foldNode);
     cmd("unfold", "Unfold heading or list item", "unfold-vertical", unfoldNode);

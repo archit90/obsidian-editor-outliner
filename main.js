@@ -1453,6 +1453,10 @@ function scrollParent(el) {
 }
 
 // src/main.ts
+function focusedView() {
+  const el = activeDocument.activeElement?.closest(".cm-editor");
+  return el ? import_view2.EditorView.findFromDOM(el) : null;
+}
 var key = (modifiers, k) => ({ modifiers, key: k });
 var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   constructor() {
@@ -1498,11 +1502,15 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       name,
       icon,
       hotkeys: opts.hotkeys,
+      // Obsidian runs a held-down hotkey only once unless the command is repeatable
+      repeatable: opts.repeatable,
       editorCheckCallback: (checking, editor) => {
-        const view = editor.cm;
-        if (!view || nested(view) || editor.activeCM && editor.activeCM !== view) return false;
+        const focused = focusedView();
+        const view = focused ?? editor.cm;
+        if (!view || nested(view) || !focused && editor.activeCM && editor.activeCM !== view) return false;
         if (checking) return opts.applies ? opts.applies(view) : true;
-        return run2(view) !== false;
+        run2(view);
+        return true;
       }
     });
     const op = (kind) => ({
@@ -1514,21 +1522,31 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     const outdentOp = op("outdent");
     const upOp = op("up");
     const downOp = op("down");
-    cmd("indent", "Indent heading or list item", "indent", indentOp.run, { applies: indentOp.applies });
-    cmd("outdent", "Outdent heading or list item", "outdent", outdentOp.run, { applies: outdentOp.applies });
+    cmd("indent", "Indent heading or list item", "indent", indentOp.run, {
+      applies: indentOp.applies,
+      repeatable: true
+    });
+    cmd("outdent", "Outdent heading or list item", "outdent", outdentOp.run, {
+      applies: outdentOp.applies,
+      repeatable: true
+    });
     cmd("move-up", "Move up with children", "arrow-up", upOp.run, {
       applies: upOp.applies,
-      hotkeys: moveKeys("ArrowUp", "PageUp")
+      hotkeys: moveKeys("ArrowUp", "PageUp"),
+      repeatable: true
     });
     cmd("move-down", "Move down with children", "arrow-down", downOp.run, {
       applies: downOp.applies,
-      hotkeys: moveKeys("ArrowDown", "PageDown")
+      hotkeys: moveKeys("ArrowDown", "PageDown"),
+      repeatable: true
     });
     cmd("expand-selection", "Expand selection", "text-select", expandSelection, {
-      hotkeys: [key(["Alt"], "ArrowUp")]
+      hotkeys: [key(["Alt"], "ArrowUp")],
+      repeatable: true
     });
     cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection, {
-      hotkeys: [key(["Alt"], "ArrowDown")]
+      hotkeys: [key(["Alt"], "ArrowDown")],
+      repeatable: true
     });
     cmd("fold", "Fold heading or list item", "fold-vertical", foldNode);
     cmd("unfold", "Unfold heading or list item", "unfold-vertical", unfoldNode);
