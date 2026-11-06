@@ -1,8 +1,16 @@
 // Editor view extensions: heading guides and H7+ styling (line decorations), and drag handles.
 import { RangeSetBuilder } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  RectangleMarker,
+  ViewPlugin,
+  ViewUpdate,
+  layer,
+} from "@codemirror/view";
 import { setIcon } from "obsidian";
-import { Outline } from "./parse";
+import { Outline, trimEnd } from "./parse";
 import { unitCols } from "./ops";
 import { Option, Source, Target, drop, sourceAt, sourceDepth, sourceLine, targets } from "./drop";
 import { applyRows, ctxOf, nested, outlineOf } from "./editor";
@@ -40,7 +48,7 @@ export function lineDecorations(settings: () => Settings) {
       }
       build(view: EditorView): DecorationSet {
         const s = settings();
-        if ((!s.headingGuides && !s.deepHeadings) || nested(view)) return Decoration.none;
+        if (!s.deepHeadings || nested(view)) return Decoration.none;
         const o = outlineOf(view.state);
         const b = new RangeSetBuilder<Decoration>();
         const doc = view.state.doc;
@@ -54,11 +62,6 @@ export function lineDecorations(settings: () => Settings) {
             last = i;
             const cls: string[] = [];
             const attrs: Record<string, string> = {};
-            const depth = o.depth[i] ?? 0;
-            if (s.headingGuides && depth > 0) {
-              cls.push("eo-guide");
-              attrs.style = `--eo-depth: ${depth}`;
-            }
             const L = o.info[i];
             if (s.deepHeadings && L?.kind === "heading" && L.level >= 7) {
               cls.push("eo-deep-heading");
@@ -72,6 +75,61 @@ export function lineDecorations(settings: () => Settings) {
     },
     { decorations: v => v.decorations },
   );
+}
+
+/** Space between two heading guides, in px (less when the margin is narrow). */
+const GUIDE_STEP = 10;
+
+/**
+ * Heading guides: one continuous vertical line per section, from under its heading to its last line, drawn on
+ * a layer behind the text. Every section at the same depth gets the same x for the whole note, outermost
+ * leftmost, so a guide doesn't jump between lines of different depth, and it runs through tables, callouts
+ * and embeds (Live Preview widgets, which have no .cm-line of their own).
+ */
+export function headingGuides() {
+  return layer({
+    above: false,
+    class: "eo-guides",
+    update: u => u.docChanged || u.viewportChanged || u.geometryChanged,
+    markers(view) {
+      if (nested(view)) return [];
+      const o = outlineOf(view.state);
+      if (!o.sections.length) return [];
+      const doc = view.state.doc;
+      const { from: vFrom, to: vTo } = view.viewport;
+      const first = doc.lineAt(vFrom).number - 1;
+      const last = doc.lineAt(vTo).number - 1;
+      // layer coordinates: relative to the scroller's content (CodeMirror's getBase)
+      const sc = view.scrollDOM.getBoundingClientRect();
+      const baseLeft = sc.left - view.scrollDOM.scrollLeft;
+      const baseTop = sc.top - view.scrollDOM.scrollTop;
+      const content = view.contentDOM.getBoundingClientRect();
+      const textLeft = content.left - baseLeft;
+      let deepest = 0;
+      const depthOf = new Map<unknown, number>();
+      for (const s of o.sections) {
+        const d = s.parent && s.parent !== o.root ? depthOf.get(s.parent)! + 1 : 1;
+        depthOf.set(s, d);
+        deepest = Math.max(deepest, d);
+      }
+      // fit the guides into the margin left of the text
+      const room = Math.max(0, textLeft - 10);
+      const step = deepest > 1 ? Math.max(3, Math.min(GUIDE_STEP, room / (deepest - 1))) : GUIDE_STEP;
+      const out: RectangleMarker[] = [];
+      for (const s of o.sections) {
+        const endLine = trimEnd(o, s.line, s.end) - 1;
+        if (endLine <= s.line || endLine < first || s.line > last) continue;
+        const top = view.lineBlockAt(doc.line(Math.max(s.line, first) + 1).from);
+        const bottom = view.lineBlockAt(doc.line(Math.min(endLine, last) + 1).from);
+        const y0 = (s.line >= first ? top.bottom : top.top) + view.documentTop - baseTop;
+        const y1 = bottom.bottom + view.documentTop - baseTop;
+        if (y1 - y0 < 1) continue;
+        const x = textLeft - 6 - (deepest - depthOf.get(s)!) * step;
+        out.push(new RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
+      }
+      return out;
+    },
+  });
 }
 
 /** Horizontal step on screen between heading levels while dragging, in px. */

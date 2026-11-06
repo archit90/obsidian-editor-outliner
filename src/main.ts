@@ -11,7 +11,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { OpKind, expandSelection, nested, runOp, setSuggestCheck, shrinkSelection } from "./editor";
 import { foldChildren, foldNode, foldToLevel, unfoldAll, unfoldNode, unfoldSubtree } from "./folding";
 import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
-import { dragHandles, lineDecorations } from "./view";
+import { dragHandles, headingGuides, lineDecorations } from "./view";
 
 /** The CodeMirror editor that has keyboard focus (in any window), if any. */
 function focusedView(): EditorView | null {
@@ -84,6 +84,7 @@ export default class EditorOutlinerPlugin extends Plugin {
     }
     this.extensions.push(rememberFocus);
     this.extensions.push(lineDecorations(() => this.settings));
+    if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !Platform.isMobile) this.extensions.push(dragHandles(logical));
   }
 

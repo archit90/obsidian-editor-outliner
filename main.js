@@ -1206,7 +1206,7 @@ function lineDecorations(settings) {
       }
       build(view) {
         const s = settings();
-        if (!s.headingGuides && !s.deepHeadings || nested(view)) return import_view.Decoration.none;
+        if (!s.deepHeadings || nested(view)) return import_view.Decoration.none;
         const o = outlineOf(view.state);
         const b = new import_state2.RangeSetBuilder();
         const doc = view.state.doc;
@@ -1220,11 +1220,6 @@ function lineDecorations(settings) {
             last = i;
             const cls = [];
             const attrs = {};
-            const depth = o.depth[i] ?? 0;
-            if (s.headingGuides && depth > 0) {
-              cls.push("eo-guide");
-              attrs.style = `--eo-depth: ${depth}`;
-            }
             const L = o.info[i];
             if (s.deepHeadings && L?.kind === "heading" && L.level >= 7) {
               cls.push("eo-deep-heading");
@@ -1238,6 +1233,50 @@ function lineDecorations(settings) {
     },
     { decorations: (v) => v.decorations }
   );
+}
+var GUIDE_STEP = 10;
+function headingGuides() {
+  return (0, import_view.layer)({
+    above: false,
+    class: "eo-guides",
+    update: (u) => u.docChanged || u.viewportChanged || u.geometryChanged,
+    markers(view) {
+      if (nested(view)) return [];
+      const o = outlineOf(view.state);
+      if (!o.sections.length) return [];
+      const doc = view.state.doc;
+      const { from: vFrom, to: vTo } = view.viewport;
+      const first = doc.lineAt(vFrom).number - 1;
+      const last = doc.lineAt(vTo).number - 1;
+      const sc = view.scrollDOM.getBoundingClientRect();
+      const baseLeft = sc.left - view.scrollDOM.scrollLeft;
+      const baseTop = sc.top - view.scrollDOM.scrollTop;
+      const content = view.contentDOM.getBoundingClientRect();
+      const textLeft = content.left - baseLeft;
+      let deepest = 0;
+      const depthOf = /* @__PURE__ */ new Map();
+      for (const s of o.sections) {
+        const d = s.parent && s.parent !== o.root ? depthOf.get(s.parent) + 1 : 1;
+        depthOf.set(s, d);
+        deepest = Math.max(deepest, d);
+      }
+      const room = Math.max(0, textLeft - 10);
+      const step = deepest > 1 ? Math.max(3, Math.min(GUIDE_STEP, room / (deepest - 1))) : GUIDE_STEP;
+      const out = [];
+      for (const s of o.sections) {
+        const endLine = trimEnd(o, s.line, s.end) - 1;
+        if (endLine <= s.line || endLine < first || s.line > last) continue;
+        const top = view.lineBlockAt(doc.line(Math.max(s.line, first) + 1).from);
+        const bottom = view.lineBlockAt(doc.line(Math.min(endLine, last) + 1).from);
+        const y0 = (s.line >= first ? top.bottom : top.top) + view.documentTop - baseTop;
+        const y1 = bottom.bottom + view.documentTop - baseTop;
+        if (y1 - y0 < 1) continue;
+        const x = textLeft - 6 - (deepest - depthOf.get(s)) * step;
+        out.push(new import_view.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
+      }
+      return out;
+    }
+  });
 }
 var HEADING_STEP = 24;
 var DRAG_START = 4;
@@ -1520,6 +1559,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     }
     this.extensions.push(rememberFocus);
     this.extensions.push(lineDecorations(() => this.settings));
+    if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !import_obsidian5.Platform.isMobile) this.extensions.push(dragHandles(logical));
   }
   /** The editor a command acts on: the focused one, else the last one focused, else Obsidian's active one. */

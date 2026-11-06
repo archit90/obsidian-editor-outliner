@@ -93,9 +93,11 @@ notice says so (headings deeper than H6 can't fold).
 
 ## Indent guides
 
-Heading sections get vertical guides in the left margin, one per enclosing section. They use Obsidian's
-list indentation-guide colour and width, so list and heading guides look the same. Not mirrored for
-right-to-left notes.
+Each heading section gets one continuous vertical line in the left margin, from under its heading to its
+last line, drawn on a layer behind the text, so it also runs past tables, callouts and embeds. Every section
+at the same depth uses the same x for the whole note, outermost leftmost; the spacing shrinks to fit a narrow
+margin. The guides use Obsidian's list indentation-guide colour and width, so list and heading guides look the
+same. Not mirrored for right-to-left notes.
 
 ## Drag handles (desktop)
 

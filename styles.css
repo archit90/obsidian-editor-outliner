@@ -1,18 +1,8 @@
-/* Editor Outliner. Guides reuse Obsidian's list indentation-guide colour and width, so heading and list
-   guides look the same. They use ::after: Obsidian draws the quote / callout bar with .cm-line::before. */
-.markdown-source-view.mod-cm6 .cm-line.eo-guide::after {
-  --eo-step: 10px;
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(-1 * var(--eo-depth) * var(--eo-step) - 6px);
-  width: calc(var(--eo-depth) * var(--eo-step));
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--indentation-guide-color) 0 var(--indentation-guide-width, 1px),
-    transparent var(--indentation-guide-width, 1px) var(--eo-step)
-  );
+/* Editor Outliner. Heading guides: one line per section on a layer behind the text (view.ts headingGuides),
+   in Obsidian's list indentation-guide colour and width, so heading and list guides look the same. */
+.eo-guides .eo-guide-line {
+  width: var(--indentation-guide-width, 1px);
+  background-color: var(--indentation-guide-color);
   pointer-events: none;
 }
 
