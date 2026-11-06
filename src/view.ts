@@ -1,4 +1,4 @@
-// Editor view extensions: heading guides and H7+ styling (line decorations), and drag handles.
+// Editor view extensions: heading guides, H7+ styling and heading level labels (line decorations), and drag handles.
 import { RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
@@ -48,7 +48,7 @@ export function lineDecorations(settings: () => Settings) {
       }
       build(view: EditorView): DecorationSet {
         const s = settings();
-        if (!s.deepHeadings || nested(view)) return Decoration.none;
+        if ((!s.deepHeadings && !s.levelLabels) || nested(view)) return Decoration.none;
         const o = outlineOf(view.state);
         const b = new RangeSetBuilder<Decoration>();
         const doc = view.state.doc;
@@ -63,8 +63,9 @@ export function lineDecorations(settings: () => Settings) {
             const cls: string[] = [];
             const attrs: Record<string, string> = {};
             const L = o.info[i];
-            if (s.deepHeadings && L?.kind === "heading" && L.level >= 7) {
-              cls.push("eo-deep-heading");
+            if (L?.kind === "heading") {
+              if (s.deepHeadings && L.level >= 7) cls.push("eo-deep-heading");
+              if (s.levelLabels) cls.push("eo-level-label");
               attrs["data-eo-level"] = String(L.level);
             }
             if (cls.length) b.add(line.from, line.from, Decoration.line({ class: cls.join(" "), attributes: attrs }));

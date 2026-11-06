@@ -1015,7 +1015,8 @@ var DEFAULTS = {
   keys: true,
   headingGuides: true,
   dragHandles: true,
-  deepHeadings: true
+  deepHeadings: true,
+  levelLabels: true
 };
 var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
   constructor(app, plugin) {
@@ -1052,6 +1053,11 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
       "Style headings beyond H6",
       "Lines starting with 7 or more # are outline headings for this plugin; show them like small headings.",
       "deepHeadings"
+    );
+    this.toggle(
+      "Heading level labels",
+      "In Live Preview, a faint H1, H2, \u2026 after each heading, so you can tell the level without moving the cursor onto it. Hidden on the line you're editing, where the # marks show.",
+      "levelLabels"
     );
   }
 };
@@ -1206,7 +1212,7 @@ function lineDecorations(settings) {
       }
       build(view) {
         const s = settings();
-        if (!s.deepHeadings || nested(view)) return import_view.Decoration.none;
+        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view.Decoration.none;
         const o = outlineOf(view.state);
         const b = new import_state2.RangeSetBuilder();
         const doc = view.state.doc;
@@ -1221,8 +1227,9 @@ function lineDecorations(settings) {
             const cls = [];
             const attrs = {};
             const L = o.info[i];
-            if (s.deepHeadings && L?.kind === "heading" && L.level >= 7) {
-              cls.push("eo-deep-heading");
+            if (L?.kind === "heading") {
+              if (s.deepHeadings && L.level >= 7) cls.push("eo-deep-heading");
+              if (s.levelLabels) cls.push("eo-level-label");
               attrs["data-eo-level"] = String(L.level);
             }
             if (cls.length) b.add(line.from, line.from, import_view.Decoration.line({ class: cls.join(" "), attributes: attrs }));

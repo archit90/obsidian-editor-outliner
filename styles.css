@@ -17,6 +17,22 @@
   line-height: var(--h6-line-height, inherit);
 }
 
+/* Heading level labels: in Live Preview the # marks are hidden except on the line being edited, so a faint
+   "H3" after the heading text shows its level (view.ts lineDecorations sets data-eo-level). */
+.markdown-source-view.mod-cm6.is-live-preview .cm-line.eo-level-label:not(.cm-active)::after {
+  content: "H" attr(data-eo-level);
+  margin-inline-start: 0.5em;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal, 400);
+  font-style: normal;
+  font-variant: normal;
+  letter-spacing: normal;
+  color: var(--text-faint);
+  pointer-events: none;
+  user-select: none;
+}
+
 .eo-drag-handle {
   position: absolute;
   z-index: 5;

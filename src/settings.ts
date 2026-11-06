@@ -7,6 +7,7 @@ export interface Settings {
   headingGuides: boolean;
   dragHandles: boolean;
   deepHeadings: boolean; // style lines of 7+ # as headings
+  levelLabels: boolean; // Live Preview: a faint "H3" after each heading
 }
 
 export const DEFAULTS: Settings = {
@@ -15,6 +16,7 @@ export const DEFAULTS: Settings = {
   headingGuides: true,
   dragHandles: true,
   deepHeadings: true,
+  levelLabels: true,
 };
 
 export class EditorOutlinerTab extends PluginSettingTab {
@@ -59,6 +61,11 @@ export class EditorOutlinerTab extends PluginSettingTab {
       "Style headings beyond H6",
       "Lines starting with 7 or more # are outline headings for this plugin; show them like small headings.",
       "deepHeadings",
+    );
+    this.toggle(
+      "Heading level labels",
+      "In Live Preview, a faint H1, H2, … after each heading, so you can tell the level without moving the cursor onto it. Hidden on the line you're editing, where the # marks show.",
+      "levelLabels",
     );
   }
 }

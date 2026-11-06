@@ -99,6 +99,13 @@ at the same depth uses the same x for the whole note, outermost leftmost; the sp
 margin. The guides use Obsidian's list indentation-guide colour and width, so list and heading guides look the
 same. Not mirrored for right-to-left notes.
 
+## Heading level labels
+
+In Live Preview, Obsidian hides a heading's `#` marks except on the line being edited, so its level is hard to
+tell. Each heading line (H1–H6 and H7+) gets a faint "H3"-style label after its text, in the interface font,
+not selectable and not part of the note. It's hidden on the line being edited, where the marks show, and in
+Source mode. Setting "Heading level labels", on by default.
+
 ## Drag handles (desktop)
 
 A handle appears to the left of the heading, list item or body block under the mouse. A drag starts after
