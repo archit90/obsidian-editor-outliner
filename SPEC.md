@@ -109,10 +109,11 @@ Escape cancels a drag (also in popout windows). A drop is one undo step.
 
 ## Keys
 
-All are commands. Tab / Shift+Tab are a CodeMirror key, switched by the "Tab indents headings and list
-items" setting, because they must fall through to Obsidian elsewhere. The others are the commands'
-default hotkeys, changed in Settings → Hotkeys. They repeat while held, and act on the editor that has focus
-(an Editor Lanes card included):
+All are commands, with no default hotkeys of their own. The keys below are a CodeMirror keymap, switched by
+the "Outliner keys" setting: Obsidian runs editor hotkeys only on its active editor (in a lanes tab that can
+be the lanes view, so nothing happens) and only once while a key is held. The keys act on the focused editor,
+repeat while held, and fall through to Obsidian where the outline doesn't apply. Commands run from the
+palette act on the focused editor, else the last one focused.
 
 | Key                                                                                                                                     | Command                                                                 |
 | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -128,5 +129,5 @@ autocomplete.
 
 ## Settings
 
-Logical outdenting (off), Tab indents headings and list items (on), Heading guides (on), Drag handles
+Logical outdenting (off), Outliner keys (on), Heading guides (on), Drag handles
 (on), Style headings beyond H6 (on).

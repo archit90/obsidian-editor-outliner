@@ -3,7 +3,7 @@ import type EditorOutlinerPlugin from "./main";
 
 export interface Settings {
   logicalOutdent: boolean; // outdented nodes move after their parent's subtree; following siblings stay
-  keys: boolean; // Tab / Shift+Tab indent and outdent (the other keys are command hotkeys)
+  keys: boolean; // Tab / Shift+Tab, Alt+Shift+Up/Down, Alt+PageUp/PageDown, Alt+Up/Down (a CodeMirror keymap)
   headingGuides: boolean;
   dragHandles: boolean;
   deepHeadings: boolean; // style lines of 7+ # as headings
@@ -45,8 +45,8 @@ export class EditorOutlinerTab extends PluginSettingTab {
       "logicalOutdent",
     );
     this.toggle(
-      "Tab indents headings and list items",
-      "Tab / Shift+Tab indent and outdent headings and list items, with their children. Elsewhere (text, tables, code) Tab works as usual. Move up / down (Alt+Shift+↑/↓ or Alt+Fn+↑/↓; Option+Fn+↑/↓ on a Mac) and Expand / Shrink selection (Alt+↑/↓) are commands: change their keys in Settings → Hotkeys.",
+      "Outliner keys",
+      "Tab / Shift+Tab indent and outdent headings and list items; Alt+Shift+↑/↓ or Alt+Fn+↑/↓ (Option+Fn+↑/↓ on a Mac) move them with their children; Alt+↑/↓ expand and shrink the selection. Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
       "keys",
     );
     this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");

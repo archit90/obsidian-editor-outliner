@@ -13,9 +13,9 @@ var __export = (target, all) => {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key2 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key2) && key2 !== except)
-        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
   }
   return to;
 };
@@ -1013,10 +1013,10 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
     super(app, plugin);
     this.plugin = plugin;
   }
-  toggle(name, desc, key2) {
+  toggle(name, desc, key) {
     new import_obsidian3.Setting(this.containerEl).setName(name).setDesc(desc).addToggle(
-      (t) => t.setValue(this.plugin.settings[key2]).onChange(async (v) => {
-        this.plugin.settings[key2] = v;
+      (t) => t.setValue(this.plugin.settings[key]).onChange(async (v) => {
+        this.plugin.settings[key] = v;
         await this.plugin.saveSettings();
       })
     );
@@ -1029,8 +1029,8 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
       "logicalOutdent"
     );
     this.toggle(
-      "Tab indents headings and list items",
-      "Tab / Shift+Tab indent and outdent headings and list items, with their children. Elsewhere (text, tables, code) Tab works as usual. Move up / down (Alt+Shift+\u2191/\u2193 or Alt+Fn+\u2191/\u2193; Option+Fn+\u2191/\u2193 on a Mac) and Expand / Shrink selection (Alt+\u2191/\u2193) are commands: change their keys in Settings \u2192 Hotkeys.",
+      "Outliner keys",
+      "Tab / Shift+Tab indent and outdent headings and list items; Alt+Shift+\u2191/\u2193 or Alt+Fn+\u2191/\u2193 (Option+Fn+\u2191/\u2193 on a Mac) move them with their children; Alt+\u2191/\u2193 expand and shrink the selection. Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings \u2192 Hotkeys).",
       "keys"
     );
     this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");
@@ -1457,7 +1457,12 @@ function focusedView() {
   const el = activeDocument.activeElement?.closest(".cm-editor");
   return el ? import_view2.EditorView.findFromDOM(el) : null;
 }
-var key = (modifiers, k) => ({ modifiers, key: k });
+var lastFocused = null;
+var rememberFocus = import_view2.EditorView.domEventHandlers({
+  focus: (_e, view) => {
+    lastFocused = view;
+  }
+});
 var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
@@ -1474,6 +1479,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   }
   onunload() {
     setSuggestCheck(() => false);
+    lastFocused = null;
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -1482,18 +1488,35 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   }
   buildExtensions() {
     const logical = () => this.settings.logicalOutdent;
+    const op = (kind) => (v) => runOp(v, kind, logical());
     this.extensions.length = 0;
-    if (this.settings.keys)
+    if (this.settings.keys) {
+      const move2 = import_obsidian5.Platform.isMacOS ? [] : [
+        { key: "Alt-Shift-ArrowUp", run: op("up") },
+        { key: "Alt-Shift-ArrowDown", run: op("down") }
+      ];
       this.extensions.push(
         import_state3.Prec.highest(
           import_view2.keymap.of([
-            { key: "Tab", run: (v) => runOp(v, "indent", logical()) },
-            { key: "Shift-Tab", run: (v) => runOp(v, "outdent", logical()) }
+            { key: "Tab", run: op("indent") },
+            { key: "Shift-Tab", run: op("outdent") },
+            ...move2,
+            { key: "Alt-PageUp", run: op("up") },
+            { key: "Alt-PageDown", run: op("down") },
+            { key: "Alt-ArrowUp", run: expandSelection },
+            { key: "Alt-ArrowDown", run: shrinkSelection }
           ])
         )
       );
+    }
+    this.extensions.push(rememberFocus);
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.dragHandles && !import_obsidian5.Platform.isMobile) this.extensions.push(dragHandles(logical));
+  }
+  /** The editor a command acts on: the focused one, else the last one focused, else Obsidian's active one. */
+  targetView() {
+    const shown = (v) => v && v.dom.isConnected && v.dom.offsetParent !== null ? v : null;
+    return focusedView() ?? shown(lastFocused) ?? shown(this.app.workspace.activeEditor?.editor?.cm ?? null);
   }
   addCommands() {
     const logical = () => this.settings.logicalOutdent;
@@ -1501,13 +1524,10 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       id,
       name,
       icon,
-      hotkeys: opts.hotkeys,
-      // Obsidian runs a held-down hotkey only once unless the command is repeatable
-      repeatable: opts.repeatable,
-      editorCheckCallback: (checking, editor) => {
-        const focused = focusedView();
-        const view = focused ?? editor.cm;
-        if (!view || nested(view) || !focused && editor.activeCM && editor.activeCM !== view) return false;
+      repeatable: true,
+      checkCallback: (checking) => {
+        const view = this.targetView();
+        if (!view || nested(view)) return false;
         if (checking) return opts.applies ? opts.applies(view) : true;
         run2(view);
         return true;
@@ -1517,37 +1537,17 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       run: (v) => runOp(v, kind, logical()),
       applies: (v) => runOp(v, kind, logical(), true)
     });
-    const moveKeys = (arrow, page) => import_obsidian5.Platform.isMacOS ? [key(["Alt"], page)] : [key(["Alt", "Shift"], arrow), key(["Alt"], page)];
-    const indentOp = op("indent");
-    const outdentOp = op("outdent");
-    const upOp = op("up");
-    const downOp = op("down");
-    cmd("indent", "Indent heading or list item", "indent", indentOp.run, {
-      applies: indentOp.applies,
-      repeatable: true
-    });
-    cmd("outdent", "Outdent heading or list item", "outdent", outdentOp.run, {
-      applies: outdentOp.applies,
-      repeatable: true
-    });
-    cmd("move-up", "Move up with children", "arrow-up", upOp.run, {
-      applies: upOp.applies,
-      hotkeys: moveKeys("ArrowUp", "PageUp"),
-      repeatable: true
-    });
-    cmd("move-down", "Move down with children", "arrow-down", downOp.run, {
-      applies: downOp.applies,
-      hotkeys: moveKeys("ArrowDown", "PageDown"),
-      repeatable: true
-    });
-    cmd("expand-selection", "Expand selection", "text-select", expandSelection, {
-      hotkeys: [key(["Alt"], "ArrowUp")],
-      repeatable: true
-    });
-    cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection, {
-      hotkeys: [key(["Alt"], "ArrowDown")],
-      repeatable: true
-    });
+    for (const [id, name, icon, kind] of [
+      ["indent", "Indent heading or list item", "indent", "indent"],
+      ["outdent", "Outdent heading or list item", "outdent", "outdent"],
+      ["move-up", "Move up with children", "arrow-up", "up"],
+      ["move-down", "Move down with children", "arrow-down", "down"]
+    ]) {
+      const o = op(kind);
+      cmd(id, name, icon, o.run, { applies: o.applies });
+    }
+    cmd("expand-selection", "Expand selection", "text-select", expandSelection);
+    cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection);
     cmd("fold", "Fold heading or list item", "fold-vertical", foldNode);
     cmd("unfold", "Unfold heading or list item", "unfold-vertical", unfoldNode);
     cmd("fold-children", "Fold children", "chevrons-down-up", foldChildren);

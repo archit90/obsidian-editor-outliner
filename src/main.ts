@@ -4,9 +4,8 @@
 //   drop.ts: drag sources, targets and drops (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
 //   view.ts: heading guides, H7+ styling, drag handles.
-// Tab / Shift+Tab are a high-precedence CodeMirror keymap, so they run before Obsidian's own list Tab and fall
-// through (return false) where the outline doesn't apply. The other keys are the commands' default hotkeys.
-import { Editor, Hotkey, Platform, Plugin } from "obsidian";
+// The keys are a high-precedence CodeMirror keymap (see buildExtensions); the commands have no default hotkeys.
+import { Platform, Plugin } from "obsidian";
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { OpKind, expandSelection, nested, runOp, setSuggestCheck, shrinkSelection } from "./editor";
@@ -21,7 +20,13 @@ function focusedView(): EditorView | null {
   return el ? EditorView.findFromDOM(el as HTMLElement) : null;
 }
 
-const key = (modifiers: Hotkey["modifiers"], k: string): Hotkey => ({ modifiers, key: k });
+/** The last editor that had focus (commands from the palette run after focus has moved to the palette). */
+let lastFocused: EditorView | null = null;
+const rememberFocus = EditorView.domEventHandlers({
+  focus: (_e, view) => {
+    lastFocused = view;
+  },
+});
 
 export default class EditorOutlinerPlugin extends Plugin {
   override settings: Settings = { ...DEFAULTS };
@@ -38,6 +43,7 @@ export default class EditorOutlinerPlugin extends Plugin {
 
   override onunload() {
     setSuggestCheck(() => false);
+    lastFocused = null;
   }
 
   async saveSettings() {
@@ -48,46 +54,67 @@ export default class EditorOutlinerPlugin extends Plugin {
 
   private buildExtensions() {
     const logical = () => this.settings.logicalOutdent;
+    const op = (kind: OpKind) => (v: EditorView) => runOp(v, kind, logical());
     this.extensions.length = 0;
-    // Tab is a CodeMirror key, not a hotkey: it must fall through to Obsidian (lists in tables, code, text)
-    // when the outline doesn't apply
-    if (this.settings.keys)
+    // The keys are a CodeMirror keymap, not Obsidian hotkeys: Obsidian runs editor hotkeys only on
+    // workspace.activeEditor, which in a lanes tab can be the lanes view (then nothing happens), and only once
+    // while a key is held. Keys here act on the focused editor, repeat, and fall through (false) to
+    // Obsidian where the outline doesn't apply.
+    if (this.settings.keys) {
+      // Option+Shift+↑/↓ selects by paragraph on macOS: there only Option+Fn+↑/↓ (PageUp/PageDown) moves
+      const move = Platform.isMacOS
+        ? []
+        : [
+            { key: "Alt-Shift-ArrowUp", run: op("up") },
+            { key: "Alt-Shift-ArrowDown", run: op("down") },
+          ];
       this.extensions.push(
         Prec.highest(
           keymap.of([
-            { key: "Tab", run: v => runOp(v, "indent", logical()) },
-            { key: "Shift-Tab", run: v => runOp(v, "outdent", logical()) },
+            { key: "Tab", run: op("indent") },
+            { key: "Shift-Tab", run: op("outdent") },
+            ...move,
+            { key: "Alt-PageUp", run: op("up") },
+            { key: "Alt-PageDown", run: op("down") },
+            { key: "Alt-ArrowUp", run: expandSelection },
+            { key: "Alt-ArrowDown", run: shrinkSelection },
           ]),
         ),
       );
+    }
+    this.extensions.push(rememberFocus);
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.dragHandles && !Platform.isMobile) this.extensions.push(dragHandles(logical));
   }
 
+  /** The editor a command acts on: the focused one, else the last one focused, else Obsidian's active one. */
+  private targetView(): EditorView | null {
+    const shown = (v: EditorView | null) => (v && v.dom.isConnected && v.dom.offsetParent !== null ? v : null);
+    return focusedView() ?? shown(lastFocused) ?? shown(this.app.workspace.activeEditor?.editor?.cm ?? null);
+  }
+
   private addCommands() {
     const logical = () => this.settings.logicalOutdent;
-    /** A command for the note's own editor (not a table cell's); `applies` says whether it does anything. */
+    /**
+     * A command for a note's own editor (not a table cell's); `applies` says whether it does anything. A plain
+     * checkCallback, not editorCheckCallback: that one only runs when Obsidian has an active Markdown editor,
+     * which a lanes tab doesn't always have.
+     */
     const cmd = (
       id: string,
       name: string,
       icon: string,
       run: (view: EditorView) => unknown,
-      opts: { applies?: (view: EditorView) => boolean; hotkeys?: Hotkey[]; repeatable?: boolean } = {},
+      opts: { applies?: (view: EditorView) => boolean } = {},
     ) =>
       this.addCommand({
         id,
         name,
         icon,
-        hotkeys: opts.hotkeys,
-        // Obsidian runs a held-down hotkey only once unless the command is repeatable
-        repeatable: opts.repeatable,
-        editorCheckCallback: (checking: boolean, editor: Editor) => {
-          // Obsidian hands over workspace.activeEditor, which needn't be the editor being typed in (another
-          // Editor Lanes card, say): act on the focused one
-          const focused = focusedView();
-          const view = focused ?? editor.cm;
-          if (!view || nested(view) || (!focused && editor.activeCM && editor.activeCM !== view)) return false;
-          // the palette asks first; a hotkey runs straight away
+        repeatable: true,
+        checkCallback: (checking: boolean) => {
+          const view = this.targetView();
+          if (!view || nested(view)) return false;
           if (checking) return opts.applies ? opts.applies(view) : true;
           run(view);
           return true;
@@ -97,39 +124,17 @@ export default class EditorOutlinerPlugin extends Plugin {
       run: (v: EditorView) => runOp(v, kind, logical()),
       applies: (v: EditorView) => runOp(v, kind, logical(), true),
     });
-    // Option+Shift+↑/↓ selects by paragraph on macOS: keep it there, Option+Fn+↑/↓ (PageUp/PageDown) moves
-    const moveKeys = (arrow: string, page: string) =>
-      Platform.isMacOS ? [key(["Alt"], page)] : [key(["Alt", "Shift"], arrow), key(["Alt"], page)];
-    const indentOp = op("indent");
-    const outdentOp = op("outdent");
-    const upOp = op("up");
-    const downOp = op("down");
-    cmd("indent", "Indent heading or list item", "indent", indentOp.run, {
-      applies: indentOp.applies,
-      repeatable: true,
-    });
-    cmd("outdent", "Outdent heading or list item", "outdent", outdentOp.run, {
-      applies: outdentOp.applies,
-      repeatable: true,
-    });
-    cmd("move-up", "Move up with children", "arrow-up", upOp.run, {
-      applies: upOp.applies,
-      hotkeys: moveKeys("ArrowUp", "PageUp"),
-      repeatable: true,
-    });
-    cmd("move-down", "Move down with children", "arrow-down", downOp.run, {
-      applies: downOp.applies,
-      hotkeys: moveKeys("ArrowDown", "PageDown"),
-      repeatable: true,
-    });
-    cmd("expand-selection", "Expand selection", "text-select", expandSelection, {
-      hotkeys: [key(["Alt"], "ArrowUp")],
-      repeatable: true,
-    });
-    cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection, {
-      hotkeys: [key(["Alt"], "ArrowDown")],
-      repeatable: true,
-    });
+    for (const [id, name, icon, kind] of [
+      ["indent", "Indent heading or list item", "indent", "indent"],
+      ["outdent", "Outdent heading or list item", "outdent", "outdent"],
+      ["move-up", "Move up with children", "arrow-up", "up"],
+      ["move-down", "Move down with children", "arrow-down", "down"],
+    ] as const) {
+      const o = op(kind);
+      cmd(id, name, icon, o.run, { applies: o.applies });
+    }
+    cmd("expand-selection", "Expand selection", "text-select", expandSelection);
+    cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection);
     cmd("fold", "Fold heading or list item", "fold-vertical", foldNode);
     cmd("unfold", "Unfold heading or list item", "unfold-vertical", unfoldNode);
     cmd("fold-children", "Fold children", "chevrons-down-up", foldChildren);
