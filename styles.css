@@ -1,0 +1,71 @@
+/* Editor Outliner. Guides reuse Obsidian's list indentation-guide colour and width, so heading and list
+   guides look the same. They use ::after: Obsidian draws the quote / callout bar with .cm-line::before. */
+.markdown-source-view.mod-cm6 .cm-line.eo-guide::after {
+  --eo-step: 10px;
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--eo-depth) * var(--eo-step) - 6px);
+  width: calc(var(--eo-depth) * var(--eo-step));
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--indentation-guide-color) 0 var(--indentation-guide-width, 1px),
+    transparent var(--indentation-guide-width, 1px) var(--eo-step)
+  );
+  pointer-events: none;
+}
+
+/* Headings beyond H6 (7+ #): Obsidian shows them as text; style them like a small H6. */
+.markdown-source-view.mod-cm6 .cm-line.eo-deep-heading {
+  font-weight: var(--h6-weight, 600);
+  color: var(--h6-color, var(--text-muted));
+  font-size: var(--h6-size, 1em);
+  font-variant: var(--h6-variant, normal);
+  font-family: var(--h6-font, inherit);
+  font-style: var(--h6-style, normal);
+  line-height: var(--h6-line-height, inherit);
+}
+
+.eo-drag-handle {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  transform: translateX(calc(-100% - 22px));
+  color: var(--text-faint);
+  cursor: grab;
+  border-radius: var(--radius-s);
+  touch-action: none;
+}
+.eo-drag-handle:hover {
+  color: var(--text-muted);
+  background-color: var(--background-modifier-hover);
+}
+.eo-drag-handle svg {
+  width: 14px;
+  height: 14px;
+}
+/* while dragging: the handle has the pointer captured, so its cursor shows; no text selection in the editor */
+.eo-dragging .eo-drag-handle {
+  cursor: grabbing;
+}
+.eo-dragging .cm-content {
+  user-select: none;
+}
+
+.eo-drop-indicator {
+  position: absolute;
+  z-index: 6;
+  height: 2px;
+  background-color: var(--interactive-accent);
+  pointer-events: none;
+  font-size: var(--font-ui-smaller);
+  /* the heading level label ("H3") sits just left of the line, centred on it */
+  line-height: 2px;
+  text-indent: -2.6em;
+  white-space: nowrap;
+  color: var(--interactive-accent);
+}

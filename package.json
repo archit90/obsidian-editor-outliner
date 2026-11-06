@@ -1,0 +1,12 @@
+{
+  "name": "obsidian-editor-outliner",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "build": "tsc --noEmit && node ../esbuild.shared.mjs",
+    "dev": "node ../esbuild.shared.mjs watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --root .. editor-outliner"
+  }
+}
