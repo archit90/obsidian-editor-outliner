@@ -308,13 +308,11 @@ export function move(o: Outline, l0: number, l1: number, dir: -1 | 1, ctx: Ctx):
           : swap(o, first.line, last.end, other.line, other.end, false);
       return finish(o, rows, ctx.tabSize);
     }
-    // at the edge: jump to the nearest item at the parent's depth
+    // at the edge, as in Logseq: into the parent's adjacent sibling (up: its last child; down: its first);
+    // without one, nothing happens (no jumping across other branches)
     if (P.line < 0) return "noop";
-    const flat = flatItems(itemsOf(o, ir.list));
-    const target =
-      dir < 0
-        ? flat.filter(x => x.depth === P.depth && x.line < P.line).pop()
-        : flat.find(x => x.depth === P.depth && x.line >= P.end);
+    const ps = P.parent!.children;
+    const target = ps[ps.indexOf(P) + dir];
     if (!target) return "noop";
     let rows = rowsOf(o);
     shift(o, rows, first.line, last.end, childCol(target, lc) - first.col, lc, ir.list.q);

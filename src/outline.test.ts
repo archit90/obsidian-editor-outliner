@@ -175,6 +175,18 @@ describe("move", () => {
     const t = lines("- p", "    - x", "- q", "    - y");
     expect(run(t, 1, 1, (o, a, b) => move(o, a, b, 1, sp))).toBe(lines("- p", "- q", "    - x", "    - y"));
   });
+  it("jumps only into the parent's adjacent sibling, as in Logseq", () => {
+    // the parent (a1) has no sibling above / below: nothing happens, even though x1 / b1 are at its depth
+    const up = lines("- x", "    - x1", "- a", "    - a1", "        - g");
+    expect(run(up, 4, 4, (o, a, b) => move(o, a, b, -1, sp))).toBe("noop");
+    const down = lines("- a", "    - a1", "        - g", "- b", "    - b1");
+    expect(run(down, 2, 2, (o, a, b) => move(o, a, b, 1, sp))).toBe("noop");
+    // the parent's adjacent sibling has no children: the item becomes its only child
+    const lone = lines("- p", "    - p1", "    - p2", "        - g");
+    expect(run(lone, 3, 3, (o, a, b) => move(o, a, b, -1, sp))).toBe(
+      lines("- p", "    - p1", "        - g", "    - p2"),
+    );
+  });
   it("never moves a list item past a heading", () => {
     expect(run(lines("# A", "- a", "# B", "- b"), 1, 1, (o, a, b) => move(o, a, b, 1, sp))).toBe("noop");
   });

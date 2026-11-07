@@ -619,8 +619,8 @@ function move(o, l0, l1, dir, ctx) {
       return finish(o, rows3, ctx.tabSize);
     }
     if (P.line < 0) return "noop";
-    const flat = flatItems(itemsOf(o, ir.list));
-    const target2 = dir < 0 ? flat.filter((x) => x.depth === P.depth && x.line < P.line).pop() : flat.find((x) => x.depth === P.depth && x.line >= P.end);
+    const ps = P.parent.children;
+    const target2 = ps[ps.indexOf(P) + dir];
     if (!target2) return "noop";
     let rows2 = rowsOf(o);
     shift(o, rows2, first.line, last.end, childCol(target2, lc) - first.col, lc, ir.list.q);
