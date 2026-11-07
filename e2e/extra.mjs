@@ -109,20 +109,7 @@ try {
   await pop.key("Enter");
   await sleep(400);
   const enter = await text();
-  const status = await ev(`const s = document.querySelector(".eo-status"); return s.classList.contains("is-active")`);
-  record(
-    "X4",
-    "Popout: Enter splits; the main window's status bar item is active",
-    enter === "- one\n- two" && status,
-    { enter, status },
-  );
-  await pop.key("O", { ctrl: true, meta: true });
-  await sleep(300);
-  const m1 = await ev(`return app.plugins.plugins[ID].settings.outlineMode`);
-  await pop.key("O", { ctrl: true, meta: true });
-  await sleep(300);
-  const m2 = await ev(`return app.plugins.plugins[ID].settings.outlineMode`);
-  record("X5", "Popout: Ctrl+Super+O toggles outline mode", m1 === false && m2 === true, { m1, m2 });
+  record("X4", "Popout: Enter splits (outline mode, always on)", enter === "- one\n- two", { enter });
   /** @param {number} line @param {number} to @param {boolean} escape */
   const drag = async (line, to, escape) => {
     const xy =
@@ -198,8 +185,8 @@ try {
   await ev(`app.setting.close(); window.__s.detach(); return 1`);
   record(
     "X8",
-    "Settings tab: seven toggles; clicking Heading guides hides and shows the guides and saves",
-    names.length === 7 && gOff[0] === 0 && gOff[1] === false && gOn > 0,
+    "Settings tab: six toggles (no outline mode switch); clicking Heading guides hides and shows the guides and saves",
+    names.length === 6 && !names.includes("Outline mode") && gOff[0] === 0 && gOff[1] === false && gOn > 0,
     { names, gOff, gOn },
   );
 

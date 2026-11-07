@@ -38,7 +38,8 @@ const isEmptyText = (s: string) => s.trim() === "";
  * folded (folded: the folded item lines), else the next sibling after the subtree. It copies the marker (a
  * task gets `[ ] `; a first child takes the children's bullet or number); ordered lists are renumbered.
  * - Nothing before the cursor and text after it: an empty item goes above; the cursor stays on the text.
- * - An empty item: a nested one with no sibling after it outdents; any other gets another empty item.
+ * - An empty item: the last top-level one (no children) ends the list (endList); a nested one with no sibling
+ *   after it outdents; any other gets another empty item.
  */
 export function enter(o: Outline, from: Pos, to: Pos, ctx: Ctx, folded: ReadonlySet<number>): Edit | null {
   const w = target(o, from, to);
@@ -84,7 +85,10 @@ export function enter(o: Outline, from: Pos, to: Pos, ctx: Ctx, folded: Readonly
   const last = sibs.indexOf(item) === sibs.length - 1;
 
   if (headEmpty && !tail.length) {
-    // an empty item: nested and last → outdent (the existing operation); else another empty item below
+    // an empty item: the last top-level one (no children) ends the list, as Shift+Tab does, so there is
+    // always a way out of a list at the end of a note; nested and last → outdent (the existing operation);
+    // else another empty item below
+    if (item.depth === 0 && last && !item.children.length) return endList(o, from, to);
     if (item.depth > 0 && last) {
       const res = outdent(o, item.line, item.line, ctx);
       if (!res || res === "noop" || "error" in res) return null;

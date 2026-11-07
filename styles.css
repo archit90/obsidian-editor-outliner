@@ -81,19 +81,6 @@
   color: var(--interactive-accent);
 }
 
-/* Outline mode in the status bar (main.ts addStatus): faint when off, normal when on, accent while the
-   cursor is in a list in the focused editor (the active state). */
-.eo-status {
-  color: var(--text-faint);
-}
-.eo-status.is-on {
-  color: var(--text-muted);
-}
-.eo-status.is-active {
-  color: var(--text-accent);
-  font-weight: var(--font-semibold, 600);
-}
-
 /* Node selection (nodesel.ts): whole selected lines are highlighted, and the text selection inside is hidden. */
 .cm-editor .cm-line.eo-node-selected {
   background-color: var(--text-selection);
@@ -104,4 +91,13 @@
 .cm-editor.eo-node-selection .cm-content ::selection,
 .cm-editor.eo-node-selection .cm-content::selection {
   background: transparent;
+}
+
+/* A fenced code block in a list item, Live Preview (codeindent.ts): the item indent is hidden and the line box
+   starts where the item's text does, so the block's background and frame sit under the item. */
+.markdown-source-view.mod-cm6.is-live-preview .cm-line.eo-item-code {
+  /* Obsidian sets every line's margin to 0 !important */
+  margin-inline-start: var(--eo-item-indent, 0px) !important;
+  /* the inner padding Obsidian gives code blocks outside lists */
+  padding-inline-start: var(--size-4-4);
 }

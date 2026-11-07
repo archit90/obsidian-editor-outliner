@@ -24,8 +24,7 @@ export function deep(group) {
     [
       {
         id: "KI1",
-        title: "Off: Tab indents an item with its subtree under the previous sibling",
-        mode: "off",
+        title: "Tab indents an item with its subtree under the previous sibling",
         text: "- a\n- b|\n\t- c\n- d",
         keys: "Tab",
         want: "- a\n\t- b|\n\t\t- c\n- d",
@@ -34,8 +33,7 @@ export function deep(group) {
       },
       {
         id: "KI2",
-        title: "Off: Shift+Tab outdents in place, the following siblings become its children",
-        mode: "off",
+        title: "Shift+Tab outdents in place, the following siblings become its children",
         text: "- a\n\t- b|\n\t- c",
         keys: "Shift-Tab",
         want: "- a\n- b|\n\t- c",
@@ -44,8 +42,7 @@ export function deep(group) {
       },
       {
         id: "KI3",
-        title: "Off, logical outdenting: after the parent's subtree, the siblings stay",
-        mode: "off",
+        title: "Logical outdenting: after the parent's subtree, the siblings stay",
         settings: { logicalOutdent: true },
         text: "- a\n\t- b|\n\t- c\n- d",
         keys: "Shift-Tab",
@@ -54,16 +51,14 @@ export function deep(group) {
       },
       {
         id: "KI4",
-        title: "Off: Shift+Tab on a top-level item: nothing (a list stays a list)",
-        mode: "off",
+        title: "Shift+Tab on a top-level item: nothing (a list stays a list)",
         text: "- a\n- b|",
         keys: "Shift-Tab",
         want: "@same",
       },
       {
         id: "KI5",
-        title: "Off: Tab on the first item: nothing",
-        mode: "off",
+        title: "Tab on the first item: nothing",
         text: "- a|\n- b",
         keys: "Tab",
         want: "@same",
@@ -139,7 +134,6 @@ export function deep(group) {
       {
         id: "KI14",
         title: "Tab in a code block in an item: Obsidian's",
-        mode: "off",
         text: "- a\n  ```\n  co|de\n  ```",
         keys: "Tab",
         want: "@obsidian",
@@ -153,8 +147,7 @@ export function deep(group) {
       },
       {
         id: "KI16",
-        title: "Off: several items selected indent together",
-        mode: "off",
+        title: "Several items selected indent together",
         text: "- a\n- ⟦b\n- c⟧",
         keys: "Tab",
         want: "- a\n\t- ⟦b\n\t- c⟧",
@@ -162,8 +155,7 @@ export function deep(group) {
       },
       {
         id: "KI17",
-        title: "Off: a selection from a child to its parent's next sibling acts on the parent's siblings",
-        mode: "off",
+        title: "A selection from a child to its parent's next sibling acts on the parent's siblings",
         text: "- a\n- b\n\t- ⟦x\n- c⟧",
         keys: "Tab",
         want: "- a\n\t- b\n\t\t- ⟦x\n\t- c⟧",
@@ -171,8 +163,7 @@ export function deep(group) {
       },
       {
         id: "KI18",
-        title: "Off: an ordered list renumbers after an indent",
-        mode: "off",
+        title: "An ordered list renumbers after an indent",
         text: "1. a\n2. b|\n3. c",
         keys: "Tab",
         want: "1. a\n\t1. b|\n2. c",
@@ -180,8 +171,7 @@ export function deep(group) {
       },
       {
         id: "KI19",
-        title: "Off: indent in a callout keeps the > prefix",
-        mode: "off",
+        title: "Indent in a callout keeps the > prefix",
         text: "> - a\n> - b|",
         keys: "Tab",
         want: "> - a\n> \t- b|",
@@ -190,7 +180,6 @@ export function deep(group) {
       {
         id: "KI20",
         title: "Editor set to spaces: a new child level is 4 spaces",
-        mode: "off",
         config: { useTab: false },
         text: "- a\n- b|",
         keys: "Tab",
@@ -200,7 +189,6 @@ export function deep(group) {
       {
         id: "KI21",
         title: "Editor set to spaces, tab-indented list: tabs stay",
-        mode: "off",
         config: { useTab: false },
         text: "- a\n\t- b\n- c\n- d|",
         keys: "Tab",
@@ -217,8 +205,7 @@ export function deep(group) {
       },
       {
         id: "KI23",
-        title: "Outdent command from the palette on a nested item (outline mode off)",
-        mode: "off",
+        title: "Outdent command from the palette on a nested item",
         text: "- a\n\t- b|",
         keys: { cmd: `${ID}:outdent` },
         want: "- a\n- b|",
@@ -228,7 +215,6 @@ export function deep(group) {
       {
         id: "KI24",
         title: "Outliner keys off: Tab in a list is Obsidian's, the command still indents with the subtree",
-        mode: "off",
         settings: { keys: false },
         text: "- a\n- b|\n\t- c",
         keys: { cmd: `${ID}:indent` },
@@ -245,7 +231,6 @@ export function deep(group) {
       {
         id: "KI26",
         title: "Selection over several lines with its head in an item's code block: the items indent",
-        mode: "off",
         text: "- a\n- ⟦b\n  ```\n  co⟧de\n  ```",
         keys: "Tab",
         want: "- a\n\t- ⟦b\n\t  ```\n\t  co⟧de\n\t  ```",
@@ -254,7 +239,6 @@ export function deep(group) {
       {
         id: "KI27",
         title: "Two Tabs in quick succession: two undo steps",
-        mode: "off",
         text: "- a\n\t- b\n- c|",
         keys: ["Tab", "Tab", "Ctrl-z"],
         want: "- a\n\t- b\n\t- c|",
@@ -274,8 +258,7 @@ export function deep(group) {
   group("dmove", "Move outside outline mode", S7 + " → Move up / down", [
     {
       id: "KM1",
-      title: "Off: an item moves down past its sibling with its children",
-      mode: "off",
+      title: "An item moves down past its sibling with its children",
       text: "- a|\n\t- a1\n- b",
       keys: "Ctrl-ArrowDown",
       want: "- b\n- a|\n\t- a1",
@@ -284,8 +267,7 @@ export function deep(group) {
     },
     {
       id: "KM2",
-      title: "Off: a last child moves down into the parent's next sibling, as its first child",
-      mode: "off",
+      title: "A last child moves down into the parent's next sibling, as its first child",
       text: "- a\n\t- x|\n- b\n\t- y",
       keys: "Ctrl-ArrowDown",
       want: "- a\n- b\n\t- x|\n\t- y",
@@ -431,8 +413,7 @@ export function deep(group) {
     },
     {
       id: "KM14",
-      title: "Off: an item with a continuation paragraph and code moves whole",
-      mode: "off",
+      title: "An item with a continuation paragraph and code moves whole",
       text: "- a|\n\n  more\n  ```\n  c\n  ```\n- b",
       keys: "Ctrl-ArrowDown",
       want: "- b\n- a|\n\n  more\n  ```\n  c\n  ```",
@@ -462,8 +443,7 @@ export function deep(group) {
     },
     {
       id: "KM18",
-      title: "Off: move in a space-indented list keeps the spaces",
-      mode: "off",
+      title: "Move in a space-indented list keeps the spaces",
       text: "- a\n    - x\n    - y|",
       keys: "Ctrl-ArrowUp",
       want: "- a\n    - y|\n    - x",
@@ -705,8 +685,7 @@ export function deep(group) {
     },
     {
       id: "XS18",
-      title: "Outline mode off: Expand reaches the item, a node selection (highlighted)",
-      mode: "off",
+      title: "Expand reaches the item, a node selection (highlighted)",
       text: "- a\n\t- b|\n- c",
       keys: ["Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp"],
       want: "⟧- a\n\t- b⟦\n- c",
@@ -959,7 +938,6 @@ export function deep(group) {
     {
       id: "FC14",
       title: "Fold an item, then Ctrl+↓ moves it folded",
-      mode: "off",
       text: "- a|\n\t- a1\n- b",
       fold: [0],
       keys: "Ctrl-ArrowDown",
@@ -1275,14 +1253,6 @@ export function deep(group) {
       surfaces: ["popover"],
     },
     {
-      id: "WH3",
-      title: "Popover editor: status bar item active",
-      text: "- a|",
-      keys: [],
-      wantStatus: "active",
-      surfaces: ["popover"],
-    },
-    {
       id: "WH4",
       title: "Reading view: the outliner commands aren't offered",
       text: "## A|\nx",
@@ -1297,25 +1267,6 @@ export function deep(group) {
       checkLabel: "None of the editor commands is available in Reading view.",
     },
     {
-      id: "WH5",
-      title: "Toggle outline mode is available everywhere (also Reading view)",
-      text: "x|",
-      keys: [],
-      check: `return !!app.commands.findCommand('${ID}:toggle-outline-mode').callback`,
-      checkLabel: "The command has a plain callback.",
-    },
-    {
-      id: "WH6",
-      title: "Default hotkey Ctrl+Super+O: no other command uses it",
-      text: "x|",
-      keys: [],
-      check: `const hm = app.hotkeyManager; const key = h => (h.modifiers || []).slice().sort().join('+') + '+' + h.key;
-        const mine = 'Ctrl+Meta+O'; const clash = [];
-        for (const [id, hs] of Object.entries({ ...hm.defaultKeys, ...hm.customKeys })) if (id !== '${ID}:toggle-outline-mode') for (const h of hs || []) if (key({ ...h, modifiers: (h.modifiers || []).map(m => m === 'Mod' ? 'Ctrl' : m) }) === mine) clash.push(id);
-        return clash.length === 0 || clash;`,
-      checkLabel: "No other hotkey is Ctrl+Meta+O.",
-    },
-    {
       id: "WH7",
       title: "No Obsidian hotkey sits on a plugin key (Alt+↑/↓, Alt+Shift+↑/↓, Ctrl+↑/↓, Tab)",
       text: "x|",
@@ -1326,16 +1277,6 @@ export function deep(group) {
         for (const [id, hs] of Object.entries({ ...hm.defaultKeys, ...hm.customKeys })) for (const h of hs || []) if (ours.has(norm(h))) clash.push(id + ' ' + norm(h));
         return clash.length === 0 || clash;`,
       checkLabel: "No Obsidian or plugin hotkey uses those keys.",
-    },
-    {
-      id: "WH8",
-      title: "Outline mode setting toggle (settings tab) turns it off; the status bar follows",
-      text: "- a|",
-      keys: [],
-      check: `const p = app.plugins.plugins['${ID}']; await p.setOutlineMode(false); await new Promise(r => setTimeout(r, 100));
-        const off = document.querySelector('.eo-status').classList.contains('is-on'); await p.setOutlineMode(true); await new Promise(r => setTimeout(r, 100));
-        return !off && document.querySelector('.eo-status').classList.contains('is-active') || off;`,
-      checkLabel: "Off: not is-on; back on: is-active.",
     },
     {
       id: "WH9",
@@ -1374,7 +1315,6 @@ export function deep(group) {
     {
       id: "WH12",
       title: "IME composition: Tab steps aside (Obsidian's)",
-      mode: "off",
       text: "- a\n- b|",
       keys: [{ ime: "か" }, "Tab"],
       want: "@obsidian",
@@ -1474,100 +1414,105 @@ export function deep(group) {
   ]);
 
   // ------------------------------------------------------------------------------------------------------
-  const NSO = S7 + " → Node selection (list items with the Outliner keys on, whatever outline mode is)";
-  const off = (/** @type {import("./cases.mjs").Case} */ c) => ({
-    mode: /** @type {"off"} */ ("off"),
-    surfaces: /** @type {"all"} */ ("all"),
-    ...c,
-  });
-  group("dnodeseloff", "Item node selection with outline mode off", NSO, [
-    off({
+  const NSO = S7 + " → Node selection (list items, with the Outliner keys on)";
+  group("dnodeseloff", "Item node selection: more cases", NSO, [
+    {
       id: "NO1",
       title: "Whole item lines: highlighted",
       text: "- a\n⟦\t- b\n\t\t- c⟧\n- d",
       keys: [],
       wantHl: [1, 2],
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO2",
       title: "Alt+↓ adds the next sibling",
       text: "⟦- a⟧\n- b\n- c",
       keys: "Alt-ArrowDown",
       want: "⟦- a\n- b⟧\n- c",
       wantHl: [0, 1],
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO3",
       title: "Alt+Shift+↓ takes the bottom sibling back off",
       text: "⟦- a\n- b⟧\n- c",
       keys: "Alt-Shift-ArrowDown",
       want: "⟦- a⟧\n- b\n- c",
       wantHl: [0],
-    }),
-    off({ id: "NO4", title: "← folds the node", text: "⟦- a\n\t- b⟧\n- c", keys: "ArrowLeft", wantFolds: [0] }),
-    off({
+      surfaces: "all",
+    },
+    { id: "NO4", title: "← folds the node", text: "⟦- a\n\t- b⟧\n- c", keys: "ArrowLeft", wantFolds: [0] },
+    {
       id: "NO5",
       title: "← on a leaf selects the parent",
       text: "- a\n⟦\t- b⟧\n- c",
       keys: "ArrowLeft",
       want: "⟦- a\n\t- b⟧\n- c",
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO6",
       title: "→ unfolds a folded node",
       text: "⟦- a\n\t- b⟧\n- c",
       fold: [0],
       keys: "ArrowRight",
       wantFolds: [],
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO7",
       title: "→ selects the first child",
       text: "⟦- a\n\t- b⟧\n- c",
       keys: "ArrowRight",
       want: "- a\n⟦\t- b⟧\n- c",
       wantHl: [1],
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO8",
       title: "Backspace removes the nodes, one undo step",
       text: "- a\n⟦- b\n\t- b1⟧\n- c",
       keys: "Backspace",
       want: "- a\n- |c",
       undo: true,
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO9",
       title: "Delete removes the nodes",
       text: "- a\n⟦- b⟧\n- c",
       keys: "Delete",
       want: "- a\n- |c",
       undo: true,
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO10",
       title: "Copy gives the nodes at column 0",
       text: "- a\n⟦\t- b\n\t\t- c⟧",
       keys: { copy: true },
       wantClip: "- b\n\t- c",
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO11",
       title: "Cut gives them at column 0 and removes them",
       text: "- a\n⟦\t- b⟧\n- c",
       keys: { cut: true },
       wantClip: "- b",
       want: "- a|\n- c",
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO12",
       title: "Escape clears (Obsidian's): the cursor at the head",
       text: "- a\n⟦- b⟧\n- c",
       keys: "Escape",
       want: "- a\n- b|\n- c",
       surfaces: ["lanes", "tab"],
-    }),
-    off({
+    },
+    {
       id: "NO13",
       title: "Tab indents, still node-selected",
       text: "- a\n⟦- b⟧",
@@ -1575,8 +1520,9 @@ export function deep(group) {
       want: "- a\n⟦\t- b⟧",
       wantHl: [1],
       undo: true,
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO14",
       title: "Ctrl+↑ moves, still node-selected",
       text: "- a\n⟦- b⟧",
@@ -1584,30 +1530,24 @@ export function deep(group) {
       want: "⟦- b⟧\n- a",
       wantHl: [0],
       undo: true,
-    }),
-    off({
+      surfaces: "all",
+    },
+    {
       id: "NO15",
       title: "Expand to the item, Alt+↓, Backspace",
       text: "- a|\n- b\n- c",
       keys: ["Alt-ArrowDown", "Alt-ArrowDown", "Alt-ArrowDown", "Backspace"],
       want: "- |c",
-    }),
+      surfaces: "all",
+    },
     {
       id: "NO16",
-      title: "Outliner keys off: no item node selection (outline mode on)",
+      title: "Outliner keys off: no item node selection",
       settings: { keys: false },
       text: "- a\n⟦- b⟧\n- c",
       keys: [],
       wantHl: [],
       surfaces: "all",
     },
-    off({
-      id: "NO17",
-      title: "Outliner keys off, outline mode off: no item node selection",
-      settings: { keys: false },
-      text: "- a\n⟦- b⟧\n- c",
-      keys: [],
-      wantHl: [],
-    }),
   ]);
 }

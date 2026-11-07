@@ -177,7 +177,9 @@ describe("Enter splits an item", () => {
 describe("Enter: tasks and ordered lists", () => {
   it("a task's new item is an open task", () => {
     expect(press("- [x] done| more")).toBe(lines("- [x] done", "- [ ] |more"));
-    expect(press("- [ ] |")).toBe(lines("- [ ] ", "- [ ] |"));
+    expect(press(lines("- [ ] |", "- b"))).toBe(lines("- [ ] ", "- [ ] |", "- b"));
+    // the last empty task ends the list like any last empty item
+    expect(press("- [ ] |")).toBe("|");
   });
   it("a task with children: the first child is a task too, with the children's bullet", () => {
     expect(press(lines("- [ ] a|", "    * x"))).toBe(lines("- [ ] a", "    * [ ] |", "    * x"));
@@ -212,8 +214,13 @@ describe("Enter on an empty item", () => {
     expect(press(lines("- p", "    - |", "    - b"))).toBe(lines("- p", "    - ", "    - |", "    - b"));
     expect(press(lines("- |", "- b"))).toBe(lines("- ", "- |", "- b"));
   });
-  it("the last top-level item: another empty item (the list doesn't end)", () => {
-    expect(press(lines("- a", "- |"))).toBe(lines("- a", "- ", "- |"));
+  it("the last top-level item ends the list: a blank line, then an empty paragraph line", () => {
+    expect(press(lines("- a", "- |"))).toBe(lines("- a", "", "|"));
+    expect(press(lines("text", "", "- a", "- |", "", "after"))).toBe(lines("text", "", "- a", "", "|", "", "after"));
+    expect(press(lines("> - a", "> - |"))).toBe(lines("> - a", ">", ">|"));
+  });
+  it("a nested empty last item outdents first, then the next Enter ends the list", () => {
+    expect(press(lines("- a", "    - |"))).toBe(lines("- a", "- |"));
   });
   it("an empty item with unfolded children gets an empty first child", () => {
     expect(press(lines("- |", "    - c", "- d"))).toBe(lines("- ", "    - |", "    - c", "- d"));

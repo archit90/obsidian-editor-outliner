@@ -12,18 +12,17 @@ Notation:
 
 | Group | Cases |
 |---|---|
-| Mode states and the status bar | 21 |
 | Enter | 19 |
 | Enter on an empty item | 12 |
 | Enter with continuation paragraphs and code | 17 |
 | Shift+Enter | 13 |
-| Shift+Tab ending a list | 15 |
+| Shift+Tab ending a list | 14 |
 | Backspace | 28 |
 | Backspace: the invisible item indent | 17 |
 | Delete | 19 |
 | Paste | 45 |
-| Multi-block items and code-indent rules | 35 |
-| Node selection | 49 |
+| Multi-block items and code-indent rules | 37 |
+| Node selection | 48 |
 | Move / indent / outdent with nested children | 31 |
 | Folding interplay | 14 |
 | Ordered lists and tasks | 19 |
@@ -31,7 +30,7 @@ Notation:
 | Tab- vs space-indented lists | 9 |
 | Loose lists (blank lines between items) | 6 |
 | Undo | 9 |
-| Step-aside | 28 |
+| Step-aside | 22 |
 | Edge cases of the note | 15 |
 | Indent / outdent outside outline mode | 28 |
 | Move outside outline mode | 25 |
@@ -40,365 +39,10 @@ Notation:
 | Folding commands | 14 |
 | Heading guides, level labels and H7+ styling | 13 |
 | Drag handles (real mouse drags) | 15 |
-| Where it works and settings | 13 |
+| Where it works and settings | 9 |
 | Vim mode: the outliner keys | 8 |
-| Item node selection with outline mode off | 17 |
-| **Total** | 611 |
-
-## Mode states and the status bar
-
-### M1. Cursor in an item: active
-
-When: *everywhere*.
-
-Setup:
-````
-para
-
-- a|
-- b
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M2. Cursor in a paragraph: on, idle
-
-When: *everywhere*.
-
-Setup:
-````
-pa|ra
-
-- a
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M3. Continuation line of an item: active
-
-
-Setup:
-````
-- a
-  co|nt
-- b
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M4. Blank line between items: idle
-
-
-Setup:
-````
-- a
-|
-- b
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M5. Empty line after the list: idle
-
-
-Setup:
-````
-- a
-|
-para
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M6. Selection from an item into the paragraph below: idle
-
-
-Setup:
-````
-- ⟦a
-
-pa⟧ra
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M7. Selection across two lists: idle
-
-
-Setup:
-````
-- ⟦a
-
-para
-
-- b⟧
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M8. Selection across items of one list: active
-
-
-Setup:
-````
-- ⟦a
-	- b
-- c⟧
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M9. Outline mode off: faint
-
-When: outline mode **off**.
-
-Setup:
-````
-- a|
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: off.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M10. Whitespace line after an item reaching its content column (Shift+Enter's): active
-
-
-Setup:
-````
-- a
-  |
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M11. Whitespace line not reaching the content column: idle
-
-
-Setup:
-````
-	- a
-  |
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M12. Heading line above a list: idle
-
-
-Setup:
-````
-# He|ad
-- a
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M13. Code block in an item: active
-
-
-Setup:
-````
-- a
-  ```
-  x|
-  ```
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M14. Frontmatter: idle
-
-When: Source mode only.
-
-Setup:
-````
----
-ti|tle: x
----
-- a
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: on.
-
-Source mode only: Live Preview shows frontmatter as the Properties widget, which the cursor can't be in.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M15. List in a callout: active
-
-
-Setup:
-````
-> [!note]
-> - a|
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M16. Toggle command turns it off, the status follows
-
-When: *everywhere*.
-
-Setup:
-````
-- a|
-````
-
-Keys: command obsidian-editor-outliner:toggle-outline-mode
-
-Expected: (see checks)
-Status bar item: off.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M17. Toggle command turns it on
-
-When: outline mode **off**.
-
-Setup:
-````
-- a|
-````
-
-Keys: command obsidian-editor-outliner:toggle-outline-mode
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M18. Default hotkey Ctrl+Super+O toggles
-
-When: *everywhere*.
-
-Setup:
-````
-- a|
-````
-
-Keys: Ctrl-Meta-o
-
-Expected: (see checks)
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M19. A click on the status bar item toggles
-
-
-Setup:
-````
-- a|
-````
-
-Keys: (click the status bar item)
-
-Expected: (see checks)
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M20. Moving the cursor out of the list (↓) makes it idle
-
-
-Setup:
-````
-- a|
-
-para
-````
-
-Keys: ArrowDown
-
-Expected: (see checks)
-Status bar item: on.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
-
-### M21. Tooltip says the state
-
-
-Setup:
-````
-- a|
-````
-
-Keys: 
-
-Expected: (see checks)
-The status item's tooltip says “on, active”.
-
-Source: SPEC.md §7 Outline mode (idle / active, status bar item)
+| Item node selection: more cases | 16 |
+| **Total** | 579 |
 
 ## Enter
 
@@ -753,7 +397,7 @@ Expected:
 
 Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
-### E18. Item only a marker, the whole note
+### E18. Item only a marker, the whole note: Enter ends the list
 
 
 Setup:
@@ -765,32 +409,30 @@ Keys: Enter
 
 Expected: 
 ````
-- 
-- |
+|
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the last top-level item: the list doesn't end)
+Source: SPEC.md §7 Outline mode → Enter (the last empty top-level item ends the list)
 
-### E19. Two Enters on an empty last item: still a list
+### E19. At the end of a note: Enter on a nested empty item outdents it, the next Enter leaves the list
 
 
 Setup:
 ````
 - a
-- |
+	- |
 ````
 
-Keys: Enter, Enter
+Keys: Enter, Enter, x
 
 Expected: 
 ````
 - a
-- 
-- 
-- |
+
+x|
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md §7 Outline mode → Enter (the last empty top-level item ends the list)
 
 ## Enter on an empty item
 
@@ -922,7 +564,7 @@ Expected:
 
 Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
-### EE7. Last top-level item: another empty item (the list doesn't end)
+### EE7. Last top-level item, empty: Enter ends the list (a blank line, then a paragraph line)
 
 
 Setup:
@@ -936,8 +578,8 @@ Keys: Enter
 Expected: 
 ````
 - a
-- 
-- |
+
+|
 ````
 
 Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
@@ -1008,7 +650,7 @@ Expected:
 
 Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
-### EE11. Empty task, last top-level: another open task
+### EE11. Empty task, last top-level: Enter ends the list like any last empty item
 
 
 Setup:
@@ -1020,8 +662,7 @@ Keys: Enter
 
 Expected: 
 ````
-- [ ] 
-- [ ] |
+|
 ````
 
 Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
@@ -1539,7 +1180,6 @@ Expected:
   more|
 - b
 ````
-Status bar item: active.
 
 Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
@@ -1688,7 +1328,6 @@ Expected:
 
 |
 ````
-Status bar item: on.
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
@@ -1846,7 +1485,6 @@ Expected:
 
 x|
 ````
-Status bar item: on.
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
@@ -1912,7 +1550,6 @@ x|
 
 - c
 ````
-Status bar item: on.
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
@@ -1956,22 +1593,6 @@ Keys: Shift-Tab
 Expected: unchanged
 
 Source: SPEC.md §7 Indent / outdent → A list always stays a list
-
-### ST12. Outline mode off: Shift+Tab on an empty top-level item does nothing
-
-When: outline mode **off**.
-
-Setup:
-````
-- a
-- |
-````
-
-Keys: Shift-Tab
-
-Expected: unchanged
-
-Source: SPEC.md §7 (off: everything as without it; top-level outdent does nothing)
 
 ## Backspace
 
@@ -3800,7 +3421,7 @@ Expected: = Obsidian
 
 Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
-### P30. text/markdown wins over plain text
+### P30. Text/markdown wins over plain text
 
 
 Setup:
@@ -4287,31 +3908,6 @@ Expected:
 
 Source: SPEC.md §7 Multi-block items
 
-### MB11. Code Enter also with outline mode off (an Outliner key)
-
-When: outline mode **off**.
-
-Setup:
-````
-- a
-  ```
-  x|
-  ```
-````
-
-Keys: Enter
-
-Expected: 
-````
-- a
-  ```
-  x
-  |
-  ```
-````
-
-Source: SPEC.md §7 Multi-block items
-
 ### MB12. Enter on a code line below the item indent: the item indent
 
 
@@ -4503,30 +4099,6 @@ x
 
 Source: SPEC.md §7 Multi-block items
 
-### MB20. Copy code with outline mode off: the same
-
-When: outline mode **off**.
-
-Setup:
-````
-- a
-  ```js
-  ⟦let a;
-    b();⟧
-  ```
-````
-
-Keys: copy
-
-Expected: (see checks)
-Clipboard text:
-````
-let a;
-  b();
-````
-
-Source: SPEC.md §7 Multi-block items
-
 ### MB21. Real Ctrl+C of code lines
 
 
@@ -4603,6 +4175,7 @@ Source: SPEC.md §7 Multi-block items
 
 ### MB24. Paste at column 0 inside the indent: the last line gets none
 
+When: Source mode only.
 
 Setup:
 ````
@@ -4623,30 +4196,7 @@ x
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
-
-### MB25. Paste into code with outline mode off: the same rule
-
-When: outline mode **off**.
-
-Setup:
-````
-- a
-  ```
-  q|
-  ```
-````
-
-Keys: paste (text/plain)
-
-Expected: 
-````
-- a
-  ```
-  qx
-  y|
-  ```
-````
+Source mode: in Live Preview the item indent of a code line is hidden and the cursor never rests in it (MB38).
 
 Source: SPEC.md §7 Multi-block items
 
@@ -4874,30 +4424,125 @@ Expected: = Obsidian
 
 Source: SPEC.md §7 Indent / outdent
 
-## Node selection
+### MB36. Live Preview: a code block in an item sits under the item's text (its item indent hidden)
 
-### N1. Whole item lines selected by hand: a node selection, highlighted
-
-When: *everywhere*.
+When: *everywhere*; Live Preview only.
 
 Setup:
 ````
 - a
-⟦	- b
-		- c⟧
-- d
+	- b
+	  ```
+	  x|x
+	  ```
 ````
 
 Keys: 
 
 Expected: (see checks)
-Node-selected (highlighted) lines: 1, 2.
+Every line of the block starts where the item's text does.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md §7 Multi-block items
 
-### N2. Outline mode off: whole item lines are still a node selection (the Outliner keys are on)
+### MB37. Source mode: the code block in an item is shown as written
 
-When: outline mode **off**; *everywhere*.
+When: Source mode only.
+
+Setup:
+````
+- a
+  ```
+  x|x
+  ```
+````
+
+Keys: 
+
+Expected: (see checks)
+No code line is moved or has its indent hidden.
+
+Source: SPEC.md §7 Multi-block items
+
+### MB38. Live Preview, outline mode off: Home twice then typing keeps the item indent (the cursor never rests in it)
+
+When: Live Preview only.
+
+Setup:
+````
+- a
+  ```
+  x|x
+  ```
+````
+
+Keys: Home, Home, Z
+
+Expected: 
+````
+- a
+  ```
+  Z|xx
+  ```
+````
+
+Source: SPEC.md §7 Multi-block items
+
+### MB39. Live Preview: Backspace at a code line's start joins it to the line above
+
+When: Live Preview only.
+
+Setup:
+````
+- a
+  ```
+  xx
+  |yy
+  ```
+````
+
+Keys: Backspace
+
+Expected: 
+````
+- a
+  ```
+  xx|yy
+  ```
+````
+
+Source: SPEC.md §7 Multi-block items
+
+### MB40. Live Preview: ← at a code line's start goes to the end of the line above
+
+When: Live Preview only.
+
+Setup:
+````
+- a
+  ```
+  xx
+  |yy
+  ```
+````
+
+Keys: ArrowLeft
+
+Expected: 
+````
+- a
+  ```
+  xx|
+  yy
+  ```
+````
+
+Source: SPEC.md §7 Multi-block items
+
+## Node selection
+
+### N1. Whole item lines selected by hand: a node selection, highlighted
+
+When: *everywhere*.
 
 Setup:
 ````
@@ -5769,9 +5414,8 @@ Node-selected (highlighted) lines: 4, 5, 6.
 
 Source: SPEC.md §7 Node selection
 
-### N41. Heading: Alt+↓ adds the next section, also with outline mode off
+### N41. Heading: Alt+↓ adds the next section
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -7838,7 +7482,6 @@ Setup:
 Keys: 
 
 Expected: (see checks)
-Status bar item: on.
 
 Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
 
@@ -8236,126 +7879,6 @@ Setup:
 Keys: IME composition "か", Backspace
 
 Expected: = Obsidian
-
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
-
-### SA12. Off: Enter continues the list the Obsidian way (children ignored)
-
-When: outline mode **off**.
-
-Setup:
-````
-- a|
-	- c
-````
-
-Keys: Enter
-
-Expected: 
-````
-- a
-	- |
-	- c
-````
-
-Observed: Obsidian 1.15 continues as a first child when the item has children (not the plan's “children ignored”).
-
-Source: Obsidian 1.15 newlineAndIndentContinueMarkdownList
-
-### SA13. Off: Enter on an empty top-level item removes the marker
-
-When: outline mode **off**.
-
-Setup:
-````
-- a
-- |
-````
-
-Keys: Enter
-
-Expected: 
-````
-- a
-|
-````
-
-Source: Obsidian 1.15 newlineAndIndentContinueMarkdownList
-
-### SA14. Off: Backspace at an item's start is a plain Backspace
-
-When: outline mode **off**.
-
-Setup:
-````
-- one
-- |two
-````
-
-Keys: Backspace
-
-Expected: 
-````
-- one
--|two
-````
-
-Source: Obsidian 1.15 (Backspace has no list handling)
-
-### SA15. Off: Delete at an item's end joins the raw lines
-
-When: outline mode **off**.
-
-Setup:
-````
-- one|
-- two
-````
-
-Keys: Delete
-
-Expected: 
-````
-- one|- two
-````
-
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
-
-### SA16. Off: a list pastes as is
-
-When: outline mode **off**.
-
-Setup:
-````
-- a|
-````
-
-Keys: paste (text/plain)
-
-Expected: 
-````
-- a- x
-- y|
-````
-
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
-
-### SA17. Off: Shift+Enter is Obsidian's continuation line
-
-When: outline mode **off**.
-
-Setup:
-````
-- a|
-````
-
-Keys: Shift-Enter
-
-Expected: 
-````
-- a
-  |
-````
 
 Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
@@ -8843,9 +8366,9 @@ Source: SPEC.md §7 Outline mode
 
 ## Indent / outdent outside outline mode
 
-### KI1. Off: Tab indents an item with its subtree under the previous sibling
+### KI1. Tab indents an item with its subtree under the previous sibling
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -8867,9 +8390,9 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI2. Off: Shift+Tab outdents in place, the following siblings become its children
+### KI2. Shift+Tab outdents in place, the following siblings become its children
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -8889,9 +8412,9 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI3. Off, logical outdenting: after the parent's subtree, the siblings stay
+### KI3. Logical outdenting: after the parent's subtree, the siblings stay
 
-When: outline mode **off**; settings {"logicalOutdent":true}.
+When: settings {"logicalOutdent":true}.
 
 Setup:
 ````
@@ -8913,9 +8436,8 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI4. Off: Shift+Tab on a top-level item: nothing (a list stays a list)
+### KI4. Shift+Tab on a top-level item: nothing (a list stays a list)
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -8929,9 +8451,8 @@ Expected: unchanged
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI5. Off: Tab on the first item: nothing
+### KI5. Tab on the first item: nothing
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9111,7 +8632,6 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ### KI14. Tab in a code block in an item: Obsidian's
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9150,9 +8670,8 @@ b
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI16. Off: several items selected indent together
+### KI16. Several items selected indent together
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9172,9 +8691,8 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI17. Off: a selection from a child to its parent's next sibling acts on the parent's siblings
+### KI17. A selection from a child to its parent's next sibling acts on the parent's siblings
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9196,9 +8714,8 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI18. Off: an ordered list renumbers after an indent
+### KI18. An ordered list renumbers after an indent
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9218,9 +8735,8 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI19. Off: indent in a callout keeps the > prefix
+### KI19. Indent in a callout keeps the > prefix
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9240,7 +8756,7 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ### KI20. Editor set to spaces: a new child level is 4 spaces
 
-When: outline mode **off**; Obsidian config {"useTab":false}.
+When: Obsidian config {"useTab":false}.
 
 Setup:
 ````
@@ -9260,7 +8776,7 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ### KI21. Editor set to spaces, tab-indented list: tabs stay
 
-When: outline mode **off**; Obsidian config {"useTab":false}.
+When: Obsidian config {"useTab":false}.
 
 Setup:
 ````
@@ -9302,9 +8818,9 @@ Expected:
 
 Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
-### KI23. Outdent command from the palette on a nested item (outline mode off)
+### KI23. Outdent command from the palette on a nested item
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -9324,7 +8840,7 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ### KI24. Outliner keys off: Tab in a list is Obsidian's, the command still indents with the subtree
 
-When: outline mode **off**; settings {"keys":false}.
+When: settings {"keys":false}.
 
 Setup:
 ````
@@ -9361,7 +8877,6 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ### KI26. Selection over several lines with its head in an item's code block: the items indent
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9387,7 +8902,6 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ### KI27. Two Tabs in quick succession: two undo steps
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9427,9 +8941,9 @@ Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
 
 ## Move outside outline mode
 
-### KM1. Off: an item moves down past its sibling with its children
+### KM1. An item moves down past its sibling with its children
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -9449,9 +8963,8 @@ Expected:
 
 Source: SPEC.md §7 → Move up / down
 
-### KM2. Off: a last child moves down into the parent's next sibling, as its first child
+### KM2. A last child moves down into the parent's next sibling, as its first child
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9880,9 +9393,8 @@ Folded lines after: 3.
 
 Source: SPEC.md §7 → Move up / down
 
-### KM14. Off: an item with a continuation paragraph and code moves whole
+### KM14. An item with a continuation paragraph and code moves whole
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -9968,9 +9480,8 @@ Expected:
 
 Source: SPEC.md §7 → Move up / down
 
-### KM18. Off: move in a space-indented list keeps the spaces
+### KM18. Move in a space-indented list keeps the spaces
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -10654,9 +10165,9 @@ b
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS18. Outline mode off: Expand reaches the item, a node selection (highlighted)
+### XS18. Expand reaches the item, a node selection (highlighted)
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -11272,7 +10783,7 @@ Source: SPEC.md §7 → Folding
 
 ### FC14. Fold an item, then Ctrl+↓ moves it folded
 
-When: outline mode **off**; folded lines (0-based) 0.
+When: folded lines (0-based) 0.
 
 Setup:
 ````
@@ -11928,22 +11439,6 @@ Expected:
 
 Source: SPEC.md §7 → Where it works; Settings; Keys
 
-### WH3. Popover editor: status bar item active
-
-When: in popover.
-
-Setup:
-````
-- a|
-````
-
-Keys: 
-
-Expected: (see checks)
-Status bar item: active.
-
-Source: SPEC.md §7 → Where it works; Settings; Keys
-
 ### WH4. Reading view: the outliner commands aren't offered
 
 When: in tab; Live Preview only.
@@ -11961,36 +11456,6 @@ None of the editor commands is available in Reading view.
 
 Source: SPEC.md §7 → Where it works; Settings; Keys
 
-### WH5. Toggle outline mode is available everywhere (also Reading view)
-
-
-Setup:
-````
-x|
-````
-
-Keys: 
-
-Expected: (see checks)
-The command has a plain callback.
-
-Source: SPEC.md §7 → Where it works; Settings; Keys
-
-### WH6. Default hotkey Ctrl+Super+O: no other command uses it
-
-
-Setup:
-````
-x|
-````
-
-Keys: 
-
-Expected: (see checks)
-No other hotkey is Ctrl+Meta+O.
-
-Source: SPEC.md §7 → Where it works; Settings; Keys
-
 ### WH7. No Obsidian hotkey sits on a plugin key (Alt+↑/↓, Alt+Shift+↑/↓, Ctrl+↑/↓, Tab)
 
 
@@ -12003,21 +11468,6 @@ Keys:
 
 Expected: (see checks)
 No Obsidian or plugin hotkey uses those keys.
-
-Source: SPEC.md §7 → Where it works; Settings; Keys
-
-### WH8. Outline mode setting toggle (settings tab) turns it off; the status bar follows
-
-
-Setup:
-````
-- a|
-````
-
-Keys: 
-
-Expected: (see checks)
-Off: not is-on; back on: is-active.
 
 Source: SPEC.md §7 → Where it works; Settings; Keys
 
@@ -12079,7 +11529,6 @@ Source: SPEC.md §7 → Where it works; Settings; Keys
 
 ### WH12. IME composition: Tab steps aside (Obsidian's)
 
-When: outline mode **off**.
 
 Setup:
 ````
@@ -12267,11 +11716,11 @@ Expected:
 
 Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
 
-## Item node selection with outline mode off
+## Item node selection: more cases
 
 ### NO1. Whole item lines: highlighted
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12286,11 +11735,11 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO2. Alt+↓ adds the next sibling
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12309,11 +11758,11 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO3. Alt+Shift+↓ takes the bottom sibling back off
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12332,11 +11781,10 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO4. ← folds the node
 
-When: outline mode **off**; *everywhere*.
 
 Setup:
 ````
@@ -12350,11 +11798,11 @@ Keys: ArrowLeft
 Expected: (see checks)
 Folded lines after: 0.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO5. ← on a leaf selects the parent
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12372,11 +11820,11 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO6. → unfolds a folded node
 
-When: outline mode **off**; *everywhere*; folded lines (0-based) 0.
+When: *everywhere*; folded lines (0-based) 0.
 
 Setup:
 ````
@@ -12390,11 +11838,11 @@ Keys: ArrowRight
 Expected: (see checks)
 Folded lines after: none.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO7. → selects the first child
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12413,11 +11861,11 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO8. Backspace removes the nodes, one undo step
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12435,11 +11883,11 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO9. Delete removes the nodes
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12456,11 +11904,11 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO10. Copy gives the nodes at column 0
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12478,11 +11926,11 @@ Clipboard text:
 	- c
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO11. Cut gives them at column 0 and removes them
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12503,11 +11951,11 @@ Clipboard text:
 - b
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO12. Escape clears (Obsidian's): the cursor at the head
 
-When: outline mode **off**; in lanes, tab.
+When: in lanes, tab.
 
 Setup:
 ````
@@ -12525,11 +11973,11 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO13. Tab indents, still node-selected
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12546,11 +11994,11 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO14. Ctrl+↑ moves, still node-selected
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12567,11 +12015,11 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
 ### NO15. Expand to the item, Alt+↓, Backspace
 
-When: outline mode **off**; *everywhere*.
+When: *everywhere*.
 
 Setup:
 ````
@@ -12587,9 +12035,9 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
 
-### NO16. Outliner keys off: no item node selection (outline mode on)
+### NO16. Outliner keys off: no item node selection
 
 When: *everywhere*; settings {"keys":false}.
 
@@ -12605,22 +12053,4 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: none.
 
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
-
-### NO17. Outliner keys off, outline mode off: no item node selection
-
-When: outline mode **off**; *everywhere*; settings {"keys":false}.
-
-Setup:
-````
-- a
-⟦- b⟧
-- c
-````
-
-Keys: 
-
-Expected: (see checks)
-Node-selected (highlighted) lines: none.
-
-Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)

@@ -4,30 +4,17 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
-import { applyRows, ctxOf, lineSpan, outlineOf, posOf, suggestOpen, usable } from "./editor";
-import { Active, activeAt } from "./active";
+import { applyRows, ctxOf, outlineOf, posOf, suggestOpen, usable } from "./editor";
 import { Edit, Pos } from "./content";
 import { endList, enter, softBreak } from "./enter";
 import { backspace, deleteForward } from "./merge";
 import { paste } from "./paste";
 import type { Outline } from "./parse";
 
-/** Set by the plugin: whether outline mode is on. */
+/** Set by the plugin: whether outline mode applies (always, except under the e2e harness's test hook). */
 let modeOn: () => boolean = () => false;
 export function setModeCheck(fn: () => boolean) {
   modeOn = fn;
-}
-export const outlineModeOn = () => modeOn();
-
-/**
- * Whether outline mode is active in this editor: on, one selection range, a usable editor, and the selection
- * inside one list (activeAt). The status bar shows it.
- */
-export function activeIn(view: EditorView): Active | null {
-  const st = view.state;
-  if (!modeOn() || st.selection.ranges.length > 1 || !usable(view)) return null;
-  const [l0, l1] = lineSpan(st);
-  return activeAt(outlineOf(st), l0, l1);
 }
 
 /**
@@ -125,19 +112,4 @@ export const outlinePaste = (view: EditorView, text: string) =>
   runKey(view, "paste.outliner", (o, from, to, st) => {
     const res = paste(o, from, to, text, ctxOf(st, false), foldedLines(st));
     return res && { ...res, userEvent: res.plain ? "input.paste" : undefined };
-  });
-
-/**
- * Calls onChange when an editor's selection, text or focus changes (the status bar follows the cursor). typing:
- * the change is plain typing or deleting, which can wait for a pause (working out the active state parses the
- * whole note, and a long note shouldn't be parsed on every keystroke for it).
- */
-export const watchActive = (onChange: (typing: boolean) => void) =>
-  EditorView.updateListener.of(u => {
-    if (!(u.selectionSet || u.docChanged || u.focusChanged)) return;
-    const typing =
-      u.docChanged &&
-      !u.focusChanged &&
-      u.transactions.every(tr => tr.isUserEvent("input.type") || tr.isUserEvent("delete"));
-    onChange(typing);
   });

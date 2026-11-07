@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => EditorOutlinerPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // ../node_modules/monkey-around/dist/index.mjs
 function around(obj, factories) {
@@ -66,7 +66,7 @@ function around1(obj, method, createWrapper) {
 }
 
 // src/main.ts
-var import_state5 = require("@codemirror/state");
+var import_state6 = require("@codemirror/state");
 var import_view5 = require("@codemirror/view");
 
 // src/editor.ts
@@ -1581,7 +1581,6 @@ function unfoldAll(view) {
 
 // src/mode.ts
 var import_state2 = require("@codemirror/state");
-var import_view2 = require("@codemirror/view");
 var import_language3 = require("@codemirror/language");
 
 // src/active.ts
@@ -1596,13 +1595,6 @@ function cursorOwner(o, i) {
   const above = ownerAt(o, k);
   if (!above || k !== above.item.ownEnd - 1 || L.qd !== above.list.q || L.col < above.item.cc) return null;
   return above;
-}
-function activeAt(o, l0, l1) {
-  const a = cursorOwner(o, l0);
-  if (!a) return null;
-  const b = l1 === l0 ? a : cursorOwner(o, l1);
-  if (!b || b.list !== a.list) return null;
-  return { list: a.list, from: a, to: b };
 }
 function cleanItem(o, w) {
   const { item, list } = w;
@@ -1667,6 +1659,7 @@ function enter(o, from, to, ctx, folded) {
   const sibs = item.parent.children;
   const last = sibs.indexOf(item) === sibs.length - 1;
   if (headEmpty && !tail.length) {
+    if (item.depth === 0 && last && !item.children.length) return endList(o, from, to);
     if (item.depth > 0 && last) {
       const res = outdent(o, item.line, item.line, ctx);
       if (!res || res === "noop" || "error" in res) return null;
@@ -2059,12 +2052,6 @@ var modeOn = () => false;
 function setModeCheck(fn) {
   modeOn = fn;
 }
-function activeIn(view) {
-  const st = view.state;
-  if (!modeOn() || st.selection.ranges.length > 1 || !usable(view)) return null;
-  const [l0, l1] = lineSpan2(st);
-  return activeAt(outlineOf(st), l0, l1);
-}
 function stepAside(view, needMode = true) {
   return needMode && !modeOn() || view.composing || suggestOpen() || view.state.selection.ranges.length > 1 || !usable(view) || vimNormal(view);
 }
@@ -2112,15 +2099,10 @@ var outlinePaste = (view, text) => runKey(view, "paste.outliner", (o, from, to, 
   const res = paste(o, from, to, text, ctxOf(st, false), foldedLines(st));
   return res && { ...res, userEvent: res.plain ? "input.paste" : void 0 };
 });
-var watchActive = (onChange) => import_view2.EditorView.updateListener.of((u) => {
-  if (!(u.selectionSet || u.docChanged || u.focusChanged)) return;
-  const typing = u.docChanged && !u.focusChanged && u.transactions.every((tr) => tr.isUserEvent("input.type") || tr.isUserEvent("delete"));
-  onChange(typing);
-});
 
 // src/nodesel.ts
 var import_state3 = require("@codemirror/state");
-var import_view3 = require("@codemirror/view");
+var import_view2 = require("@codemirror/view");
 var import_language4 = require("@codemirror/language");
 
 // src/nodes.ts
@@ -2332,10 +2314,10 @@ function copied(state, sel) {
   return state.selection.main.to > state.doc.line(r[1]).to ? text + "\n" : text;
 }
 var highlighted = /* @__PURE__ */ new WeakMap();
-var highlight = import_view3.ViewPlugin.fromClass(
+var highlight = import_view2.ViewPlugin.fromClass(
   class {
     constructor(view) {
-      this.decorations = import_view3.Decoration.none;
+      this.decorations = import_view2.Decoration.none;
       /** Whether there is a node selection to highlight (editorAttributes below reads it). */
       this.on = false;
       this.build(view);
@@ -2349,12 +2331,12 @@ var highlight = import_view3.ViewPlugin.fromClass(
       this.on = !!r;
       if (sel && r) highlighted.set(view.state, sel);
       if (!r) {
-        this.decorations = import_view3.Decoration.none;
+        this.decorations = import_view2.Decoration.none;
         return;
       }
       const doc = view.state.doc;
       const b = new import_state3.RangeSetBuilder();
-      const deco = import_view3.Decoration.line({ class: "eo-node-selected" });
+      const deco = import_view2.Decoration.line({ class: "eo-node-selected" });
       for (const { from, to } of view.visibleRanges) {
         const a = Math.max(r[0], doc.lineAt(from).number - 1);
         const z = Math.min(r[1], doc.lineAt(to).number);
@@ -2369,22 +2351,22 @@ function nodeSelectionExtension() {
   return [
     nodeField,
     highlight,
-    import_view3.EditorView.editorAttributes.of((view) => view.plugin(highlight)?.on ? { class: "eo-node-selection" } : null),
+    import_view2.EditorView.editorAttributes.of((view) => view.plugin(highlight)?.on ? { class: "eo-node-selection" } : null),
     import_state3.Prec.highest(
-      import_view3.keymap.of([
+      import_view2.keymap.of([
         { key: "ArrowLeft", run: left },
         { key: "ArrowRight", run: right },
         { key: "Backspace", run: (v) => remove(v) },
         { key: "Delete", run: (v) => remove(v) }
       ])
     ),
-    import_view3.EditorView.clipboardOutputFilter.of((text, state) => {
+    import_view2.EditorView.clipboardOutputFilter.of((text, state) => {
       const sel = highlighted.get(state);
       return (sel && copied(state, sel)) ?? text;
     }),
     // cut removes the nodes like Backspace (CodeMirror's cut would leave an empty line in the list)
     import_state3.Prec.highest(
-      import_view3.EditorView.domEventHandlers({
+      import_view2.EditorView.domEventHandlers({
         cut: (e, view) => {
           const sel = keySel(view);
           const text = sel && copied(view.state, sel);
@@ -2402,7 +2384,6 @@ function nodeSelectionExtension() {
 // src/settings.ts
 var import_obsidian3 = require("obsidian");
 var DEFAULTS = {
-  outlineMode: true,
   logicalOutdent: false,
   keys: true,
   headingGuides: true,
@@ -2425,9 +2406,6 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
   }
   display() {
     this.containerEl.empty();
-    new import_obsidian3.Setting(this.containerEl).setName("Outline mode").setDesc(
-      'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list; Backspace at the start of an item merges it into the one above, Delete at its end pulls the next one in; pasted Markdown lists, headings and paragraphs become items. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Ctrl+Super+O; Ctrl+Cmd+O on macOS) and the status bar item switch it too.'
-    ).addToggle((t) => t.setValue(this.plugin.settings.outlineMode).onChange((v) => this.plugin.setOutlineMode(v)));
     this.toggle(
       "Logical outdenting",
       "Off: an outdented item or heading stays where it is, and the siblings after it become its children. On: it moves to just after its parent, and those siblings stay with the parent.",
@@ -2459,7 +2437,7 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
 
 // src/view.ts
 var import_state4 = require("@codemirror/state");
-var import_view4 = require("@codemirror/view");
+var import_view3 = require("@codemirror/view");
 var import_obsidian4 = require("obsidian");
 
 // src/drop.ts
@@ -2604,7 +2582,7 @@ function plainEdit(u) {
   return plain;
 }
 function lineDecorations(settings) {
-  return import_view4.ViewPlugin.fromClass(
+  return import_view3.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.decorations = this.build(view);
@@ -2615,7 +2593,7 @@ function lineDecorations(settings) {
       }
       build(view) {
         const s = settings();
-        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view4.Decoration.none;
+        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view3.Decoration.none;
         const o = outlineOf(view.state);
         const b = new import_state4.RangeSetBuilder();
         const doc = view.state.doc;
@@ -2628,7 +2606,7 @@ function lineDecorations(settings) {
           b.add(
             from,
             from,
-            import_view4.Decoration.line({ class: cls.join(" "), attributes: { "data-eo-level": String(sec.level) } })
+            import_view3.Decoration.line({ class: cls.join(" "), attributes: { "data-eo-level": String(sec.level) } })
           );
         }
         return b.finish();
@@ -2661,7 +2639,7 @@ function guidesKeep(u) {
 }
 function headingGuides() {
   const cache = /* @__PURE__ */ new WeakMap();
-  return (0, import_view4.layer)({
+  return (0, import_view3.layer)({
     above: false,
     class: "eo-guides",
     update: (u) => {
@@ -2700,7 +2678,7 @@ function headingGuides() {
         const y1 = bottom.bottom + view.documentTop - baseTop;
         if (y1 - y0 < 1) continue;
         const x = textLeft - 6 - (deepest - s.depth) * step2;
-        out.push(new import_view4.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
+        out.push(new import_view3.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
       }
       return out;
     }
@@ -2710,7 +2688,7 @@ var HEADING_STEP = 24;
 var DRAG_START = 4;
 var HANDLE_GAP = 22;
 function dragHandles(logical) {
-  const plugin = import_view4.ViewPlugin.fromClass(
+  const plugin = import_view3.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.view = view;
@@ -2919,7 +2897,7 @@ function dragHandles(logical) {
       }
     }
   );
-  const classes = import_view4.EditorView.editorAttributes.of((view) => {
+  const classes = import_view3.EditorView.editorAttributes.of((view) => {
     const p = view.plugin(plugin);
     return p && !p.off ? { class: p.drag ? "eo-drag-handles eo-dragging" : "eo-drag-handles" } : null;
   });
@@ -2932,6 +2910,171 @@ function scrollParent(el) {
     if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight) return p;
   }
   return null;
+}
+
+// src/codeindent.ts
+var import_state5 = require("@codemirror/state");
+var import_view4 = require("@codemirror/view");
+var import_obsidian5 = require("obsidian");
+function hiddenEnd(o, i) {
+  if (o.info[i]?.kind !== "code") return 0;
+  const cb = codeBlockAt(o, i);
+  if (!cb || cb.owner.list.q > 0) return 0;
+  return indentEnd(o.texts[i], 0, cb.owner.item.cc, o.tabSize);
+}
+var leadingWs = (t) => t.length - t.trimStart().length;
+var isLive = (state) => state.field(import_obsidian5.editorLivePreviewField, false) === true;
+var keepOutOfIndent = import_state5.EditorState.transactionFilter.of((tr) => {
+  if (!tr.selection || !isLive(tr.state)) return tr;
+  const st = tr.state;
+  let o = null;
+  const was = tr.startState.selection.main.head;
+  let moved = false;
+  const ranges = tr.selection.ranges.map((r) => {
+    if (!r.empty) return r;
+    const line = st.doc.lineAt(r.head);
+    if (r.head - line.from >= leadingWs(line.text)) return r;
+    o ?? (o = outlineOf(st));
+    const k = hiddenEnd(o, line.number - 1);
+    if (!k || r.head - line.from >= k) return r;
+    moved = true;
+    const left2 = !tr.docChanged && was === line.from + k && r.head === was - 1 && line.number > 1;
+    return import_state5.EditorSelection.cursor(left2 ? line.from - 1 : line.from + k);
+  });
+  return moved ? [tr, { selection: import_state5.EditorSelection.create(ranges, tr.selection.mainIndex), sequential: true }] : tr;
+});
+function backspaceAtIndent(view) {
+  const st = view.state;
+  const r = st.selection.main;
+  if (!isLive(st) || !r.empty || stepAside(view, false)) return false;
+  const line = st.doc.lineAt(r.head);
+  if (r.head - line.from > leadingWs(line.text)) return false;
+  const o = outlineOf(st);
+  const k = hiddenEnd(o, line.number - 1);
+  if (!k || r.head - line.from !== k) return false;
+  const p = posOf(st, r.head);
+  const res = backspace(o, p, p, ctxOf(st, false), foldedLines(st));
+  if (res && res !== "noop") applyRows(view, o, res.rows, "merge.outliner", res.cursor);
+  return true;
+}
+var remeasured = import_state5.StateEffect.define();
+var livePreview = (view) => isLive(view.state);
+function itemCodeIndent() {
+  const plugin = import_view4.ViewPlugin.fromClass(
+    class {
+      constructor(view) {
+        this.view = view;
+        this.decorations = import_view4.Decoration.none;
+        this.hidden = import_view4.Decoration.none;
+        /** Item marker line (0-based) → its text's offset from the line's left edge, in px. */
+        this.offsets = /* @__PURE__ */ new Map();
+        /** The item marker lines whose code lines are in view, to measure. */
+        this.items = /* @__PURE__ */ new Set();
+        this.timer = 0;
+        this.build(view);
+        this.measure();
+      }
+      destroy() {
+        window.clearTimeout(this.timer);
+      }
+      update(u) {
+        const again = u.transactions.some((tr) => tr.effects.some((e) => e.is(remeasured)));
+        const typing = u.docChanged && !again && // (the viewport's offsets shift with every keystroke: viewportChanged doesn't mean new lines in view;
+        // lines scrolled into view while typing get their decorations after the pause)
+        u.transactions.every((tr) => tr.isUserEvent("input.type") || tr.isUserEvent("delete"));
+        if (typing) {
+          this.decorations = this.decorations.map(u.changes);
+          this.hidden = this.hidden.map(u.changes);
+          window.clearTimeout(this.timer);
+          const view = u.view;
+          this.timer = window.setTimeout(() => {
+            if (view.dom.isConnected) view.dispatch({ effects: remeasured.of(null) });
+          }, 300);
+          return;
+        }
+        if (u.docChanged) this.offsets.clear();
+        if (u.docChanged || u.viewportChanged || again || u.startState.field(import_obsidian5.editorLivePreviewField, false) !== livePreview(u.view)) {
+          this.build(u.view);
+        }
+        if (u.docChanged || u.viewportChanged || u.geometryChanged || again) this.measure();
+      }
+      build(view) {
+        this.items.clear();
+        if (!livePreview(view)) {
+          this.decorations = this.hidden = import_view4.Decoration.none;
+          return;
+        }
+        const st = view.state;
+        const o = outlineOf(st);
+        const lines = new import_state5.RangeSetBuilder();
+        const hide = new import_state5.RangeSetBuilder();
+        for (const { from, to } of view.visibleRanges) {
+          for (let n = st.doc.lineAt(from).number; n <= st.doc.lineAt(to).number; n++) {
+            const i = n - 1;
+            const k = hiddenEnd(o, i);
+            if (!k) continue;
+            const it = codeBlockAt(o, i).owner.item;
+            this.items.add(it.line);
+            const line = st.doc.line(n);
+            const px = this.offsets.get(it.line);
+            lines.add(
+              line.from,
+              line.from,
+              import_view4.Decoration.line({
+                class: "eo-item-code",
+                attributes: px === void 0 ? {} : { style: `--eo-item-indent: ${px}px` }
+              })
+            );
+            hide.add(line.from, line.from + k, import_view4.Decoration.replace({}));
+          }
+        }
+        this.decorations = lines.finish();
+        this.hidden = hide.finish();
+      }
+      /** Reads where each item's text starts; a change rebuilds the decorations. */
+      measure() {
+        if (!this.items.size) return;
+        this.view.requestMeasure({
+          key: this,
+          read: (view) => {
+            const st = view.state;
+            const out = /* @__PURE__ */ new Map();
+            for (const l of this.items) {
+              if (l >= st.doc.lines) continue;
+              const line = st.doc.line(l + 1);
+              const o = outlineOf(st);
+              const at = view.coordsAtPos(line.from + (o.info[l]?.text ?? 0), 1);
+              const lineEl = view.domAtPos(line.from).node;
+              const el = (lineEl instanceof HTMLElement ? lineEl : lineEl.parentElement)?.closest(".cm-line");
+              if (!at || !el) continue;
+              out.set(l, Math.max(0, Math.round(at.left - el.getBoundingClientRect().left)));
+            }
+            return out;
+          },
+          write: (out, view) => {
+            let changed = false;
+            for (const [l, px] of out) {
+              if (this.offsets.get(l) !== px) {
+                this.offsets.set(l, px);
+                changed = true;
+              }
+            }
+            if (changed)
+              queueMicrotask(() => {
+                if (view.dom.isConnected) view.dispatch({ effects: remeasured.of(null) });
+              });
+          }
+        });
+      }
+    },
+    { decorations: (v) => v.decorations }
+  );
+  return [
+    plugin,
+    import_view4.EditorView.decorations.of((view) => view.plugin(plugin)?.hidden ?? import_view4.Decoration.none),
+    keepOutOfIndent,
+    import_state5.Prec.highest(import_view4.keymap.of([{ key: "Backspace", run: backspaceAtIndent }]))
+  ];
 }
 
 // src/main.ts
@@ -2965,30 +3108,33 @@ var tracker = import_view5.ViewPlugin.fromClass(
     }
   }
 );
-var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
+var EditorOutlinerPlugin = class extends import_obsidian6.Plugin {
   constructor() {
     super(...arguments);
     this.settings = { ...DEFAULTS };
     this.extensions = [];
     /** Holds the extensions in every editor (see editors). */
-    this.compartment = new import_state5.Compartment();
-    this.status = null;
-    this.statusQueued = false;
-    this.statusTimer = 0;
+    this.compartment = new import_state6.Compartment();
+    /**
+     * Test hook for the e2e harness only (not saved, no UI): with it set, the outline-mode keys step aside, so a
+     * case can compare with Obsidian's own keys. Outline mode is otherwise always on.
+     */
+    this.outlineOffForTests = false;
     /** The "Logical outdenting" setting, read when a key or command runs. */
     this.logical = () => this.settings.logicalOutdent;
   }
   async onload() {
-    this.settings = Object.assign({}, DEFAULTS, await this.loadData());
+    const saved = await this.loadData() ?? {};
+    delete saved.outlineMode;
+    this.settings = Object.assign({}, DEFAULTS, saved);
     this.addSettingTab(new EditorOutlinerTab(this.app, this));
     setSuggestCheck(() => !!this.app.workspace.editorSuggest?.isShowingSuggestion?.());
-    setModeCheck(() => this.settings.outlineMode);
+    setModeCheck(() => !this.outlineOffForTests);
     setKeysCheck(() => this.settings.keys);
     this.buildExtensions();
     this.registerEditorExtension([this.compartment.of(this.extensions)]);
     this.addCommands();
-    this.addStatus();
-    if (import_obsidian5.Platform.isMobile) this.app.workspace.onLayoutReady(() => this.routeToolbarIndent());
+    if (import_obsidian6.Platform.isMobile) this.app.workspace.onLayoutReady(() => this.routeToolbarIndent());
   }
   /**
    * Mobile: the editor toolbar's indent / outdent buttons (Obsidian's "Indent list item" / "Unindent list item")
@@ -3014,64 +3160,15 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     route("editor:unindent-list", "outdent");
   }
   onunload() {
-    window.clearTimeout(this.statusTimer);
     this.reconfigure([]);
     setSuggestCheck(() => false);
     setModeCheck(() => false);
     setKeysCheck(() => false);
     lastFocused = null;
   }
-  /** Outline mode on / off (command, setting, status bar): saved, no editor reconfiguration needed. */
-  async setOutlineMode(on) {
-    this.settings.outlineMode = on;
-    await this.saveData(this.settings);
-    this.refreshStatus();
-    for (const e of [...editors]) e.view.dispatch({});
-  }
   /** Gives every editor that has the extensions the new ones (none: unloading). */
   reconfigure(ext) {
     for (const e of [...editors]) e.view.dispatch({ effects: this.compartment.reconfigure(ext) });
-  }
-  /**
-   * The status bar item (desktop; mobile has no status bar): "Outline" when outline mode is on, emphasised
-   * while it is active in the focused editor (or the last one focused), faint when off. A click toggles.
-   */
-  addStatus() {
-    const el = this.addStatusBarItem();
-    el.addClass("eo-status", "mod-clickable");
-    el.setText("Outline");
-    this.registerDomEvent(el, "click", () => void this.setOutlineMode(!this.settings.outlineMode));
-    this.status = el;
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshStatus()));
-    this.refreshStatus();
-  }
-  /**
-   * Updates the status bar item, at most once per frame (it runs on every selection change); while typing, after a
-   * pause (typing inside an item rarely changes the active state, and working it out parses the note).
-   */
-  refreshStatus(typing = false) {
-    if (!this.status) return;
-    window.clearTimeout(this.statusTimer);
-    if (typing) {
-      this.statusTimer = window.setTimeout(() => this.refreshStatus(), 300);
-      return;
-    }
-    if (this.statusQueued) return;
-    this.statusQueued = true;
-    requestAnimationFrame(() => {
-      this.statusQueued = false;
-      const el = this.status;
-      if (!el) return;
-      const on = this.settings.outlineMode;
-      const view = this.targetView();
-      const active = on && !!view && !!activeIn(view);
-      el.toggleClass("is-on", on);
-      el.toggleClass("is-active", active);
-      el.setAttribute(
-        "aria-label",
-        `Outline mode ${on ? active ? "on, active in this list" : "on" : "off"}. Click to turn it ${on ? "off" : "on"}.`
-      );
-    });
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -3085,7 +3182,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     this.extensions.push(tracker);
     this.extensions.push(nodeSelectionExtension());
     this.extensions.push(
-      import_state5.Prec.highest(
+      import_state6.Prec.highest(
         import_view5.keymap.of([
           { key: "Enter", run: (v) => outlineEnter(v, logical()) },
           { key: "Shift-Enter", run: outlineShiftEnter },
@@ -3097,7 +3194,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     );
     if (this.settings.keys) {
       this.extensions.push(
-        import_state5.Prec.highest(
+        import_state6.Prec.highest(
           import_view5.keymap.of([
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
@@ -3121,12 +3218,12 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       codeClipboard((v, data) => {
         const text = this.clipText(data);
         return text !== null && outlinePaste(v, text);
-      }),
-      watchActive((typing) => this.refreshStatus(typing))
+      })
     );
     this.extensions.push(lineDecorations(() => this.settings));
+    this.extensions.push(itemCodeIndent());
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
-    if (this.settings.dragHandles && !import_obsidian5.Platform.isMobile) this.extensions.push(dragHandles(logical));
+    if (this.settings.dragHandles && !import_obsidian6.Platform.isMobile) this.extensions.push(dragHandles(logical));
   }
   /**
    * The text Obsidian's own paste would insert (its clipboard manager, app.js): its own copies' plain text, else
@@ -3143,7 +3240,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     if (html) {
       if (!this.app.vault.getConfig("autoConvertHtml")) return plain || null;
       if (/<(img|audio|video)\b/i.test(html)) return null;
-      return (0, import_obsidian5.htmlToMarkdown)(html);
+      return (0, import_obsidian6.htmlToMarkdown)(html);
     }
     return plain || null;
   }
@@ -3154,16 +3251,6 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   }
   addCommands() {
     const logical = this.logical;
-    this.addCommand({
-      id: "toggle-outline-mode",
-      name: "Toggle outline mode",
-      icon: "list-tree",
-      hotkeys: [{ modifiers: ["Ctrl", "Meta"], key: "O" }],
-      callback: async () => {
-        await this.setOutlineMode(!this.settings.outlineMode);
-        new import_obsidian5.Notice(`Outline mode ${this.settings.outlineMode ? "on" : "off"}`, 1500);
-      }
-    });
     const cmd = (id, name, icon, run2, opts = {}) => this.addCommand({
       id,
       name,

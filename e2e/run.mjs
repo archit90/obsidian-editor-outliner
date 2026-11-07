@@ -436,7 +436,7 @@ const PAGE = String.raw`
         // Escape leaving a card blurs its editor; the canvas keeps isEditing until another click
         editing: S.node ? !!S.node.isEditing && cm.hasFocus : undefined,
         suggest: !!app.workspace.editorSuggest?.isShowingSuggestion?.(),
-        mode: app.plugins.plugins["${PLUGIN_ID}"].settings.outlineMode,
+        mode: !app.plugins.plugins["${PLUGIN_ID}"].outlineOffForTests,
         renumbered: S.renumbered,
       };
     },
@@ -487,9 +487,9 @@ const PAGE = String.raw`
       cm.contentDOM.dispatchEvent(e);
       return { plain: dt.getData("text/plain"), html: dt.getData("text/html"), prevented: e.defaultPrevented };
     },
+    // outline mode is always on; the plugin's test hook turns its keys off to compare with Obsidian's ("@off")
     async mode(on) {
-      const p = app.plugins.plugins["${PLUGIN_ID}"];
-      if (p.settings.outlineMode !== on) await p.setOutlineMode(on);
+      app.plugins.plugins["${PLUGIN_ID}"].outlineOffForTests = !on;
     },
     async settings(obj) {
       const p = app.plugins.plugins["${PLUGIN_ID}"];

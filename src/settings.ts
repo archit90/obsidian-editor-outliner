@@ -2,7 +2,6 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import type EditorOutlinerPlugin from "./main";
 
 export interface Settings {
-  outlineMode: boolean; // Logseq-like Enter / Shift+Enter / Shift+Tab inside lists (the "Toggle outline mode" command too)
   logicalOutdent: boolean; // outdented nodes move after their parent's subtree; following siblings stay
   keys: boolean; // Tab / Shift+Tab, Mod+Up/Down, Alt+Up/Down, Alt+Shift+Up/Down (a CodeMirror keymap)
   headingGuides: boolean;
@@ -12,7 +11,6 @@ export interface Settings {
 }
 
 export const DEFAULTS: Settings = {
-  outlineMode: true,
   logicalOutdent: false,
   keys: true,
   headingGuides: true,
@@ -43,12 +41,6 @@ export class EditorOutlinerTab extends PluginSettingTab {
 
   override display() {
     this.containerEl.empty();
-    new Setting(this.containerEl)
-      .setName("Outline mode")
-      .setDesc(
-        'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list; Backspace at the start of an item merges it into the one above, Delete at its end pulls the next one in; pasted Markdown lists, headings and paragraphs become items. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Ctrl+Super+O; Ctrl+Cmd+O on macOS) and the status bar item switch it too.',
-      )
-      .addToggle(t => t.setValue(this.plugin.settings.outlineMode).onChange(v => this.plugin.setOutlineMode(v)));
     this.toggle(
       "Logical outdenting",
       "Off: an outdented item or heading stays where it is, and the siblings after it become its children. On: it moves to just after its parent, and those siblings stay with the parent.",
