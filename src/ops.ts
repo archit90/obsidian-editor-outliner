@@ -9,10 +9,12 @@ import {
   blocksOf,
   bodyRange,
   buildOutline,
+  columns,
   flatItems,
   itemsOf,
   listsOf,
   locate,
+  prefixLen,
   sectionAt,
   siblingRun,
   trimEnd,
@@ -64,7 +66,7 @@ export function listCtx(o: Outline, list: Block, ctx: Ctx): Ctx {
 }
 
 /** Removes `cols` columns of leading whitespace from ws (a tab that only partly fits becomes spaces). */
-function dropCols(ws: string, cols: number, tabSize: number): string {
+export function dropCols(ws: string, cols: number, tabSize: number): string {
   let c = 0;
   let k = 0;
   while (k < ws.length && c < cols) {
@@ -78,9 +80,10 @@ function dropCols(ws: string, cols: number, tabSize: number): string {
 
 /**
  * Re-indents rows[s, e) by delta columns. The rows must still hold their original text. Item lines and
- * plain continuation lines get their indent rebuilt in the list's style; code lines only gain or lose the
- * outer delta so the code's own whitespace stays byte for byte; a quote indented under an item moves its
- * `>`. q is the quote depth of the list (inside a callout, the indent after the `>` changes).
+ * plain continuation lines get their indent rebuilt in the list's style; a code line only has its item
+ * indent (up to its item's content column) rebuilt, so the code's own whitespace beyond it stays byte for
+ * byte; a quote indented under an item moves its `>`. q is the quote depth of the list (inside a callout,
+ * the indent after the `>` changes).
  */
 export function shift(o: Outline, rows: Row[], s: number, e: number, delta: number, ctx: Ctx, q = 0) {
   if (delta === 0) return;
@@ -88,7 +91,21 @@ export function shift(o: Outline, rows: Row[], s: number, e: number, delta: numb
     const r = rows[i]!;
     if (r.o < 0) continue;
     const L = o.info[r.o]!;
-    if (L.kind === "blank" || L.empty) continue;
+    if (L.kind === "blank") continue;
+    if (L.kind === "code") {
+      // the list's own prefix: a code line's text may start with `>` or whitespace of its own
+      const p = prefixLen(r.t, q);
+      const ws = /^[ \t]*/.exec(r.t.slice(p))![0];
+      if (p + ws.length === r.t.length && ws === "") continue;
+      const lead = Math.min(columns(ws, ctx.tabSize), locate(o, r.o)?.item?.cc ?? Infinity);
+      r.t =
+        r.t.slice(0, p) +
+        makeWs(Math.max(0, lead + delta), ctx) +
+        dropCols(ws, lead, ctx.tabSize) +
+        r.t.slice(p + ws.length);
+      continue;
+    }
+    if (L.empty) continue;
     if (L.qd > q) {
       // a quote under a list item: its indent is the spaces before the `>`
       const lead = r.t.length - r.t.trimStart().length;
@@ -96,15 +113,7 @@ export function shift(o: Outline, rows: Row[], s: number, e: number, delta: numb
       continue;
     }
     const head = r.t.slice(0, L.pre);
-    const ws = r.t.slice(L.pre, L.pre + L.ws);
     const tail = r.t.slice(L.pre + L.ws);
-    if (L.kind === "code") {
-      const add = ws.includes("\t")
-        ? makeWs(Math.max(0, delta), { ...ctx, unit: "\t" })
-        : " ".repeat(Math.max(0, delta));
-      r.t = head + (delta > 0 ? add + ws : dropCols(ws, -delta, ctx.tabSize)) + tail;
-      continue;
-    }
     r.t = head + makeWs(Math.max(0, L.col + delta), ctx) + tail;
   }
 }

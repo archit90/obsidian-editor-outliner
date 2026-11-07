@@ -1,14 +1,25 @@
 // Editor Outliner: outliner editing for headings, nested lists and body blocks. See the repo's SPEC.md, "Editor Outliner".
 //
 // - parse.ts: the outline model (pure). ops.ts: indent / outdent / move (pure). select.ts: expand steps (pure).
-//   drop.ts: drag sources, targets and drops (pure).
+//   drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
+//   code-indent rules and the insert commands (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
 //   view.ts: heading guides, H7+ styling, drag handles.
 // The keys are a high-precedence CodeMirror keymap (see buildExtensions); the commands have no default hotkeys.
 import { Platform, Plugin } from "obsidian";
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
-import { OpKind, expandSelection, nested, runOp, setSuggestCheck, shrinkSelection } from "./editor";
+import {
+  OpKind,
+  codeClipboard,
+  codeEnter,
+  expandSelection,
+  insertBlock,
+  nested,
+  runOp,
+  setSuggestCheck,
+  shrinkSelection,
+} from "./editor";
 import { foldChildren, foldNode, foldToLevel, unfoldAll, unfoldNode, unfoldSubtree } from "./folding";
 import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
 import { dragHandles, headingGuides, lineDecorations } from "./view";
@@ -78,11 +89,12 @@ export default class EditorOutlinerPlugin extends Plugin {
             { key: "Alt-PageDown", run: op("down") },
             { key: "Alt-ArrowUp", run: expandSelection },
             { key: "Alt-ArrowDown", run: shrinkSelection },
+            { key: "Enter", run: codeEnter },
           ]),
         ),
       );
     }
-    this.extensions.push(rememberFocus);
+    this.extensions.push(rememberFocus, codeClipboard());
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !Platform.isMobile) this.extensions.push(dragHandles(logical));
@@ -136,6 +148,12 @@ export default class EditorOutlinerPlugin extends Plugin {
     }
     cmd("expand-selection", "Expand selection", "text-select", expandSelection);
     cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection);
+    cmd("insert-code-block", "Insert code block in item", "code", v => insertBlock(v, ""), {
+      applies: v => insertBlock(v, "", true),
+    });
+    cmd("insert-dataview", "Insert Dataview query in item", "database", v => insertBlock(v, "dataview"), {
+      applies: v => insertBlock(v, "dataview", true),
+    });
     cmd("fold", "Fold heading or list item", "fold-vertical", foldNode);
     cmd("unfold", "Unfold heading or list item", "unfold-vertical", unfoldNode);
     cmd("fold-children", "Fold children", "chevrons-down-up", foldChildren);

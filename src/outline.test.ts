@@ -247,9 +247,7 @@ describe("review fixes", () => {
 
   it("EO-02: code inside a list item keeps its own whitespace; Tab in it is Obsidian's", () => {
     const t = lines("- a", "- b", "  ```yaml", "  key:", "    sub: 1", "  ```");
-    expect(run(t, 1, 1, tind)).toBe(
-      lines("- a", "\t- b", "      ```yaml", "      key:", "        sub: 1", "      ```"),
-    );
+    expect(run(t, 1, 1, tind)).toBe(lines("- a", "\t- b", "\t  ```yaml", "\t  key:", "\t    sub: 1", "\t  ```"));
   });
 
   it("EO-05: a selection that leaves the list isn't a list selection", () => {

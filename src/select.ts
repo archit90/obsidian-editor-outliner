@@ -2,11 +2,9 @@
 // position grows through, smallest first; the caller picks the first one that strictly contains the
 // current selection.
 import { Item, Outline, Section, bodyRange, locate, trimEnd } from "./parse";
+import { Pos, partAt } from "./content";
 
-export interface Pos {
-  line: number;
-  ch: number;
-}
+export type { Pos };
 export interface Span {
   from: Pos;
   to: Pos;
@@ -90,7 +88,14 @@ export function steps(o: Outline, line: number, ch: number): Span[] {
   if (!loc.onHeading && loc.block) {
     if (loc.item) {
       for (let it: Item | null = loc.item; it && it.line >= 0; it = it.parent) {
-        if (it === loc.item) out.push(lines(it.line, it.ownEnd));
+        if (it === loc.item) {
+          // inside the item's own lines: its paragraph, or its code block's lines and then the whole fence
+          const part = partAt(o, line);
+          if (part?.code && part.code.innerEnd > part.code.innerStart)
+            out.push(lines(part.code.innerStart, part.code.innerEnd));
+          if (part) out.push(lines(part.start, part.end));
+          out.push(lines(it.line, it.ownEnd));
+        }
         out.push(lines(it.line, it.end));
       }
     }

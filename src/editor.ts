@@ -1,12 +1,13 @@
 // CodeMirror glue: parses the editor's note (cached per document version), runs an operation, and applies
 // its rows as one transaction (one undo step) with the selection and folds carried over.
-import { EditorSelection, EditorState, StateEffect, Text } from "@codemirror/state";
+import { EditorSelection, EditorState, Extension, Prec, StateEffect, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { foldEffect, foldable, foldedRanges, indentUnit, unfoldEffect } from "@codemirror/language";
 import { Notice } from "obsidian";
 import { Outline, buildOutline, locate } from "./parse";
 import { Ctx, OpResult, Row, indent, move, outdent, unitCols } from "./ops";
 import { steps } from "./select";
+import { Pos, codeCopyText, codeNewline, codePasteText, insertCodeBlock } from "./content";
 
 const outlines = new WeakMap<Text, Outline>();
 
@@ -34,10 +35,11 @@ export function lineSpan(state: EditorState): [number, number] {
 }
 
 /**
- * Replaces the note with rows as one change (one undo step), mapping the selection and re-folding folds the
- * change touched. userEvent is never "input.*" / "delete.*", so Obsidian doesn't open autocomplete for it.
+ * Replaces the note with rows as one change (one undo step), mapping the selection (or putting the cursor at
+ * cursor, a position in the new rows) and re-folding folds the change touched. userEvent is never "input.*" /
+ * "delete.*", so Obsidian doesn't open autocomplete for it.
  */
-export function applyRows(view: EditorView, o: Outline, rows: Row[], userEvent = "move.outliner") {
+export function applyRows(view: EditorView, o: Outline, rows: Row[], userEvent = "move.outliner", cursor?: Pos) {
   const state = view.state;
   const oldS = state.doc.toString();
   const texts = rows.map(r => r.t);
@@ -82,8 +84,9 @@ export function applyRows(view: EditorView, o: Outline, rows: Row[], userEvent =
     if (ni === undefined) return mapPos(pos);
     return ni + 1 < texts.length ? starts[ni + 1]! : newS.length;
   };
-  const anchor = r.anchor === r.to ? mapEnd(r.anchor) : mapPos(r.anchor);
-  const head = r.head === r.to ? mapEnd(r.head) : mapPos(r.head);
+  let anchor = r.anchor === r.to ? mapEnd(r.anchor) : mapPos(r.anchor);
+  let head = r.head === r.to ? mapEnd(r.head) : mapPos(r.head);
+  if (cursor) anchor = head = starts[cursor.line]! + cursor.ch;
 
   // folds touching the changed region: Obsidian drops them, so remember their lines and refold after
   const refold: number[] = [];
@@ -223,4 +226,93 @@ export function shrinkSelection(view: EditorView): boolean {
   if (!prev.stack.length) expansions.delete(view);
   view.dispatch({ selection: EditorSelection.single(back.anchor, back.head) });
   return true;
+}
+
+// ---- multi-block items ----
+
+/** The main cursor's line, when the plugin may act: one selection range, a usable editor. */
+function soleLine(view: EditorView): number | null {
+  const st = view.state;
+  if (st.selection.ranges.length > 1 || !usable(view)) return null;
+  return st.doc.lineAt(st.selection.main.head).number - 1;
+}
+
+/** "Insert code block in item" (lang "") / "Insert Dataview query in item" (lang "dataview"). */
+export function insertBlock(view: EditorView, lang: string, check = false): boolean {
+  const line = soleLine(view);
+  if (line === null) return false;
+  const o = outlineOf(view.state);
+  const res = insertCodeBlock(o, line, lang, ctxOf(view.state, false));
+  if (!res || check) return !!res;
+  applyRows(view, o, res.rows, "insert.outliner", res.cursor);
+  view.focus();
+  return true;
+}
+
+const posOf = (state: EditorState, pos: number): Pos => {
+  const l = state.doc.lineAt(pos);
+  return { line: l.number - 1, ch: pos - l.from };
+};
+
+/**
+ * Enter in a fenced code block in an item: the new line gets the item indent plus the code line's own indent,
+ * so the code stays in the item. Whitespace right after the cursor goes (it would double the indent). False
+ * elsewhere, with an autocomplete popup open and while composing (Obsidian's Enter applies).
+ */
+export function codeEnter(view: EditorView): boolean {
+  if (soleLine(view) === null || view.composing || suggestOpen()) return false;
+  const st = view.state;
+  const r = st.selection.main;
+  const a = posOf(st, r.from);
+  const b = posOf(st, r.to);
+  const o = outlineOf(st);
+  const lead = codeNewline(o, a.line, ctxOf(st, false));
+  if (lead === null || codeNewline(o, b.line, ctxOf(st, false)) === null) return false;
+  const tl = st.doc.line(b.line + 1);
+  let to = r.to;
+  while (to < tl.to && /[ \t]/.test(tl.text[to - tl.from]!)) to++;
+  const insert = "\n" + lead;
+  view.dispatch({
+    changes: { from: r.from, to, insert },
+    selection: EditorSelection.cursor(r.from + insert.length),
+    scrollIntoView: true,
+    userEvent: "input",
+  });
+  return true;
+}
+
+/**
+ * The clipboard rules for code blocks in items, on whether or not the outliner keys are: copied / cut / dragged
+ * text loses the item indent; pasted multi-line text gains it on every line after the first.
+ */
+export function codeClipboard(): Extension {
+  return [
+    EditorView.clipboardOutputFilter.of((text, state) => {
+      if (state.selection.ranges.length > 1) return text;
+      const r = state.selection.main;
+      return codeCopyText(outlineOf(state), posOf(state, r.from), posOf(state, r.to)) ?? text;
+    }),
+    // highest precedence: before Obsidian's paste handling, which leaves an event it finds handled alone
+    Prec.highest(
+      EditorView.domEventHandlers({
+        paste: (e, view) => {
+          if (e.defaultPrevented || soleLine(view) === null) return false;
+          const text = e.clipboardData?.getData("text/plain");
+          if (!text) return false;
+          const st = view.state;
+          const r = st.selection.main;
+          const insert = codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false));
+          if (insert === null) return false;
+          e.preventDefault();
+          view.dispatch({
+            changes: { from: r.from, to: r.to, insert },
+            selection: EditorSelection.cursor(r.from + insert.length),
+            scrollIntoView: true,
+            userEvent: "input.paste",
+          });
+          return true;
+        },
+      }),
+    ),
+  ];
 }

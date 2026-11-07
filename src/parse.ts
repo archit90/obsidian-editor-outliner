@@ -95,6 +95,17 @@ export function columns(ws: string, tabSize: number, start = 0): number {
   return c - start;
 }
 
+/** Length of the quote prefix of q `>` markers at the start of t (a code line's own `>` aren't part of it). */
+export function prefixLen(t: string, q: number): number {
+  let p = 0;
+  for (let k = 0; k < q; k++) {
+    const m = /^ {0,3}>[ \t]?/.exec(t.slice(p));
+    if (!m) break;
+    p += m[0].length;
+  }
+  return p;
+}
+
 const count = (s: string, sub: string) => s.split(sub).length - 1;
 
 type FenceKind = "fence" | "math" | "comment" | "html";

@@ -29,10 +29,11 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian5 = require("obsidian");
 var import_state3 = require("@codemirror/state");
-var import_view2 = require("@codemirror/view");
+var import_view3 = require("@codemirror/view");
 
 // src/editor.ts
 var import_state = require("@codemirror/state");
+var import_view = require("@codemirror/view");
 var import_language = require("@codemirror/language");
 var import_obsidian = require("obsidian");
 
@@ -45,6 +46,15 @@ function columns(ws, tabSize, start = 0) {
   let c = start;
   for (const ch of ws) c = ch === "	" ? c + tabSize - c % tabSize : c + 1;
   return c - start;
+}
+function prefixLen(t, q) {
+  let p = 0;
+  for (let k = 0; k < q; k++) {
+    const m = /^ {0,3}>[ \t]?/.exec(t.slice(p));
+    if (!m) break;
+    p += m[0].length;
+  }
+  return p;
 }
 var count = (s, sub) => s.split(sub).length - 1;
 function closes(f, c) {
@@ -437,20 +447,23 @@ function shift(o, rows, s, e, delta, ctx, q = 0) {
     const r = rows[i];
     if (r.o < 0) continue;
     const L = o.info[r.o];
-    if (L.kind === "blank" || L.empty) continue;
+    if (L.kind === "blank") continue;
+    if (L.kind === "code") {
+      const p = prefixLen(r.t, q);
+      const ws = /^[ \t]*/.exec(r.t.slice(p))[0];
+      if (p + ws.length === r.t.length && ws === "") continue;
+      const lead = Math.min(columns(ws, ctx.tabSize), locate(o, r.o)?.item?.cc ?? Infinity);
+      r.t = r.t.slice(0, p) + makeWs(Math.max(0, lead + delta), ctx) + dropCols(ws, lead, ctx.tabSize) + r.t.slice(p + ws.length);
+      continue;
+    }
+    if (L.empty) continue;
     if (L.qd > q) {
       const lead = r.t.length - r.t.trimStart().length;
       r.t = makeWs(Math.max(0, L.qcol + delta), ctx) + r.t.slice(lead);
       continue;
     }
     const head = r.t.slice(0, L.pre);
-    const ws = r.t.slice(L.pre, L.pre + L.ws);
     const tail = r.t.slice(L.pre + L.ws);
-    if (L.kind === "code") {
-      const add = ws.includes("	") ? makeWs(Math.max(0, delta), { ...ctx, unit: "	" }) : " ".repeat(Math.max(0, delta));
-      r.t = head + (delta > 0 ? add + ws : dropCols(ws, -delta, ctx.tabSize)) + tail;
-      continue;
-    }
     r.t = head + makeWs(Math.max(0, L.col + delta), ctx) + tail;
   }
 }
@@ -682,6 +695,129 @@ function renumber(rows, touched, tabSize = 4) {
   return out;
 }
 
+// src/content.ts
+function ownerAt(o, i) {
+  const loc = locate(o, i);
+  if (!loc?.item || !loc.list) return null;
+  const it = loc.item;
+  return i >= it.line && i < it.ownEnd ? { item: it, list: loc.list } : null;
+}
+function itemIndent(o, w, ctx) {
+  const t = o.texts[w.item.line];
+  return t.slice(0, prefixLen(t, w.list.q)) + makeWs(w.item.cc, listCtx(o, w.list, ctx));
+}
+function indentEnd(t, q, cc, tabSize) {
+  let k = prefixLen(t, q);
+  let c = 0;
+  while (k < t.length && c < cc && (t[k] === " " || t[k] === "	")) {
+    c += t[k] === "	" ? tabSize - c % tabSize : 1;
+    k++;
+  }
+  return k;
+}
+function stripItemIndent(t, q, cc, tabSize) {
+  const p = prefixLen(t, q);
+  const ws = /^[ \t]*/.exec(t.slice(p))[0];
+  return dropCols(ws, cc, tabSize) + t.slice(p + ws.length);
+}
+var FENCE = /^(`{3,}|~{3,})/;
+function codeBlockAt(o, i) {
+  const L = o.info[i];
+  if (!L || L.kind !== "code") return null;
+  let s = i;
+  while (s > o.bodyStart && o.info[s - 1].fence === L.fence) s--;
+  let e = i + 1;
+  while (e < o.texts.length && o.info[e].fence === L.fence) e++;
+  const S = o.info[s];
+  const open = FENCE.exec(o.texts[s].slice(S.pre + S.ws));
+  if (!open) return null;
+  const owner = ownerAt(o, s);
+  if (!owner || S.qd !== owner.list.q) return null;
+  const last = o.texts[e - 1];
+  const lc = last.slice(prefixLen(last, owner.list.q)).trim();
+  const closed = e - 1 > s && lc.length >= open[1].length && [...lc].every((x) => x === open[1][0]);
+  return { start: s, end: e, innerStart: s + 1, innerEnd: closed ? e - 1 : e, owner };
+}
+function partsOf(o, w) {
+  const out = [];
+  const { item } = w;
+  const q = w.list.q;
+  let i = item.line;
+  while (i < item.ownEnd) {
+    if (isBlank(o, i, true)) {
+      i++;
+      continue;
+    }
+    const L = o.info[i];
+    let j = i + 1;
+    if (L.kind === "code") {
+      while (j < item.ownEnd && o.info[j].fence === L.fence) j++;
+      out.push({ start: i, end: j, code: codeBlockAt(o, i) });
+    } else {
+      const quoted = L.qd > q;
+      while (j < item.ownEnd && !isBlank(o, j, true) && o.info[j].kind !== "code" && o.info[j].qd > q === quoted) j++;
+      out.push({ start: i, end: j, code: null });
+    }
+    i = j;
+  }
+  return out;
+}
+function partAt(o, i) {
+  const w = ownerAt(o, i);
+  return w ? partsOf(o, w).find((p) => p.start <= i && i < p.end) ?? null : null;
+}
+function insertCodeBlock(o, line, lang, ctx) {
+  const w = ownerAt(o, line);
+  if (!w) return null;
+  const ind = itemIndent(o, w, ctx);
+  const at = w.item.ownEnd;
+  const rows = rowsOf(o);
+  rows.splice(at, 0, { t: ind + "```" + lang, o: -1 }, { t: ind, o: -1 }, { t: ind + "```", o: -1 });
+  return { rows, cursor: { line: at + 1, ch: ind.length } };
+}
+function codeNewline(o, i, ctx) {
+  const cb = codeBlockAt(o, i);
+  if (!cb) return null;
+  const t = o.texts[i];
+  const p = prefixLen(t, cb.owner.list.q);
+  const ws = /^[ \t]*/.exec(t.slice(p))[0];
+  if (columns(ws, o.tabSize) >= cb.owner.item.cc) return t.slice(0, p + ws.length);
+  return itemIndent(o, cb.owner, ctx);
+}
+function codeCopyText(o, from, to) {
+  if (from.line === to.line) return null;
+  const cb = codeBlockAt(o, from.line);
+  if (!cb || to.line < cb.start || to.line >= cb.end) return null;
+  const q = cb.owner.list.q;
+  const cc = cb.owner.item.cc;
+  const out = [];
+  for (let l = from.line; l <= to.line; l++) {
+    const t = o.texts[l];
+    const a = l === from.line ? from.ch : 0;
+    const b = l === to.line ? to.ch : t.length;
+    out.push(a >= indentEnd(t, q, cc, o.tabSize) ? t.slice(a, b) : stripItemIndent(t.slice(0, b), q, cc, o.tabSize));
+  }
+  return out.join("\n");
+}
+function codePasteText(o, from, to, text, ctx) {
+  const ls = text.split(/\r\n?|\n/);
+  if (ls.length < 2) return null;
+  const cb = codeBlockAt(o, from.line);
+  if (!cb) return null;
+  const inner = (l) => l >= cb.innerStart && l < cb.innerEnd;
+  if (!inner(from.line) || !inner(to.line)) return null;
+  const ind = itemIndent(o, cb.owner, ctx);
+  const q = cb.owner.list.q;
+  const pre = ind.slice(0, prefixLen(ind, q)).trimEnd();
+  const tt = o.texts[to.line];
+  const restIndented = to.ch < indentEnd(tt, q, cb.owner.item.cc, o.tabSize);
+  return ls.map((l, k) => {
+    if (k === 0) return l;
+    if (k === ls.length - 1 && restIndented) return l;
+    return l === "" && k < ls.length - 1 ? pre : ind + l;
+  }).join("\n");
+}
+
 // src/select.ts
 var WORD = /[\p{L}\p{M}\p{N}_]/u;
 var INLINE = [
@@ -749,7 +885,13 @@ function steps(o, line, ch) {
   if (!loc.onHeading && loc.block) {
     if (loc.item) {
       for (let it = loc.item; it && it.line >= 0; it = it.parent) {
-        if (it === loc.item) out.push(lines(it.line, it.ownEnd));
+        if (it === loc.item) {
+          const part = partAt(o, line);
+          if (part?.code && part.code.innerEnd > part.code.innerStart)
+            out.push(lines(part.code.innerStart, part.code.innerEnd));
+          if (part) out.push(lines(part.start, part.end));
+          out.push(lines(it.line, it.ownEnd));
+        }
         out.push(lines(it.line, it.end));
       }
     }
@@ -793,7 +935,7 @@ function lineSpan(state) {
   if (r.to > r.from && r.to === bl.from && b > a) b--;
   return [a, b];
 }
-function applyRows(view, o, rows, userEvent = "move.outliner") {
+function applyRows(view, o, rows, userEvent = "move.outliner", cursor) {
   const state = view.state;
   const oldS = state.doc.toString();
   const texts = rows.map((r2) => r2.t);
@@ -833,8 +975,9 @@ function applyRows(view, o, rows, userEvent = "move.outliner") {
     if (ni === void 0) return mapPos(pos);
     return ni + 1 < texts.length ? starts[ni + 1] : newS.length;
   };
-  const anchor = r.anchor === r.to ? mapEnd(r.anchor) : mapPos(r.anchor);
-  const head = r.head === r.to ? mapEnd(r.head) : mapPos(r.head);
+  let anchor = r.anchor === r.to ? mapEnd(r.anchor) : mapPos(r.anchor);
+  let head = r.head === r.to ? mapEnd(r.head) : mapPos(r.head);
+  if (cursor) anchor = head = starts[cursor.line] + cursor.ch;
   const refold = [];
   (0, import_language.foldedRanges)(state).between(0, oldS.length, (from, to) => {
     if (from <= changedTo && to >= p) {
@@ -938,6 +1081,77 @@ function shrinkSelection(view) {
   if (!prev.stack.length) expansions.delete(view);
   view.dispatch({ selection: import_state.EditorSelection.single(back.anchor, back.head) });
   return true;
+}
+function soleLine(view) {
+  const st = view.state;
+  if (st.selection.ranges.length > 1 || !usable(view)) return null;
+  return st.doc.lineAt(st.selection.main.head).number - 1;
+}
+function insertBlock(view, lang, check = false) {
+  const line = soleLine(view);
+  if (line === null) return false;
+  const o = outlineOf(view.state);
+  const res = insertCodeBlock(o, line, lang, ctxOf(view.state, false));
+  if (!res || check) return !!res;
+  applyRows(view, o, res.rows, "insert.outliner", res.cursor);
+  view.focus();
+  return true;
+}
+var posOf = (state, pos) => {
+  const l = state.doc.lineAt(pos);
+  return { line: l.number - 1, ch: pos - l.from };
+};
+function codeEnter(view) {
+  if (soleLine(view) === null || view.composing || suggestOpen()) return false;
+  const st = view.state;
+  const r = st.selection.main;
+  const a = posOf(st, r.from);
+  const b = posOf(st, r.to);
+  const o = outlineOf(st);
+  const lead = codeNewline(o, a.line, ctxOf(st, false));
+  if (lead === null || codeNewline(o, b.line, ctxOf(st, false)) === null) return false;
+  const tl = st.doc.line(b.line + 1);
+  let to = r.to;
+  while (to < tl.to && /[ \t]/.test(tl.text[to - tl.from])) to++;
+  const insert = "\n" + lead;
+  view.dispatch({
+    changes: { from: r.from, to, insert },
+    selection: import_state.EditorSelection.cursor(r.from + insert.length),
+    scrollIntoView: true,
+    userEvent: "input"
+  });
+  return true;
+}
+function codeClipboard() {
+  return [
+    import_view.EditorView.clipboardOutputFilter.of((text, state) => {
+      if (state.selection.ranges.length > 1) return text;
+      const r = state.selection.main;
+      return codeCopyText(outlineOf(state), posOf(state, r.from), posOf(state, r.to)) ?? text;
+    }),
+    // highest precedence: before Obsidian's paste handling, which leaves an event it finds handled alone
+    import_state.Prec.highest(
+      import_view.EditorView.domEventHandlers({
+        paste: (e, view) => {
+          if (e.defaultPrevented || soleLine(view) === null) return false;
+          const text = e.clipboardData?.getData("text/plain");
+          if (!text) return false;
+          const st = view.state;
+          const r = st.selection.main;
+          const insert = codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false));
+          if (insert === null) return false;
+          e.preventDefault();
+          view.dispatch({
+            changes: { from: r.from, to: r.to, insert },
+            selection: import_state.EditorSelection.cursor(r.from + insert.length),
+            scrollIntoView: true,
+            userEvent: "input.paste"
+          });
+          return true;
+        }
+      })
+    )
+  ];
 }
 
 // src/folding.ts
@@ -1064,7 +1278,7 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
 
 // src/view.ts
 var import_state2 = require("@codemirror/state");
-var import_view = require("@codemirror/view");
+var import_view2 = require("@codemirror/view");
 var import_obsidian4 = require("obsidian");
 
 // src/drop.ts
@@ -1201,7 +1415,7 @@ function plainEdit(u) {
   return plain;
 }
 function lineDecorations(settings) {
-  return import_view.ViewPlugin.fromClass(
+  return import_view2.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.decorations = this.build(view);
@@ -1212,7 +1426,7 @@ function lineDecorations(settings) {
       }
       build(view) {
         const s = settings();
-        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view.Decoration.none;
+        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view2.Decoration.none;
         const o = outlineOf(view.state);
         const b = new import_state2.RangeSetBuilder();
         const doc = view.state.doc;
@@ -1232,7 +1446,7 @@ function lineDecorations(settings) {
               if (s.levelLabels) cls.push("eo-level-label");
               attrs["data-eo-level"] = String(L.level);
             }
-            if (cls.length) b.add(line.from, line.from, import_view.Decoration.line({ class: cls.join(" "), attributes: attrs }));
+            if (cls.length) b.add(line.from, line.from, import_view2.Decoration.line({ class: cls.join(" "), attributes: attrs }));
           }
         }
         return b.finish();
@@ -1243,7 +1457,7 @@ function lineDecorations(settings) {
 }
 var GUIDE_STEP = 10;
 function headingGuides() {
-  return (0, import_view.layer)({
+  return (0, import_view2.layer)({
     above: false,
     class: "eo-guides",
     update: (u) => u.docChanged || u.viewportChanged || u.geometryChanged,
@@ -1279,7 +1493,7 @@ function headingGuides() {
         const y1 = bottom.bottom + view.documentTop - baseTop;
         if (y1 - y0 < 1) continue;
         const x = textLeft - 6 - (deepest - depthOf.get(s)) * step;
-        out.push(new import_view.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
+        out.push(new import_view2.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
       }
       return out;
     }
@@ -1288,7 +1502,7 @@ function headingGuides() {
 var HEADING_STEP = 24;
 var DRAG_START = 4;
 function dragHandles(logical) {
-  return import_view.ViewPlugin.fromClass(
+  return import_view2.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.view = view;
@@ -1510,10 +1724,10 @@ function scrollParent(el) {
 // src/main.ts
 function focusedView() {
   const el = activeDocument.activeElement?.closest(".cm-editor");
-  return el ? import_view2.EditorView.findFromDOM(el) : null;
+  return el ? import_view3.EditorView.findFromDOM(el) : null;
 }
 var lastFocused = null;
-var rememberFocus = import_view2.EditorView.domEventHandlers({
+var rememberFocus = import_view3.EditorView.domEventHandlers({
   focus: (_e, view) => {
     lastFocused = view;
   }
@@ -1552,19 +1766,20 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       ];
       this.extensions.push(
         import_state3.Prec.highest(
-          import_view2.keymap.of([
+          import_view3.keymap.of([
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
             ...move2,
             { key: "Alt-PageUp", run: op("up") },
             { key: "Alt-PageDown", run: op("down") },
             { key: "Alt-ArrowUp", run: expandSelection },
-            { key: "Alt-ArrowDown", run: shrinkSelection }
+            { key: "Alt-ArrowDown", run: shrinkSelection },
+            { key: "Enter", run: codeEnter }
           ])
         )
       );
     }
-    this.extensions.push(rememberFocus);
+    this.extensions.push(rememberFocus, codeClipboard());
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !import_obsidian5.Platform.isMobile) this.extensions.push(dragHandles(logical));
@@ -1604,6 +1819,12 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     }
     cmd("expand-selection", "Expand selection", "text-select", expandSelection);
     cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection);
+    cmd("insert-code-block", "Insert code block in item", "code", (v) => insertBlock(v, ""), {
+      applies: (v) => insertBlock(v, "", true)
+    });
+    cmd("insert-dataview", "Insert Dataview query in item", "database", (v) => insertBlock(v, "dataview"), {
+      applies: (v) => insertBlock(v, "dataview", true)
+    });
     cmd("fold", "Fold heading or list item", "fold-vertical", foldNode);
     cmd("unfold", "Unfold heading or list item", "unfold-vertical", unfoldNode);
     cmd("fold-children", "Fold children", "chevrons-down-up", foldChildren);
