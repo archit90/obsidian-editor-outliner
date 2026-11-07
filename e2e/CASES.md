@@ -1,6 +1,6 @@
-# Editor Outliner: outline mode end-to-end cases
+# Editor Outliner: end-to-end cases
 
-Generated from `cases.mjs` by `node e2e/run.mjs --catalogue`; edit the cases there. `run.mjs` runs them in a real Obsidian (see its header). Results of the last run: `results.md`.
+Generated from `cases.mjs` (outline mode, groups M … X) and `cases-deep.mjs` (everything else, groups KI … WH; `TEST-CASES.md` is their catalogue with statuses) by `node e2e/run.mjs --catalogue`; edit the cases there. `run.mjs` runs them in a real Obsidian (see its header). Results of the last run: `results.md`.
 
 Notation:
 - `|` is the cursor; `⟦` … `⟧` a selection from its anchor `⟦` to its head `⟧` (brackets would clash with task boxes and links). A case with a table writes the cursor as `‸`. Several `|` are several cursors.
@@ -33,7 +33,17 @@ Notation:
 | Undo | 9 |
 | Step-aside | 28 |
 | Edge cases of the note | 15 |
-| **Total** | 432 |
+| Indent / outdent outside outline mode | 28 |
+| Move outside outline mode | 18 |
+| Expand / shrink selection | 22 |
+| Node selection: headings and details | 11 |
+| Folding commands | 14 |
+| Heading guides, level labels and H7+ styling | 13 |
+| Drag handles (real mouse drags) | 15 |
+| Where it works and settings | 13 |
+| Vim mode: the outliner keys | 8 |
+| Item node selection with outline mode off | 17 |
+| **Total** | 591 |
 
 ## Mode states and the status bar
 
@@ -4885,9 +4895,9 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Node selection
 
-### N2. Outline mode off: list items are never node-selected
+### N2. Outline mode off: whole item lines are still a node selection (the Outliner keys are on)
 
-When: outline mode **off**.
+When: outline mode **off**; *everywhere*.
 
 Setup:
 ````
@@ -4900,7 +4910,7 @@ Setup:
 Keys: 
 
 Expected: (see checks)
-Node-selected (highlighted) lines: none.
+Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Node selection
 
@@ -8824,3 +8834,3358 @@ para
 ````
 
 Source: SPEC.md §7 Outline mode
+
+## Indent / outdent outside outline mode
+
+### KI1. Off: Tab indents an item with its subtree under the previous sibling
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+- b|
+	- c
+- d
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+	- b|
+		- c
+- d
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI2. Off: Shift+Tab outdents in place, the following siblings become its children
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+	- b|
+	- c
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+- a
+- b|
+	- c
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI3. Off, logical outdenting: after the parent's subtree, the siblings stay
+
+When: outline mode **off**; settings {"logicalOutdent":true}.
+
+Setup:
+````
+- a
+	- b|
+	- c
+- d
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+- a
+	- c
+- b|
+- d
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI4. Off: Shift+Tab on a top-level item: nothing (a list stays a list)
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: Shift-Tab
+
+Expected: unchanged
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI5. Off: Tab on the first item: nothing
+
+When: outline mode **off**.
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: Tab
+
+Expected: unchanged
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI6. Heading Tab demotes the section, sub-headings too
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+## B|
+body
+### C
+## D
+````
+
+Keys: Tab
+
+Expected: 
+````
+# A
+### B|
+body
+#### C
+## D
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI7. Heading Shift+Tab promotes in place: the following siblings become its sub-sections
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+## B
+### C|
+c
+### D
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+# A
+## B
+## C|
+c
+### D
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI8. Heading Shift+Tab, logical outdenting: after the parent's section
+
+When: settings {"logicalOutdent":true}.
+
+Setup:
+````
+# A
+## B
+### C|
+c
+### D
+## E
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+# A
+## B
+### D
+
+## C|
+c
+
+## E
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI9. H1 can't be promoted: a notice, nothing changes
+
+
+Setup:
+````
+# A|
+## B
+````
+
+Keys: Shift-Tab
+
+Expected: unchanged
+A notice says an H1 can't be outdented.
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI10. H6 demoted to H7: a notice that Obsidian shows it as text
+
+
+Setup:
+````
+###### F|
+````
+
+Keys: Tab
+
+Expected: 
+````
+####### F|
+````
+A notice says the heading is now deeper than H6.
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI11. H7 promoted back to H6: no notice
+
+
+Setup:
+````
+####### F|
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+###### F|
+````
+No notice.
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI12. Tab in a body paragraph: Obsidian's
+
+
+Setup:
+````
+# H
+pa|ra
+````
+
+Keys: Tab
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI13. Shift+Tab in a body paragraph: Obsidian's
+
+
+Setup:
+````
+# H
+	pa|ra
+````
+
+Keys: Shift-Tab
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI14. Tab in a code block in an item: Obsidian's
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+  ```
+  co|de
+  ```
+````
+
+Keys: Tab
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI15. Selection over a heading and the list above it: headings (the section covering both)
+
+
+Setup:
+````
+# A
+- ⟦x
+## B⟧
+b
+````
+
+Keys: Tab
+
+Expected: 
+````
+## A
+- ⟦x
+### B⟧
+b
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI16. Off: several items selected indent together
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+- ⟦b
+- c⟧
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+	- ⟦b
+	- c⟧
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI17. Off: a selection from a child to its parent's next sibling acts on the parent's siblings
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+- b
+	- ⟦x
+- c⟧
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+	- b
+		- ⟦x
+	- c⟧
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI18. Off: an ordered list renumbers after an indent
+
+When: outline mode **off**.
+
+Setup:
+````
+1. a
+2. b|
+3. c
+````
+
+Keys: Tab
+
+Expected: 
+````
+1. a
+	1. b|
+2. c
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI19. Off: indent in a callout keeps the > prefix
+
+When: outline mode **off**.
+
+Setup:
+````
+> - a
+> - b|
+````
+
+Keys: Tab
+
+Expected: 
+````
+> - a
+> 	- b|
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI20. Editor set to spaces: a new child level is 4 spaces
+
+When: outline mode **off**; Obsidian config {"useTab":false}.
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+    - b|
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI21. Editor set to spaces, tab-indented list: tabs stay
+
+When: outline mode **off**; Obsidian config {"useTab":false}.
+
+Setup:
+````
+- a
+	- b
+- c
+- d|
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+	- b
+- c
+	- d|
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI22. Indent command from the palette on a heading
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+## B|
+````
+
+Keys: command obsidian-editor-outliner:indent
+
+Expected: 
+````
+# A
+### B|
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI23. Outdent command from the palette on a nested item (outline mode off)
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+	- b|
+````
+
+Keys: command obsidian-editor-outliner:outdent
+
+Expected: 
+````
+- a
+- b|
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI24. Outliner keys off: Tab in a list is Obsidian's, the command still indents with the subtree
+
+When: outline mode **off**; settings {"keys":false}.
+
+Setup:
+````
+- a
+- b|
+	- c
+````
+
+Keys: command obsidian-editor-outliner:indent
+
+Expected: 
+````
+- a
+	- b|
+		- c
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI25. Several cursors on headings: Tab is Obsidian's
+
+
+Setup:
+````
+# A|
+# B|
+````
+
+Keys: Tab
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI26. Selection over several lines with its head in an item's code block: the items indent
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+- ⟦b
+  ```
+  co⟧de
+  ```
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+	- ⟦b
+	  ```
+	  co⟧de
+	  ```
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI27. Two Tabs in quick succession: two undo steps
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+	- b
+- c|
+````
+
+Keys: Tab, Tab, Ctrl-z
+
+Expected: 
+````
+- a
+	- b
+	- c|
+````
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+### KI28. Tab with the [[ autocomplete open in a list: Obsidian's (the popup)
+
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: type "[[", wait 400 ms, Tab
+
+Expected: (see checks)
+Text matches `^- a\n- b\[\[`.
+
+Tab with a suggestion open is Obsidian's: it may accept the suggestion; the list item must not be indented.
+
+Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+
+## Move outside outline mode
+
+### KM1. Off: an item moves down past its sibling with its children
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a|
+	- a1
+- b
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+- b
+- a|
+	- a1
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM2. Off: a last child moves down into the parent's next sibling, as its first child
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+	- x|
+- b
+	- y
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+- a
+- b
+	- x|
+	- y
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM3. Heading section moves down past its sibling, sub-sections included
+
+When: *everywhere*.
+
+Setup:
+````
+## A|
+a
+### A1
+## B
+b
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+## B
+b
+
+## A|
+a
+### A1
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM4. Heading at its last sibling: nothing (no jump into the parent's sibling)
+
+
+Setup:
+````
+# P
+## A|
+# Q
+## B
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: unchanged
+
+Source: SPEC.md §7 → Move up / down
+
+### KM5. Heading moves up past its sibling
+
+
+Setup:
+````
+# A
+a
+
+# B|
+b
+````
+
+Keys: Alt-Shift-ArrowUp
+
+Expected: 
+````
+# B|
+b
+
+# A
+a
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM6. Body paragraph swaps with the next block
+
+When: *everywhere*.
+
+Setup:
+````
+# H
+para1|
+
+para2
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+# H
+para2
+
+para1|
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM7. Body block at the end of its body: nothing (never past a sub-heading)
+
+
+Setup:
+````
+# H
+para|
+## S
+s
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: unchanged
+
+Source: SPEC.md §7 → Move up / down
+
+### KM8. Paragraph swaps with a whole list below it
+
+
+Setup:
+````
+# H
+para|
+
+- a
+- b
+
+end
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+# H
+- a
+- b
+
+para|
+
+end
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM9. Code block in the body moves as one block
+
+
+Setup:
+````
+# H
+x
+
+```
+co|de
+```
+````
+
+Keys: Alt-Shift-ArrowUp
+
+Expected: 
+````
+# H
+```
+co|de
+```
+
+x
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM10. Table moves as one block
+
+When: Source mode only.
+
+Setup:
+````
+# H
+| a | b |
+| - | - |
+| 1 | 2‸ |
+
+para
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+# H
+para
+
+| a | b |
+| - | - |
+| 1 | 2‸ |
+````
+
+Source mode: in Live Preview the cursor would be in the table cell's own editor (a nested editor).
+
+Source: SPEC.md §7 → Move up / down
+
+### KM11. Text before the first heading: blocks swap there
+
+
+Setup:
+````
+p1|
+
+p2
+
+# H
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+p2
+
+p1|
+
+# H
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM12. Alt+PageDown moves a heading section
+
+
+Setup:
+````
+# A|
+# B
+````
+
+Keys: Alt-PageDown
+
+Expected: 
+````
+# B
+
+# A|
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM13. Move keeps a folded sub-section folded
+
+When: folded lines (0-based) 1.
+
+Setup:
+````
+# A|
+## A1
+x
+# B
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+# B
+
+# A|
+## A1
+x
+````
+Folded lines after: 3.
+
+Source: SPEC.md §7 → Move up / down
+
+### KM14. Off: an item with a continuation paragraph and code moves whole
+
+When: outline mode **off**.
+
+Setup:
+````
+- a|
+
+  more
+  ```
+  c
+  ```
+- b
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+- b
+- a|
+
+  more
+  ```
+  c
+  ```
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM15. Move down command from the palette
+
+When: *everywhere*.
+
+Setup:
+````
+# H
+para1|
+
+para2
+````
+
+Keys: command obsidian-editor-outliner:move-down
+
+Expected: 
+````
+# H
+para2
+
+para1|
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM16. Several cursors: the move keys are Obsidian's
+
+
+Setup:
+````
+# A|
+# B|
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Move up / down
+
+### KM17. Move a heading: one Ctrl+Z restores
+
+
+Setup:
+````
+# A|
+# B
+````
+
+Keys: Alt-Shift-ArrowDown, Ctrl-z
+
+Expected: 
+````
+# A|
+# B
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM18. Off: move in a space-indented list keeps the spaces
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+    - x
+    - y|
+````
+
+Keys: Alt-Shift-ArrowUp
+
+Expected: 
+````
+- a
+    - y|
+    - x
+````
+
+Source: SPEC.md §7 → Move up / down
+
+## Expand / shrink selection
+
+### XS1. Word
+
+When: *everywhere*.
+
+Setup:
+````
+hello wor|ld here
+````
+
+Keys: Alt-ArrowUp
+
+Expected: 
+````
+hello ⟦world⟧ here
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS2. Wiki link: inside, then whole
+
+
+Setup:
+````
+see [[No|te a]] x
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+see ⟦[[Note a]]⟧ x
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS3. Bold: inside, then whole
+
+
+Setup:
+````
+a **bo|ld it** b
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+a ⟦**bold it**⟧ b
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS4. Markdown link: its text, then the whole link
+
+
+Setup:
+````
+a [li|nk text](http://x.y) b
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+a ⟦[link text](http://x.y)⟧ b
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS5. Inline code, highlight, strike, math
+
+
+Setup:
+````
+`co|de x` ==m y== ~~s z~~ $a b$
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+⟦`code x`⟧ ==m y== ~~s z~~ $a b$
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS6. Sentence
+
+
+Setup:
+````
+One two. Th|ree four. Five.
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+One two. ⟦Three four.⟧ Five.
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS7. Line text without the marker, then the whole line
+
+
+Setup:
+````
+- item te|xt
+- b
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+- ⟦item text⟧
+- b
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS8. Item: the paragraph (marker line and continuation lines), then its own lines
+
+
+Setup:
+````
+- a
+  b|b
+  cc
+
+  dd
+	- kid
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+⟦- a
+  bb
+  cc⟧
+
+  dd
+	- kid
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS9. Item: own lines, then with its subtree
+
+
+Setup:
+````
+- a
+  b|b
+
+  dd
+	- kid
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+⟦- a
+  bb
+
+  dd
+	- kid⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS10. Code block in an item: the code lines, then the block with its fences
+
+
+Setup:
+````
+- a
+  ```
+  x|x
+  yy
+  ```
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+- a
+⟦  ```
+  xx
+  yy
+  ```⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS11. Code block in a body: the code lines, then the block with its fences
+
+
+Setup:
+````
+# H
+```
+x|x
+yy
+```
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+# H
+```
+⟦xx
+yy⟧
+```
+````
+
+Consistency with a code block in an item (the spec's chain names the code-lines step for fenced code blocks).
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS12. Heading: its text, line, heading + body, section, parent section, whole note without frontmatter
+
+When: Source mode only.
+
+Setup:
+````
+---
+a: 1
+---
+intro
+
+# A
+## B
+b|b
+### C
+c
+## D
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+---
+a: 1
+---
+⟦intro
+
+# A
+## B
+bb
+### C
+c
+## D⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS13. Section steps: heading + body, then the section
+
+
+Setup:
+````
+# A
+## B
+b|b
+### C
+c
+## D
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+# A
+⟦## B
+bb
+### C
+c⟧
+## D
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS14. Shrink goes back step by step
+
+
+Setup:
+````
+# A
+- one tw|o
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-ArrowDown
+
+Expected: 
+````
+# A
+- one ⟦two⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS15. Shrink back to the cursor
+
+
+Setup:
+````
+# A
+- one tw|o
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-ArrowDown
+
+Expected: 
+````
+# A
+- one tw|o
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS16. Another selection change forgets the steps: Shrink does nothing
+
+
+Setup:
+````
+- one tw|o three
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Shift-ArrowLeft, Alt-ArrowDown
+
+Expected: 
+````
+- ⟦one two thre⟧e
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS17. List in a callout: the item, then the whole list, then the callout
+
+
+Setup:
+````
+> [!note] T
+> - a
+> - b|
+> 
+> para
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+> [!note] T
+⟦> - a
+> - b⟧
+> 
+> para
+````
+
+Consistency: a list's whole-list step also inside a callout.
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS18. Outline mode off: Expand reaches the item, a node selection (highlighted)
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+	- b|
+- c
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+⟦- a
+	- b⟧
+- c
+````
+Node-selected (highlighted) lines: 0, 1.
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS19. Expand and Shrink commands from the palette
+
+When: *everywhere*.
+
+Setup:
+````
+hello wor|ld
+````
+
+Keys: command obsidian-editor-outliner:expand-selection, command obsidian-editor-outliner:expand-selection, command obsidian-editor-outliner:shrink-selection
+
+Expected: 
+````
+hello ⟦world⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS20. Several cursors: Alt+↑ is Obsidian's (the cursors stay)
+
+
+Setup:
+````
+ab|c
+de|f
+````
+
+Keys: Alt-ArrowUp
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS21. Frontmatter: word, line, then nothing more
+
+When: Source mode only.
+
+Setup:
+````
+---
+key: va|lue
+---
+# H
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+---
+⟦key: value⟧
+---
+# H
+````
+
+Source mode: Live Preview shows frontmatter as the properties editor.
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS22. Paragraph in a callout: the paragraph, then the callout
+
+When: Source mode only.
+
+Setup:
+````
+# H
+> [!note] T
+> one
+> tw|o
+>
+> - x
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+# H
+⟦> [!note] T
+> one
+> two
+>
+> - x⟧
+````
+
+Source mode: in Live Preview a callout is a widget unless the cursor is in it.
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+## Node selection: headings and details
+
+### NS1. Heading → selects the first sub-section
+
+
+Setup:
+````
+# |A
+a
+## B
+b
+## C
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, ArrowRight
+
+Expected: 
+````
+# A
+a
+⟦## B
+b⟧
+## C
+````
+Node-selected (highlighted) lines: 2, 3.
+
+Source: SPEC.md §7 → Node selection
+
+### NS2. Heading ← on a folded section selects the parent
+
+When: folded lines (0-based) 1.
+
+Setup:
+````
+# A
+⟦## B
+b⟧
+## C
+````
+
+Keys: ArrowLeft
+
+Expected: 
+````
+⟦# A
+## B
+b
+## C⟧
+````
+
+Source: SPEC.md §7 → Node selection
+
+### NS3. Heading node selection made backwards is anchored at the last section
+
+
+Setup:
+````
+# A
+⟧## B
+b
+## C
+c⟦
+````
+
+Keys: ArrowDown
+
+Expected: 
+````
+# A
+## B
+b
+⟦## C
+c⟧
+````
+Node-selected (highlighted) lines: 3, 4.
+
+Source: SPEC.md §7 → Node selection
+
+### NS4. Heading copy: the sections as they are
+
+
+Setup:
+````
+# A
+⟦## B
+b
+### C⟧
+## D
+````
+
+Keys: copy
+
+Expected: (see checks)
+Clipboard text:
+````
+## B
+b
+### C
+````
+
+Source: SPEC.md §7 → Node selection
+
+### NS5. Outliner keys off: no heading node selection
+
+When: settings {"keys":false}.
+
+Setup:
+````
+# A
+⟦## B
+b⟧
+## C
+````
+
+Keys: 
+
+Expected: (see checks)
+Node-selected (highlighted) lines: none.
+
+Source: SPEC.md §7 → Node selection
+
+### NS6. Heading Tab on a node selection: demoted, still selected
+
+
+Setup:
+````
+# A
+⟦## B
+b⟧
+## C
+````
+
+Keys: Tab
+
+Expected: 
+````
+# A
+⟦### B
+b⟧
+## C
+````
+Node-selected (highlighted) lines: 1, 2.
+
+Source: SPEC.md §7 → Node selection
+
+### NS7. Heading Alt+Shift+↓ on a node selection: moved, still selected
+
+
+Setup:
+````
+# A
+⟦## B
+b⟧
+## C
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+# A
+## C
+
+⟦## B
+b⟧
+````
+Node-selected (highlighted) lines: 3, 4.
+
+Source: SPEC.md §7 → Node selection
+
+### NS8. Heading Delete removes the section
+
+
+Setup:
+````
+# A
+⟦## B
+b⟧
+
+## C
+````
+
+Keys: Delete
+
+Expected: 
+````
+# A
+## |C
+````
+
+Source: SPEC.md §7 → Node selection
+
+### NS9. Item node selection ending at the start of the next line
+
+
+Setup:
+````
+⟦- a
+	- b
+⟧- c
+````
+
+Keys: ArrowDown
+
+Expected: 
+````
+⟦- a
+	- b
+- c⟧
+````
+Node-selected (highlighted) lines: 0, 1, 2.
+
+Source: SPEC.md §7 → Node selection
+
+### NS10. Item node selection in Source mode is highlighted too
+
+When: in lanes, tab; Source mode only.
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: 
+
+Expected: (see checks)
+Node-selected (highlighted) lines: 1.
+
+Source: SPEC.md §7 → Node selection
+
+### NS11. Highlight hides the text selection (class on the editor)
+
+When: *everywhere*.
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: 
+
+Expected: (see checks)
+The editor has the eo-node-selection class.
+
+Source: SPEC.md §7 → Node selection
+
+## Folding commands
+
+### FC1. Fold the heading at the cursor
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+a|
+## B
+b
+````
+
+Keys: command obsidian-editor-outliner:fold
+
+Expected: (see checks)
+Folded lines after: 0.
+
+Source: SPEC.md §7 → Folding
+
+### FC2. Unfold it
+
+When: *everywhere*; folded lines (0-based) 0.
+
+Setup:
+````
+# A|
+a
+## B
+b
+````
+
+Keys: command obsidian-editor-outliner:unfold
+
+Expected: (see checks)
+Folded lines after: none.
+
+Source: SPEC.md §7 → Folding
+
+### FC3. Fold children of a heading: its sub-sections
+
+
+Setup:
+````
+# A|
+a
+## B
+b
+## C
+c
+````
+
+Keys: command obsidian-editor-outliner:fold-children
+
+Expected: (see checks)
+Folded lines after: 2, 4.
+
+Source: SPEC.md §7 → Folding
+
+### FC4. Unfold a heading and everything under it
+
+When: folded lines (0-based) 2, 4.
+
+Setup:
+````
+# A|
+a
+## B
+b
+## C
+c
+````
+
+Keys: command obsidian-editor-outliner:unfold-subtree
+
+Expected: (see checks)
+Folded lines after: none.
+
+Source: SPEC.md §7 → Folding
+
+### FC5. Fold headings to level 2
+
+
+Setup:
+````
+# A
+a
+## B
+b
+### B1
+x
+## C
+c
+````
+
+Keys: command obsidian-editor-outliner:fold-to-level-2
+
+Expected: (see checks)
+Folded lines after: 2, 6.
+
+Source: SPEC.md §7 → Folding
+
+### FC6. Fold headings to level 1
+
+
+Setup:
+````
+# A
+a
+## B
+b
+# C
+c
+````
+
+Keys: command obsidian-editor-outliner:fold-to-level-1
+
+Expected: (see checks)
+Folded lines after: 0, 4.
+
+Source: SPEC.md §7 → Folding
+
+### FC7. Unfold all (an item and a heading folded)
+
+When: folded lines (0-based) 2, 4.
+
+Setup:
+````
+# A
+a
+- x
+	- y
+# C
+c
+````
+
+Keys: command obsidian-editor-outliner:unfold-all
+
+Expected: (see checks)
+Folded lines after: none.
+
+Source: SPEC.md §7 → Folding
+
+### FC8. Fold a list item at the cursor (the deepest item)
+
+
+Setup:
+````
+- a
+	- b|
+		- c
+- d
+````
+
+Keys: command obsidian-editor-outliner:fold
+
+Expected: (see checks)
+Folded lines after: 1.
+
+Source: SPEC.md §7 → Folding
+
+### FC9. Fold children of an item
+
+
+Setup:
+````
+- a|
+	- b
+		- c
+	- d
+		- e
+````
+
+Keys: command obsidian-editor-outliner:fold-children
+
+Expected: (see checks)
+Folded lines after: 1, 3.
+
+Source: SPEC.md §7 → Folding
+
+### FC10. H7 can't fold: a notice
+
+
+Setup:
+````
+####### A|
+x
+````
+
+Keys: command obsidian-editor-outliner:fold
+
+Expected: (see checks)
+Folded lines after: none.
+A notice says nothing can fold here.
+
+Source: SPEC.md §7 → Folding
+
+### FC11. Fold heading off in Obsidian's settings: a notice
+
+When: Obsidian config {"foldHeading":false}.
+
+Setup:
+````
+# A|
+x
+````
+
+Keys: command obsidian-editor-outliner:fold
+
+Expected: (see checks)
+Folded lines after: none.
+A notice names the Fold heading setting.
+
+Source: SPEC.md §7 → Folding
+
+### FC12. Text before the first heading, not in a list: a notice, nothing folds
+
+
+Setup:
+````
+pa|ra
+
+# A
+x
+````
+
+Keys: command obsidian-editor-outliner:fold
+
+Expected: (see checks)
+Folded lines after: none.
+A notice says nothing can fold here.
+
+Consistency: everywhere else nothing to fold gives the notice.
+
+Source: SPEC.md §7 → Folding
+
+### FC13. Fold children: a leaf item has none, a notice
+
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: command obsidian-editor-outliner:fold-children
+
+Expected: (see checks)
+Folded lines after: none.
+A notice says nothing can fold here.
+
+Source: SPEC.md §7 → Folding
+
+### FC14. Fold an item, then Alt+Shift+↓ moves it folded
+
+When: outline mode **off**; folded lines (0-based) 0.
+
+Setup:
+````
+- a|
+	- a1
+- b
+````
+
+Keys: Alt-Shift-ArrowDown
+
+Expected: 
+````
+- b
+- a|
+	- a1
+````
+Folded lines after: 1.
+
+Source: SPEC.md §7 → Folding
+
+## Heading guides, level labels and H7+ styling
+
+### G1. One guide per section with content; same depth same x, outermost leftmost, 10px apart
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+a
+## B
+b
+## C
+c
+### D
+d
+# E
+e
+````
+
+Keys: 
+
+Expected: (see checks)
+5 guides at 3 x positions, 10 px apart.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G2. A guide runs from under its heading to the section's last non-blank line
+
+
+Setup:
+````
+# A
+a
+
+b
+
+
+# E
+````
+
+Keys: 
+
+Expected: (see checks)
+The guide's top is the heading line's bottom, its bottom the last non-blank line's bottom.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G3. Guides use Obsidian's indentation-guide colour
+
+
+Setup:
+````
+# A
+a
+````
+
+Keys: 
+
+Expected: (see checks)
+The guide's background is var(--indentation-guide-color).
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G4. Heading guides off: no guides
+
+When: settings {"headingGuides":false}.
+
+Setup:
+````
+# A
+a
+````
+
+Keys: 
+
+Expected: (see checks)
+No guide.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G5. Level labels in Live Preview: H2 after a heading off the cursor line, none on it
+
+When: *everywhere*; Live Preview only.
+
+Setup:
+````
+# A
+## B
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+::after reads H1 and H2.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G6. No label on the line being edited
+
+When: *everywhere*; Live Preview only.
+
+Setup:
+````
+# A
+## B|
+text
+````
+
+Keys: 
+
+Expected: (see checks)
+::after H1 on line 0, none on the cursor's line.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G7. No labels in Source mode
+
+When: in lanes, tab; Source mode only.
+
+Setup:
+````
+# A
+## B
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+No ::after content.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G8. H7+ lines: styled as a heading, labelled H7 / H9
+
+When: *everywhere*; Live Preview only.
+
+Setup:
+````
+####### Seven
+######### Nine
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+eo-deep-heading on both, labels H7 and H9.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G9. Style headings beyond H6 off: no H7 styling (the label stays)
+
+When: Live Preview only; settings {"deepHeadings":false}.
+
+Setup:
+````
+####### Seven
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+No eo-deep-heading class; ::after H7.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G10. Heading level labels off: none
+
+When: Live Preview only; settings {"levelLabels":false}.
+
+Setup:
+````
+# A
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+No ::after content.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G11. Not headings: setext, in a callout, in code, 4-space indented
+
+When: in lanes, tab; Source mode only.
+
+Setup:
+````
+Setext
+===
+
+> # In callout
+
+```
+# in code
+```
+
+    # indented
+
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+No line has the plugin's heading classes.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G12. Typing a # turns a line into a heading: label and guide follow
+
+When: Live Preview only.
+
+Setup:
+````
+a|
+b
+````
+
+Keys: Home, type "# ", ArrowDown
+
+Expected: (see checks)
+Line 0 is labelled H1 and has a guide.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+### G13. The label is not selectable and not part of the text
+
+When: Live Preview only.
+
+Setup:
+````
+# A
+text|
+````
+
+Keys: 
+
+Expected: (see checks)
+user-select none; the line's text is unchanged.
+
+Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+
+## Drag handles (real mouse drags)
+
+### DG1. Drag an item down, straight: same depth
+
+When: in lanes, tab, canvas-text, canvas-file.
+
+Setup:
+````
+- a|
+- b
+- c
+````
+
+Keys: drag line 0 by its handle to before line 2
+
+Expected: 
+````
+- b
+- a
+- c
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG2. Drag an item sideways right: it becomes a child
+
+When: in lanes, tab, canvas-text, canvas-file.
+
+Setup:
+````
+- a|
+- b
+- c
+````
+
+Keys: drag line 2 by its handle to before line 3, 60px sideways
+
+Expected: 
+````
+- a
+- b
+	- c
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG3. Drag an item with children: the subtree moves
+
+
+Setup:
+````
+- a|
+	- a1
+- b
+````
+
+Keys: drag line 0 by its handle to before line 3
+
+Expected: 
+````
+- b
+- a
+	- a1
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG4. Drag a heading section down: sub-sections move with it
+
+When: in lanes, tab, canvas-text, canvas-file.
+
+Setup:
+````
+# A|
+## A1
+x
+# B
+b
+````
+
+Keys: drag line 0 by its handle to before line 5
+
+Expected: 
+````
+# B
+b
+
+# A
+## A1
+x
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG5. Drag a heading sideways right: one level deeper, sub-headings shift
+
+
+Setup:
+````
+# A|
+a
+# B
+## B1
+b
+````
+
+Keys: drag line 2 by its handle to before line 2, 30px sideways
+
+Expected: 
+````
+# A
+a
+## B
+### B1
+b
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG6. Drag a body block below the next one
+
+When: in lanes, tab, canvas-text.
+
+Setup:
+````
+# H|
+p1
+
+p2
+
+p3
+````
+
+Keys: drag line 1 by its handle to before line 5
+
+Expected: 
+````
+# H
+p2
+
+p1
+
+p3
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG7. Escape during a drag cancels it
+
+When: in lanes, tab, canvas-text.
+
+Setup:
+````
+- a|
+- b
+- c
+````
+
+Keys: drag line 0 by its handle to before line 3, Escape before releasing
+
+Expected: 
+````
+- a|
+- b
+- c
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG8. A click on the handle does nothing
+
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: click the drag handle of line 1
+
+Expected: 
+````
+- a|
+- b
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG9. Canvas: a drag doesn't move the card or pan the canvas
+
+When: in canvas-text, canvas-file.
+
+Setup:
+````
+- a|
+- b
+- c
+````
+
+Keys: drag line 0 by its handle to before line 3
+
+Expected: 
+````
+- b
+- c
+- a
+````
+The card's position and the canvas's pan and zoom are unchanged.
+
+Source: SPEC.md §7 → Drag handles
+
+### DG10. Drag an item into another list of the same section
+
+
+Setup:
+````
+# H|
+- a
+- b
+
+para
+
+- x
+- y
+````
+
+Keys: drag line 1 by its handle to before line 7
+
+Expected: 
+````
+# H
+- b
+
+para
+
+- x
+- a
+- y
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG11. The handle sits left of the text; in a Canvas card left of the fold arrow's room
+
+When: in lanes, tab, canvas-text, canvas-file, popover.
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: 
+
+Expected: (see checks)
+The handle is fully inside the editor and at least 10 px left of the text.
+
+Source: SPEC.md §7 → Drag handles
+
+### DG12. Drag handles off: no handle
+
+When: settings {"dragHandles":false}.
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: 
+
+Expected: (see checks)
+No handle element.
+
+Source: SPEC.md §7 → Drag handles
+
+### DG13. Drag a nested item sideways left: one level out
+
+
+Setup:
+````
+- a|
+	- b
+- c
+````
+
+Keys: drag line 1 by its handle to before line 1, -60px sideways
+
+Expected: 
+````
+- a
+- b
+- c
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG14. Drag in Source mode
+
+When: in lanes, tab; Source mode only.
+
+Setup:
+````
+- a|
+- b
+- c
+````
+
+Keys: drag line 0 by its handle to before line 2
+
+Expected: 
+````
+- b
+- a
+- c
+````
+
+Source: SPEC.md §7 → Drag handles
+
+### DG15. Drag keeps a fold inside the dragged item
+
+When: folded lines (0-based) 1.
+
+Setup:
+````
+- a|
+	- a1
+		- a2
+- b
+````
+
+Keys: drag line 0 by its handle to before line 4
+
+Expected: 
+````
+- b
+- a
+	- a1
+		- a2
+````
+Folded lines after: 2.
+
+Source: SPEC.md §7 → Drag handles
+
+## Where it works and settings
+
+### WH1. Popover editor: outline mode Enter splits
+
+When: in popover.
+
+Setup:
+````
+- one| two
+````
+
+Keys: Enter
+
+Expected: 
+````
+- one
+- |two
+````
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH2. Popover editor: Tab indents with the subtree
+
+When: in popover.
+
+Setup:
+````
+- a
+- b|
+	- c
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+	- b|
+		- c
+````
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH3. Popover editor: status bar item active
+
+When: in popover.
+
+Setup:
+````
+- a|
+````
+
+Keys: 
+
+Expected: (see checks)
+Status bar item: active.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH4. Reading view: the outliner commands aren't offered
+
+When: in tab; Live Preview only.
+
+Setup:
+````
+## A|
+x
+````
+
+Keys: 
+
+Expected: (see checks)
+None of the editor commands is available in Reading view.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH5. Toggle outline mode is available everywhere (also Reading view)
+
+
+Setup:
+````
+x|
+````
+
+Keys: 
+
+Expected: (see checks)
+The command has a plain callback.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH6. Default hotkey Ctrl+Super+O: no other command uses it
+
+
+Setup:
+````
+x|
+````
+
+Keys: 
+
+Expected: (see checks)
+No other hotkey is Ctrl+Meta+O.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH7. No Obsidian hotkey sits on a plugin key (Alt+↑/↓, Alt+Shift+↑/↓, Alt+PageUp/PageDown, Tab)
+
+
+Setup:
+````
+x|
+````
+
+Keys: 
+
+Expected: (see checks)
+No Obsidian or plugin hotkey uses those keys.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH8. Outline mode setting toggle (settings tab) turns it off; the status bar follows
+
+
+Setup:
+````
+- a|
+````
+
+Keys: 
+
+Expected: (see checks)
+Off: not is-on; back on: is-active.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH9. Settings survive a plugin reload
+
+
+Setup:
+````
+x|
+````
+
+Keys: 
+
+Expected: (see checks)
+logicalOutdent is still on after disable / enable.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH10. Ctrl+Shift+V (paste as plain text) of a list: items, as Ctrl+V
+
+
+Setup:
+````
+- a|
+````
+
+Keys: {"writeClip":"- x\n- y"}, Ctrl-Shift-v
+
+Expected: 
+````
+- a
+- x
+- y|
+````
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH11. A Dataview query in a nested item renders in Live Preview and Reading view
+
+When: in tab; Live Preview only.
+
+Setup:
+````
+- a
+	- b
+	  ```dataview
+	  LIST FROM "_test"
+	  ```
+
+para|
+````
+
+Keys: wait 1500 ms
+
+Expected: (see checks)
+A rendered Dataview block in Live Preview and in Reading view.
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH12. IME composition: Tab steps aside (Obsidian's)
+
+When: outline mode **off**.
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: IME composition "か", Tab
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+### WH13. IME composition: Alt+↑ steps aside
+
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: IME composition "か", Alt-ArrowUp
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md §7 → Where it works; Settings; Keys
+
+## Vim mode: the outliner keys
+
+### VM1. Normal mode: Tab demotes a heading
+
+When: in lanes, tab, canvas-text; Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+# A
+## |B
+````
+
+Keys: wait 200 ms, Tab
+
+Expected: 
+````
+# A
+### B
+````
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM2. Normal mode: Shift+Tab outdents a nested item
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- a
+	- |b
+	- c
+````
+
+Keys: wait 200 ms, Shift-Tab
+
+Expected: 
+````
+- a
+- b
+	- c
+````
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM3. Normal mode: Alt+Shift+↓ moves a heading section
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+# |A
+# B
+````
+
+Keys: wait 200 ms, Alt-Shift-ArrowDown
+
+Expected: 
+````
+# B
+
+# A
+````
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM4. Normal mode: Alt+↑ selects, vim is in visual mode, no node highlight
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- a
+- b|b
+- c
+````
+
+Keys: wait 200 ms, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: (see checks)
+Node-selected (highlighted) lines: none.
+vim is in visual mode with a non-empty selection.
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM5. Visual line mode over whole items: no node selection
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- |a
+- b
+- c
+````
+
+Keys: wait 200 ms, V, j
+
+Expected: (see checks)
+Node-selected (highlighted) lines: none.
+vim is in visual mode.
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM6. Insert mode: Expand reaches a node selection, highlighted
+
+When: in lanes, tab, canvas-text; Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- a
+- b|b
+- c
+````
+
+Keys: wait 200 ms, i, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: (see checks)
+Node-selected (highlighted) lines: 1.
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM7. Insert mode, node selection: Escape is vim's (normal mode)
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- a
+- b|b
+- c
+````
+
+Keys: wait 200 ms, i, Alt-ArrowUp, Alt-ArrowUp, Escape
+
+Expected: (see checks)
+Node-selected (highlighted) lines: none.
+vim is out of insert mode.
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+### VM8. Insert mode: Enter splits the item
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- one| two
+````
+
+Keys: wait 200 ms, i, Enter
+
+Expected: 
+````
+- one
+- two
+````
+
+Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+
+## Item node selection with outline mode off
+
+### NO1. Whole item lines: highlighted
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦	- b
+		- c⟧
+- d
+````
+
+Keys: 
+
+Expected: (see checks)
+Node-selected (highlighted) lines: 1, 2.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO2. ↓ extends by the next sibling
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+⟦- a⟧
+- b
+- c
+````
+
+Keys: ArrowDown
+
+Expected: 
+````
+⟦- a
+- b⟧
+- c
+````
+Node-selected (highlighted) lines: 0, 1.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO3. ↑ back toward the anchor shrinks
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+⟦- a
+- b⟧
+- c
+````
+
+Keys: ArrowUp
+
+Expected: 
+````
+⟦- a⟧
+- b
+- c
+````
+Node-selected (highlighted) lines: 0.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO4. ← folds the node
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+⟦- a
+	- b⟧
+- c
+````
+
+Keys: ArrowLeft
+
+Expected: (see checks)
+Folded lines after: 0.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO5. ← on a leaf selects the parent
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦	- b⟧
+- c
+````
+
+Keys: ArrowLeft
+
+Expected: 
+````
+⟦- a
+	- b⟧
+- c
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO6. → unfolds a folded node
+
+When: outline mode **off**; *everywhere*; folded lines (0-based) 0.
+
+Setup:
+````
+⟦- a
+	- b⟧
+- c
+````
+
+Keys: ArrowRight
+
+Expected: (see checks)
+Folded lines after: none.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO7. → selects the first child
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+⟦- a
+	- b⟧
+- c
+````
+
+Keys: ArrowRight
+
+Expected: 
+````
+- a
+⟦	- b⟧
+- c
+````
+Node-selected (highlighted) lines: 1.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO8. Backspace removes the nodes, one undo step
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦- b
+	- b1⟧
+- c
+````
+
+Keys: Backspace
+
+Expected: 
+````
+- a
+- |c
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO9. Delete removes the nodes
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: Delete
+
+Expected: 
+````
+- a
+- |c
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO10. Copy gives the nodes at column 0
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦	- b
+		- c⟧
+````
+
+Keys: copy
+
+Expected: (see checks)
+Clipboard text:
+````
+- b
+	- c
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO11. Cut gives them at column 0 and removes them
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦	- b⟧
+- c
+````
+
+Keys: cut
+
+Expected: 
+````
+- a|
+- c
+````
+Clipboard text:
+````
+- b
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO12. Escape clears: the cursor to the start of the anchor's text
+
+When: outline mode **off**; in lanes, tab, popover.
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: Escape
+
+Expected: 
+````
+- a
+- |b
+- c
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO13. Tab indents, still node-selected
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦- b⟧
+````
+
+Keys: Tab
+
+Expected: 
+````
+- a
+⟦	- b⟧
+````
+Node-selected (highlighted) lines: 1.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO14. Alt+Shift+↑ moves, still node-selected
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a
+⟦- b⟧
+````
+
+Keys: Alt-Shift-ArrowUp
+
+Expected: 
+````
+⟦- b⟧
+- a
+````
+Node-selected (highlighted) lines: 0.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO15. Expand to the item, ↓, Backspace
+
+When: outline mode **off**; *everywhere*.
+
+Setup:
+````
+- a|
+- b
+- c
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, ArrowDown, Backspace
+
+Expected: 
+````
+- |c
+````
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO16. Outliner keys off: no item node selection (outline mode on)
+
+When: *everywhere*; settings {"keys":false}.
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: 
+
+Expected: (see checks)
+Node-selected (highlighted) lines: none.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
+
+### NO17. Outliner keys off, outline mode off: no item node selection
+
+When: outline mode **off**; *everywhere*; settings {"keys":false}.
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: 
+
+Expected: (see checks)
+Node-selected (highlighted) lines: none.
+
+Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)

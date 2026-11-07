@@ -10,7 +10,7 @@
 //      the outliner's settings and adds an Editor Lanes routing exception.
 //   2. CDP_PORT=9224 node custom-plugins/editor-outliner/e2e/run.mjs [options]
 //        --filter <regex>     only cases whose id, group or title match
-//        --surfaces <list>    lanes,tab,canvas-text,canvas-file (default: all; a case says where it runs)
+//        --surfaces <list>    lanes,tab,canvas-text,canvas-file,popover (default: all; a case says where it runs)
 //        --views <list>       lp,source (default: both; canvas cards run in Live Preview only)
 //        --no-deploy          don't copy main.js / manifest.json / styles.css into the vault and reload
 //        --catalogue          only (re)write CASES.md from cases.mjs
@@ -18,6 +18,7 @@
 //   It prints PASS / FAIL per case and run (with a diff) and writes e2e/results.md.
 //
 // Not a vitest file: vitest.config.mts in custom-plugins/ only includes */src/**/*.test.ts.
+// @ts-check (JSDoc types; the page's state comes back as the DevTools protocol's JSON, cdp.mjs's CdpJson)
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,21 +29,37 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN = path.dirname(HERE);
 const PLUGIN_ID = "obsidian-editor-outliner";
 
+/**
+ * @typedef {import("./cases.mjs").GroupedCase} GroupedCase
+ * @typedef {import("./cases.mjs").Key} Key
+ * @typedef {import("./cdp.mjs").CdpJson} CdpJson
+ * @typedef {Awaited<ReturnType<typeof connect>>} Cdp
+ * @typedef {{ anchor: number, head: number }} Range
+ * @typedef {{ what: string, want: string, got: string }} Problem
+ * @typedef {{ id: string, group: string, title: string, surface: string, view: string, status: string, problems: Problem[] }} Result
+ * @typedef {{ clip?: string, dragState?: CdpJson }} Ctx
+ */
+
 const args = process.argv.slice(2);
+/** @param {string} name */
 const opt = name => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
 };
+/** @param {string} name */
 const flag = name => args.includes(name);
 
-const SURFACES = ["lanes", "tab", "canvas-text", "canvas-file"];
+const SURFACES = ["lanes", "tab", "canvas-text", "canvas-file", "popover"];
 const VIEWS = ["lp", "source"];
 
 // ---------- markers: `|` cursor (or the case's `cur`), ⟦ anchor … ⟧ head ----------
 
+/** @param {string} s */
 export function parseMarked(s, cur = "|") {
   let out = "";
+  /** @type {Range[]} */
   const ranges = [];
+  /** @type {{ anchor?: number, head?: number } | null} */
   let open = null;
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
@@ -52,7 +69,7 @@ export function parseMarked(s, cur = "|") {
       if (!open) open = { [k]: out.length };
       else {
         open[k] = out.length;
-        ranges.push(open);
+        ranges.push({ anchor: open.anchor ?? 0, head: open.head ?? 0 });
         open = null;
       }
     } else out += ch;
@@ -61,7 +78,12 @@ export function parseMarked(s, cur = "|") {
   return { text: out, ranges };
 }
 
+/**
+ * @param {string} text
+ * @param {Range[]} ranges
+ */
 export function renderMarked(text, ranges, cur = "|") {
+  /** @type {[number, string, number][]} */
   const ins = [];
   for (const r of ranges) {
     if (r.anchor === r.head) ins.push([r.head, cur, 0]);
@@ -78,11 +100,13 @@ export function renderMarked(text, ranges, cur = "|") {
 
 // ---------- catalogue ----------
 
+/** @param {string} s */
 const fence = s => {
   let f = "````";
   while (s.includes(f)) f += "`";
   return f + "\n" + s + "\n" + f;
 };
+/** @param {Key[]} keys */
 const showKeys = keys =>
   keys
     .map(k =>
@@ -98,23 +122,30 @@ const showKeys = keys =>
                 ? "cut"
                 : k.cmd
                   ? `command ${k.cmd}`
-                  : k.ime !== undefined
-                    ? `IME composition ${JSON.stringify(k.ime)}`
-                    : k.eval
-                      ? `(${k.label || "script"})`
-                      : k.wait
-                        ? `wait ${k.wait} ms`
-                        : JSON.stringify(k),
+                  : k.drag
+                    ? k.drag.noMove
+                      ? `click the drag handle of line ${k.drag.line}`
+                      : `drag line ${k.drag.line} by its handle to before line ${k.drag.to}` +
+                        (k.drag.dx ? `, ${k.drag.dx}px sideways` : "") +
+                        (k.drag.escape ? ", Escape before releasing" : "")
+                    : k.ime !== undefined
+                      ? `IME composition ${JSON.stringify(k.ime)}`
+                      : k.eval
+                        ? `(${k.label || "script"})`
+                        : k.wait
+                          ? `wait ${k.wait} ms`
+                          : JSON.stringify(k),
     )
     .join(", ");
 
 function catalogue() {
   const out = [];
-  out.push("# Editor Outliner: outline mode end-to-end cases");
+  out.push("# Editor Outliner: end-to-end cases");
   out.push("");
   out.push(
-    "Generated from `cases.mjs` by `node e2e/run.mjs --catalogue`; edit the cases there. `run.mjs` runs them in a real " +
-      "Obsidian (see its header). Results of the last run: `results.md`.",
+    "Generated from `cases.mjs` (outline mode, groups M … X) and `cases-deep.mjs` (everything else, groups KI … WH; " +
+      "`TEST-CASES.md` is their catalogue with statuses) by `node e2e/run.mjs --catalogue`; edit the cases there. " +
+      "`run.mjs` runs them in a real Obsidian (see its header). Results of the last run: `results.md`.",
   );
   out.push("");
   out.push("Notation:");
@@ -185,11 +216,13 @@ function catalogue() {
         "Expected: " +
           (c.want === "@off"
             ? "= Obsidian"
-            : c.want === "@same"
-              ? "unchanged"
-              : c.want === undefined
-                ? "(see checks)"
-                : ""),
+            : c.want === "@obsidian"
+              ? "= Obsidian (the same keys with outline mode and the Outliner keys off)"
+              : c.want === "@same"
+                ? "unchanged"
+                : c.want === undefined
+                  ? "(see checks)"
+                  : ""),
       );
       if (typeof c.want === "string" && !c.want.startsWith("@")) out.push(fence(c.want));
       if (c.wantRe) out.push("Text matches `" + c.wantRe + "`.");
@@ -231,6 +264,8 @@ const PAGE = String.raw`
       S.surface = surface;
       S.view = view;
       if (!surface.startsWith("canvas")) S.node = null;
+      // a popover from an earlier surface (or run) would cover the editors: close it
+      if (surface !== "popover") S.closePopovers();
       if (surface === "lanes" || surface === "tab") {
         const p = surface === "lanes" ? "_test/e2e.md" : "_test/e2e-tab.md";
         const f = app.vault.getAbstractFileByPath(p) || (await app.vault.create(p, ""));
@@ -243,7 +278,7 @@ const PAGE = String.raw`
             await app.workspace.getLeaf(false).openFile(f);
           } else await app.workspace.getLeaf("tab").openFile(f);
           await sleep(600);
-          v = app.workspace.getLeavesOfType("markdown").map(l => l.view).find(x => x.file?.path === p && inLane(x) === (surface === "lanes"));
+          v = app.workspace.getLeavesOfType("markdown").map(l => l.view).find(x => x.file?.path === p && inLane(x) === (surface === "lanes") && x.containerEl.isConnected);
           if (!v) throw new Error("couldn't open " + p + " as " + surface);
           S.views[surface] = v;
         }
@@ -260,6 +295,38 @@ const PAGE = String.raw`
         await sleep(50);
         S.cm = v.editor.cm;
         return { surface, src: !!v.getState().source, lp: S.cm.dom.closest(".markdown-source-view")?.classList.contains("is-live-preview") };
+      }
+      if (surface === "popover") {
+        // a page preview popover of _test/e2e-pop.md over the normal tab, switched to its editor (Live Preview)
+        const pp = "_test/e2e-pop.md";
+        if (!app.vault.getAbstractFileByPath(pp)) await app.vault.create(pp, "");
+        const live = S.popover?.hoverEl?.isConnected && S.popover.embed?.editorEl?.querySelector(".cm-editor")?.isConnected;
+        if (!live) {
+          await S.open("tab", "lp");
+          S.surface = "popover";
+          const host = S.views.tab;
+          const el = host.containerEl.querySelector(".cm-content");
+          const r = el.getBoundingClientRect();
+          app.workspace.trigger("hover-link", {
+            event: new MouseEvent("mouseover", { clientX: r.left + 40, clientY: r.top + 20, ctrlKey: true }),
+            source: "editor", hoverParent: host, targetEl: el, linktext: pp.replace(/\.md$/, ""), sourcePath: "",
+          });
+          for (let i = 0; i < 40 && !host.hoverPopover; i++) await sleep(100);
+          const hp = host.hoverPopover;
+          if (!hp) throw new Error("harness: no hover popover");
+          await sleep(400);
+          hp.embed.showEditor();
+          await sleep(600);
+          S.popover = hp;
+        }
+        const hp = S.popover;
+        // keep it open: the popover closes when the mouse leaves it unless it has focus
+        hp.isFocused = true;
+        const ed = hp.embed.editorEl.querySelector(".cm-editor");
+        S.cm = S.views.tab.editor.cm.constructor.findFromDOM(ed);
+        if (!S.cm) throw new Error("harness: no editor in the popover");
+        S.cm.focus();
+        return { surface, popover: true };
       }
       // canvas: one canvas with a text card and a file card
       const cp = "_test/e2e.canvas", fp = "_test/e2e-card.md";
@@ -299,6 +366,7 @@ const PAGE = String.raw`
         // a read-only case's editor (or a lost one): open a fresh view
         if (S.cm?.state.readOnly && S.views[S.surface]) S.views[S.surface].leaf.detach();
         if (S.surface === "lanes" || S.surface === "tab") S.views[S.surface] = null;
+        if (S.surface === "popover") S.popover = null;
         await S.open(S.surface, S.view);
         return;
       }
@@ -372,6 +440,45 @@ const PAGE = String.raw`
         renumbered: S.renumbered,
       };
     },
+    closePopovers() {
+      S.popover = null;
+      app.workspace.iterateAllLeaves(l => {
+        const hp = l.view?.hoverPopover;
+        if (hp) { hp.isFocused = false; hp.hide?.(); }
+      });
+      for (const el of document.querySelectorAll(".popover.hover-popover")) el.remove();
+    },
+    // client coordinates in the main window of a point in the case editor's window (a Canvas card's iframe
+    // is scaled with the canvas zoom)
+    top(x, y, cm = S.cm) {
+      let w = cm.dom.ownerDocument.defaultView;
+      while (w !== window && w.frameElement) {
+        const r = w.frameElement.getBoundingClientRect();
+        const s = r.width / (w.frameElement.offsetWidth || r.width) || 1;
+        x = r.left + w.frameElement.clientLeft * s + x * s;
+        y = r.top + w.frameElement.clientTop * s + y * s;
+        w = w.parent;
+      }
+      return [x, y];
+    },
+    // the start of a line's text (0-based line, plus ch columns), and the top of a line's block (a drop spot)
+    lineXY(line, ch = 0) {
+      const cm = S.cm, l = cm.state.doc.line(line + 1);
+      const c = cm.coordsAtPos(Math.min(l.to, l.from + ch), 1);
+      return S.top(c.left + 2, (c.top + c.bottom) / 2);
+    },
+    lineTop(line) {
+      const cm = S.cm, doc = cm.state.doc;
+      const y = line < doc.lines ? cm.lineBlockAt(doc.line(line + 1).from).top : cm.lineBlockAt(doc.length).bottom;
+      const c = cm.contentDOM.getBoundingClientRect();
+      return S.top(c.left + 4, y + cm.documentTop);
+    },
+    handleXY() {
+      const h = S.cm.dom.querySelector(".eo-drag-handle");
+      if (!h || h.style.display === "none") return null;
+      const r = h.getBoundingClientRect();
+      return S.top(r.left + r.width / 2, r.top + r.height / 2);
+    },
     clipEvent(kind, data) {
       const cm = S.cm, W = cm.dom.ownerDocument.defaultView;
       const dt = new W.DataTransfer();
@@ -406,11 +513,17 @@ const PAGE = String.raw`
 
 // ---------- running ----------
 
+/** @param {number} ms */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/**
+ * @param {string} k
+ * @returns {[string, import("./cdp.mjs").Mods]}
+ */
 function parseKey(k) {
   const parts = k.split("-");
   const name = parts.pop() || "-";
+  /** @type {import("./cdp.mjs").Mods} */
   const mods = {};
   for (const p of parts) {
     if (p === "Ctrl" || p === "Mod") mods.ctrl = true;
@@ -422,6 +535,11 @@ function parseKey(k) {
   return [name, mods];
 }
 
+/**
+ * @param {Cdp} c
+ * @param {Key[]} keys
+ * @param {Ctx} ctx
+ */
 async function doKeys(c, keys, ctx) {
   for (const k of keys) {
     if (typeof k === "string") {
@@ -452,6 +570,50 @@ async function doKeys(c, keys, ctx) {
     } else if (k.eval) {
       await c.ev(`(async()=>{const S=window.__e2e, cm=S.cm; ${k.eval}})()`);
       await sleep(k.wait || 40);
+    } else if (k.drag) {
+      // a real mouse drag by the drag handle: hover the source line, press on its handle, move to the top of
+      // the target line (plus dx sideways from the press), optionally Escape, release. noMove: a click only
+      const d = k.drag;
+      /** @param {string} expr */
+      const S = expr => c.ev(`(async()=>{const S=window.__e2e, cm=S.cm; return ${expr}})()`);
+      /**
+       * @param {string} type
+       * @param {number} x
+       * @param {number} y
+       */
+      const mouse = (type, x, y, extra = {}) =>
+        c.send("Input.dispatchMouseEvent", { type, x, y, button: "left", pointerType: "mouse", ...extra });
+      const [hx0, hy0] = await S(`S.lineXY(${d.line}, ${d.ch || 0})`);
+      let h = null;
+      for (let t = 0; t < 3 && !h; t++) {
+        await mouse("mouseMoved", hx0 + 30, hy0 + t, { button: "none" });
+        await mouse("mouseMoved", hx0, hy0 + t, { button: "none" });
+        await sleep(120 + 100 * t);
+        h = await S(`S.handleXY()`);
+      }
+      if (!h) throw new Error("harness: no drag handle shown for line " + d.line);
+      const [hx, hy] = h;
+      await mouse("mouseMoved", hx, hy, { button: "none" });
+      await sleep(40);
+      await mouse("mousePressed", hx, hy, { clickCount: 1, buttons: 1 });
+      let [tx, ty] = [hx, hy];
+      if (!d.noMove) {
+        const t = await S(`S.lineTop(${d.to})`);
+        ty = t[1] + (d.dy || 0);
+        tx = hx + (d.dx || 0);
+        const n = 8;
+        for (let i = 1; i <= n; i++) {
+          await mouse("mouseMoved", hx + ((tx - hx) * i) / n, hy + ((ty - hy) * i) / n, { buttons: 1 });
+          await sleep(25);
+        }
+        if (k.drag.shot) ctx.dragState = await S(k.drag.shot);
+      }
+      if (d.escape) {
+        await c.key("Escape");
+        await sleep(40);
+      }
+      await mouse("mouseReleased", tx, ty, { clickCount: 1, buttons: 0 });
+      await sleep(150);
     } else if (k.click) {
       const [x, y] = await c.ev(`(async()=>{const S=window.__e2e, cm=S.cm; ${k.click}})()`);
       for (const type of ["mousePressed", "mouseReleased"])
@@ -469,6 +631,13 @@ async function doKeys(c, keys, ctx) {
 }
 
 /** One run of a case's keys from its setup; returns the end state. */
+/**
+ * @param {Cdp} c
+ * @param {GroupedCase} cs
+ * @param {boolean} on
+ * @param {Ctx} ctx
+ * @returns {Promise<CdpJson>}
+ */
 async function runOnce(c, cs, on, ctx) {
   await c.ev(`window.__e2e.mode(${on})`);
   await c.ev(`window.__e2e.ensure()`);
@@ -491,13 +660,20 @@ async function runOnce(c, cs, on, ctx) {
   return st;
 }
 
+/**
+ * @param {GroupedCase} cs
+ * @param {CdpJson} st
+ * @param {CdpJson} ref
+ * @param {Ctx} ctx
+ */
 function compare(cs, st, ref, ctx) {
+  /** @type {Problem[]} */
   const problems = [];
   const cur = cs.cur;
   const got = renderMarked(st.text, st.ranges, cur);
   if (cs.want !== undefined) {
     let want;
-    if (cs.want === "@off") want = renderMarked(ref.text, ref.ranges, cur);
+    if (cs.want === "@off" || cs.want === "@obsidian") want = renderMarked(ref.text, ref.ranges, cur);
     else if (cs.want === "@same") want = cs.text;
     else want = cs.want;
     const w = parseMarked(want, cur);
@@ -515,7 +691,7 @@ function compare(cs, st, ref, ctx) {
   if (cs.wantStatus && st.status !== cs.wantStatus)
     problems.push({ what: "status", want: cs.wantStatus, got: st.status });
   if (cs.wantClip !== undefined && ctx.clip !== cs.wantClip)
-    problems.push({ what: "clipboard", want: cs.wantClip, got: ctx.clip });
+    problems.push({ what: "clipboard", want: cs.wantClip, got: String(ctx.clip) });
   if (cs.wantEditing !== undefined && st.editing !== undefined && st.editing !== cs.wantEditing)
     problems.push({ what: "card editing", want: String(cs.wantEditing), got: String(st.editing) });
   if (cs.wantMode !== undefined && st.mode !== cs.wantMode)
@@ -531,6 +707,10 @@ function compare(cs, st, ref, ctx) {
   return problems;
 }
 
+/**
+ * @param {string} want
+ * @param {string} got
+ */
 function lineDiff(want, got) {
   const a = want.split("\n");
   const b = got.split("\n");
@@ -548,11 +728,34 @@ function lineDiff(want, got) {
 
 async function main() {
   if (flag("--catalogue")) return catalogue();
-  const filter = opt("--filter") ? new RegExp(opt("--filter"), "i") : null;
+  const f = opt("--filter");
+  const filter = f ? new RegExp(f, "i") : null;
   const surfaces = (opt("--surfaces") || SURFACES.join(",")).split(",");
   const views = (opt("--views") || VIEWS.join(",")).split(",");
   const verbose = flag("--verbose");
   const c = await connect();
+  // uncaught exceptions and console errors while the cases run (results.md lists them)
+  /** @type {string[]} */
+  const consoleErrors = [];
+  const t0 = Date.now();
+  c.on("Runtime.exceptionThrown", p => {
+    const d = p.exceptionDetails;
+    consoleErrors.push("exception: " + (d.exception?.description || d.text).split("\n").slice(0, 3).join(" | "));
+  });
+  c.on("Runtime.consoleAPICalled", p => {
+    if (p.type !== "error" || p.timestamp < t0) return;
+    consoleErrors.push(
+      "console.error: " +
+        p.args
+          .map(/** @param {CdpJson} a */ a => a.value ?? a.description ?? a.type)
+          .join(" ")
+          .split("\n")
+          .slice(0, 3)
+          .join(" | "),
+    );
+  });
+  await c.send("Runtime.enable");
+  /** @type {Result[]} */
   const results = [];
   try {
     if (!flag("--no-deploy")) {
@@ -574,21 +777,25 @@ async function main() {
       .send("Browser.grantPermissions", { permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] })
       .catch(() => {});
     await c.ev(PAGE);
+    await c.ev(`window.__e2e.closePopovers()`);
     const sel = cases.filter(cs => !filter || filter.test(cs.id) || filter.test(cs.group) || filter.test(cs.title));
     const runs = [];
-    for (const s of surfaces) for (const v of s.startsWith("canvas") ? ["lp"] : views) runs.push([s, v]);
+    for (const s of surfaces)
+      for (const v of s.startsWith("canvas") || s === "popover" ? ["lp"] : views) runs.push([s, v]);
     for (const [surface, view] of runs) {
       const mine = sel.filter(cs => {
         const sf = cs.surfaces === "all" ? SURFACES : cs.surfaces || ["lanes"];
         const vw = cs.views || VIEWS;
-        return sf.includes(surface) && (surface.startsWith("canvas") || vw.includes(view));
+        return sf.includes(surface) && (surface.startsWith("canvas") || surface === "popover" || vw.includes(view));
       });
       if (!mine.length) continue;
       const info = await c.ev(`window.__e2e.open(${JSON.stringify(surface)}, ${JSON.stringify(view)})`);
       console.log(`\n== ${surface} / ${view} (${mine.length} cases) ${JSON.stringify(info)}`);
       for (const cs of mine) {
         const tag = `${cs.id} [${surface}/${view}]`;
+        /** @type {Result} */
         const r = { id: cs.id, group: cs.group, title: cs.title, surface, view, status: "PASS", problems: [] };
+        /** @type {Result | null} */
         let ur = null;
         let restoreSettings = null;
         let restoreConfig = null;
@@ -599,14 +806,27 @@ async function main() {
           const on = cs.mode !== "off";
           let ref = null;
           if (cs.want === "@off") ref = await runOnce(c, cs, false, {});
+          if (cs.want === "@obsidian") {
+            // the same keys with the plugin's keys out of the way: outline mode off and the Outliner keys off
+            const old = await c.ev(`window.__e2e.settings({ keys: false })`);
+            try {
+              ref = await runOnce(c, cs, false, {});
+            } finally {
+              await c.ev(`window.__e2e.settings(${JSON.stringify(old)})`);
+            }
+          }
+          /** @type {Ctx} */
           const ctx = {};
           const st = await runOnce(c, cs, on, ctx);
           r.problems = compare(cs, st, ref, ctx);
           r.status = r.problems.length ? (cs.needsDecision ? "DECIDE" : "FAIL") : "PASS";
           // one Ctrl+Z undoes it
           const setupText = parseMarked(cs.text, cs.cur).text;
-          const actions = cs.keys.filter(k => !(k.wait || k.copy || k.readClip || k.writeClip)).length;
-          const undo = cs.undo ?? (on && actions === 1 && st.text !== setupText && cs.want !== "@off");
+          const actions = cs.keys.filter(
+            k => typeof k === "string" || !(k.wait || k.copy || k.readClip || k.writeClip),
+          ).length;
+          const undo =
+            cs.undo ?? (on && actions === 1 && st.text !== setupText && cs.want !== "@off" && cs.want !== "@obsidian");
           if (undo && r.status === "PASS") {
             await c.key("z", { ctrl: true });
             await sleep(80);
@@ -627,7 +847,11 @@ async function main() {
           }
         } catch (e) {
           r.status = "ERROR";
-          r.problems.push({ what: "error", want: "", got: String(e.message || e).split("\n")[0] });
+          r.problems.push({
+            what: "error",
+            want: "",
+            got: String((e instanceof Error && e.message) || e).split("\n")[0] ?? "",
+          });
           // a lost editor: reopen
           await c.ev(`window.__e2e.open(${JSON.stringify(surface)}, ${JSON.stringify(view)})`).catch(() => {});
         } finally {
@@ -645,12 +869,17 @@ async function main() {
       }
     }
     await c.ev(`window.__e2e.mode(true)`);
+    await c.ev(`window.__e2e.closePopovers()`);
   } finally {
     c.close();
   }
-  writeResults(results);
+  writeResults(results, consoleErrors);
 }
 
+/**
+ * @param {Result} r
+ * @param {string} tag
+ */
 function report(r, tag) {
   console.log(`${r.status} ${tag} ${r.title}`);
   for (const p of r.problems) {
@@ -660,7 +889,11 @@ function report(r, tag) {
   }
 }
 
-function writeResults(results) {
+/**
+ * @param {Result[]} results
+ * @param {string[]} consoleErrors
+ */
+function writeResults(results, consoleErrors = []) {
   const pass = results.filter(r => r.status === "PASS").length;
   const fail = results.filter(r => r.status === "FAIL").length;
   const err = results.filter(r => r.status === "ERROR").length;
@@ -686,6 +919,15 @@ function writeResults(results) {
     if (x) out.push(`| ${g.title} | ${x.pass} | ${x.fail} | ${x.error} | ${x.decide} |`);
   }
   out.push("");
+  const errs = [...new Set(consoleErrors)];
+  out.push(
+    `Console during the run: ${consoleErrors.length} uncaught exception(s) / console.error call(s)` +
+      (errs.length ? ` (${errs.filter(e => /editor-outliner/.test(e)).length} mentioning editor-outliner):` : "."),
+  );
+  out.push("");
+  for (const e of errs.slice(0, 30)) out.push("- `" + e.replace(/`/g, "'").slice(0, 300) + "`");
+  if (errs.length) out.push("");
+  if (errs.length) console.log(`console errors: ${consoleErrors.length}\n` + errs.slice(0, 30).join("\n"));
   const bad = results.filter(r => r.status !== "PASS");
   if (bad.length) {
     out.push("## Failures");

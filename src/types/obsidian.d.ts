@@ -9,6 +9,10 @@ declare module "obsidian" {
     /** The CodeMirror view that has focus: a Live Preview table cell's own editor while one is edited. */
     activeCM?: EditorView;
   }
+  interface App {
+    /** The command registry (the mobile toolbar runs editor:indent-list / editor:unindent-list from it). */
+    commands: { commands: Record<string, Command> };
+  }
   interface Vault {
     /** A vault setting from app.json ("autoConvertHtml": Settings, Editor, Auto convert HTML). */
     getConfig(key: string): unknown;

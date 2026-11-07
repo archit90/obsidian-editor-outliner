@@ -56,7 +56,7 @@ export class EditorOutlinerTab extends PluginSettingTab {
     );
     this.toggle(
       "Outliner keys",
-      "Tab / Shift+Tab indent and outdent headings and list items; Alt+Shift+↑/↓ or Alt+Fn+↑/↓ (Option+Fn+↑/↓ on a Mac) move them with their children; Alt+↑/↓ expand and shrink the selection. Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
+      "Tab / Shift+Tab indent and outdent headings and list items; Alt+Shift+↑/↓ or Alt+Fn+↑/↓ (Option+Fn+↑/↓ on a Mac) move them with their children; Alt+↑/↓ expand and shrink the selection; a selection of whole items or sections is a node selection (↑/↓ add siblings, ←/→ fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
       "keys",
     );
     this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");

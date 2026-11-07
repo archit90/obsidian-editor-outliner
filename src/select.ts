@@ -1,7 +1,7 @@
 // Expand-selection steps (the repo's SPEC.md, "Expand / shrink selection"). Pure: lists every range the cursor's
 // position grows through, smallest first; the caller picks the first one that strictly contains the
 // current selection.
-import { Item, Outline, Section, bodyRange, locate, trimEnd } from "./parse";
+import { Block, Item, Outline, Section, bodyRange, innerBlocks, locate, prefixLen, trimEnd } from "./parse";
 import { Pos, partAt } from "./content";
 
 export type { Pos };
@@ -99,6 +99,19 @@ export function steps(o: Outline, line: number, ch: number): Span[] {
         out.push(lines(it.line, it.end));
       }
     }
+    // a fenced code block of the body (or of a callout): its code lines, then the block with its fences, as
+    // for a code block in an item
+    if (!loc.item) {
+      const code = loc.block.kind === "code" ? loc.block : null;
+      const inner = innerBlocks(o, loc.block).find(b => b.start <= line && line < b.end) ?? null;
+      const c = codeLines(o, code ?? (inner?.kind === "code" ? inner : null));
+      if (c) out.push(lines(c[0], c[1]));
+    }
+    // inside a callout: the list or paragraph the line is in, then the whole callout
+    if (loc.block.kind === "quote") {
+      const inner = loc.list ?? innerBlocks(o, loc.block).find(b => b.start <= line && line < b.end);
+      if (inner) out.push(lines(inner.start, inner.end));
+    }
     out.push(lines(loc.block.start, loc.block.end));
   }
   for (let s: Section | null = loc.section; s; s = s.parent) {
@@ -116,4 +129,16 @@ export function steps(o: Outline, line: number, ch: number): Span[] {
     out.push(whole(s));
   }
   return out;
+}
+
+/** A fenced (``` / ~~~) code block's code lines, [first, end), when it has any: between its fence lines. */
+function codeLines(o: Outline, b: Block | null): [number, number] | null {
+  if (!b || b.end - b.start < 2) return null;
+  const t = (i: number) => o.texts[i]!.slice(prefixLen(o.texts[i]!, b.q)).trim();
+  const open = /^(`{3,}|~{3,})/.exec(t(b.start));
+  if (!open) return null;
+  const close = t(b.end - 1);
+  const closed = close.length >= open[1]!.length && [...close].every(x => x === open[1]![0]);
+  const end = closed ? b.end - 1 : b.end;
+  return end > b.start + 1 ? [b.start + 1, end] : null;
 }

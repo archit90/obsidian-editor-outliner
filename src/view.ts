@@ -35,6 +35,10 @@ function plainEdit(u: ViewUpdate): boolean {
   return plain;
 }
 
+/**
+ * H7+ styling and the level labels: a line decoration on every heading line of the note (headings are few, so
+ * the whole note is decorated once per parse and scrolling needs nothing). Plain edits only map them.
+ */
 export function lineDecorations(settings: () => Settings) {
   return ViewPlugin.fromClass(
     class {
@@ -43,8 +47,8 @@ export function lineDecorations(settings: () => Settings) {
         this.decorations = this.build(view);
       }
       update(u: ViewUpdate) {
-        if (u.docChanged && !u.viewportChanged && plainEdit(u)) this.decorations = this.decorations.map(u.changes);
-        else if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view);
+        if (!u.docChanged) return;
+        this.decorations = plainEdit(u) ? this.decorations.map(u.changes) : this.build(u.view);
       }
       build(view: EditorView): DecorationSet {
         const s = settings();
@@ -52,24 +56,17 @@ export function lineDecorations(settings: () => Settings) {
         const o = outlineOf(view.state);
         const b = new RangeSetBuilder<Decoration>();
         const doc = view.state.doc;
-        let last = -1;
-        for (const { from, to } of view.visibleRanges) {
-          for (let pos = from; pos <= to;) {
-            const line = doc.lineAt(pos);
-            const i = line.number - 1;
-            pos = line.to + 1;
-            if (i <= last) continue;
-            last = i;
-            const cls: string[] = [];
-            const attrs: Record<string, string> = {};
-            const L = o.info[i];
-            if (L?.kind === "heading") {
-              if (s.deepHeadings && L.level >= 7) cls.push("eo-deep-heading");
-              if (s.levelLabels) cls.push("eo-level-label");
-              attrs["data-eo-level"] = String(L.level);
-            }
-            if (cls.length) b.add(line.from, line.from, Decoration.line({ class: cls.join(" "), attributes: attrs }));
-          }
+        for (const sec of o.sections) {
+          const cls: string[] = [];
+          if (s.deepHeadings && sec.level >= 7) cls.push("eo-deep-heading");
+          if (s.levelLabels) cls.push("eo-level-label");
+          if (!cls.length) continue;
+          const from = doc.line(sec.line + 1).from;
+          b.add(
+            from,
+            from,
+            Decoration.line({ class: cls.join(" "), attributes: { "data-eo-level": String(sec.level) } }),
+          );
         }
         return b.finish();
       }
@@ -87,15 +84,63 @@ const GUIDE_STEP = 10;
  * leftmost, so a guide doesn't jump between lines of different depth, and it runs through tables, callouts
  * and embeds (Live Preview widgets, which have no .cm-line of their own).
  */
+/** A section as the guides draw it: its heading line, its last non-blank line, its depth (1 outermost). */
+interface GuideSpan {
+  line: number;
+  endLine: number;
+  depth: number;
+}
+
+/** The guides' sections of a note, with the deepest depth. */
+function guideSpans(o: Outline): { spans: GuideSpan[]; deepest: number } {
+  let deepest = 0;
+  const depthOf = new Map<unknown, number>();
+  const spans: GuideSpan[] = [];
+  for (const s of o.sections) {
+    const d = s.parent && s.parent !== o.root ? depthOf.get(s.parent)! + 1 : 1;
+    depthOf.set(s, d);
+    deepest = Math.max(deepest, d);
+    spans.push({ line: s.line, endLine: trimEnd(o, s.line, s.end) - 1, depth: d });
+  }
+  return { spans, deepest };
+}
+
+/**
+ * An edit that can't move any guide: plainEdit (no heading, fence or frontmatter line touched, no line added or
+ * removed) that also doesn't turn a blank line into text or back (a section's guide ends at its last non-blank
+ * line). The guides' sections then stay as they were, and typing doesn't re-parse the note for them.
+ */
+function guidesKeep(u: ViewUpdate): boolean {
+  if (!plainEdit(u)) return false;
+  let keep = true;
+  u.changes.iterChangedRanges((fa, _ta, fb) => {
+    if (keep && (u.startState.doc.lineAt(fa).text.trim() === "") !== (u.state.doc.lineAt(fb).text.trim() === ""))
+      keep = false;
+  });
+  return keep;
+}
+
 export function headingGuides() {
+  /** Each editor's guide sections, for the document they were worked out from. */
+  const cache = new WeakMap<EditorView, { doc: unknown; spans: GuideSpan[]; deepest: number }>();
   return layer({
     above: false,
     class: "eo-guides",
-    update: u => u.docChanged || u.viewportChanged || u.geometryChanged,
+    update: u => {
+      if (!u.docChanged) return u.viewportChanged || u.geometryChanged;
+      const c = cache.get(u.view);
+      if (c && c.doc === u.startState.doc && guidesKeep(u)) c.doc = u.state.doc;
+      return true;
+    },
     markers(view) {
       if (nested(view)) return [];
-      const o = outlineOf(view.state);
-      if (!o.sections.length) return [];
+      let c = cache.get(view);
+      if (!c || c.doc !== view.state.doc) {
+        c = { doc: view.state.doc, ...guideSpans(outlineOf(view.state)) };
+        cache.set(view, c);
+      }
+      const { spans, deepest } = c;
+      if (!spans.length) return [];
       const doc = view.state.doc;
       const { from: vFrom, to: vTo } = view.viewport;
       const first = doc.lineAt(vFrom).number - 1;
@@ -106,26 +151,19 @@ export function headingGuides() {
       const baseTop = sc.top - view.scrollDOM.scrollTop;
       const content = view.contentDOM.getBoundingClientRect();
       const textLeft = content.left - baseLeft;
-      let deepest = 0;
-      const depthOf = new Map<unknown, number>();
-      for (const s of o.sections) {
-        const d = s.parent && s.parent !== o.root ? depthOf.get(s.parent)! + 1 : 1;
-        depthOf.set(s, d);
-        deepest = Math.max(deepest, d);
-      }
       // fit the guides into the margin left of the text
       const room = Math.max(0, textLeft - 10);
       const step = deepest > 1 ? Math.max(3, Math.min(GUIDE_STEP, room / (deepest - 1))) : GUIDE_STEP;
       const out: RectangleMarker[] = [];
-      for (const s of o.sections) {
-        const endLine = trimEnd(o, s.line, s.end) - 1;
+      for (const s of spans) {
+        const endLine = s.endLine;
         if (endLine <= s.line || endLine < first || s.line > last) continue;
         const top = view.lineBlockAt(doc.line(Math.max(s.line, first) + 1).from);
         const bottom = view.lineBlockAt(doc.line(Math.min(endLine, last) + 1).from);
         const y0 = (s.line >= first ? top.bottom : top.top) + view.documentTop - baseTop;
         const y1 = bottom.bottom + view.documentTop - baseTop;
         if (y1 - y0 < 1) continue;
-        const x = textLeft - 6 - (deepest - depthOf.get(s)!) * step;
+        const x = textLeft - 6 - (deepest - s.depth) * step;
         out.push(new RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
       }
       return out;

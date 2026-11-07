@@ -1,12 +1,12 @@
 // Node selection (the repo's SPEC.md, "Editor Outliner" → "Node selection"): CodeMirror glue for nodes.ts. A
 // StateField holds the node selection, worked out from the editor's selection on every selection or text
 // change (so any other selection change forgets it, as with Expand's steps); its keys, the whole-line
-// highlight and copy / cut. Heading node selection follows the "Outliner keys" setting; list items, outline mode.
+// highlight and copy / cut. Node selection (headings and list items alike) follows the "Outliner keys" setting.
 import { EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { foldEffect, foldable, foldedRanges, unfoldEffect } from "@codemirror/language";
 import { applyRows, offsetOf, outlineOf, posOf, selectStep } from "./editor";
-import { foldedLines, outlineModeOn, stepAside, vimNormal } from "./mode";
+import { foldedLines, stepAside, vimNormal } from "./mode";
 import {
   NodeSel,
   childSel,
@@ -47,19 +47,19 @@ export function setKeysCheck(fn: () => boolean) {
 }
 
 /**
- * The node selection, when it applies: headings with the outliner keys on, list items in outline mode; none in
- * Vim outside insert mode (a visual-mode selection stays vim's).
+ * The node selection, when it applies: with the outliner keys on, whatever outline mode is (headings and list
+ * items alike); none in Vim outside insert mode (a visual-mode selection stays vim's).
  */
 function nodeSelection(view: EditorView): NodeSel | null {
   const sel = view.state.field(nodeField, false) ?? null;
   if (!sel || view.state.readOnly || vimNormal(view)) return null;
-  return (sel.kind === "item" ? outlineModeOn() : keysOn()) ? sel : null;
+  return keysOn() ? sel : null;
 }
 
-/** The node selection a key acts on: none when the key steps aside (stepAside, also for heading nodes). */
+/** The node selection a key acts on: none when the key steps aside (stepAside, whatever outline mode is). */
 function keySel(view: EditorView): NodeSel | null {
   const sel = nodeSelection(view);
-  return sel && !stepAside(view, sel.kind === "item") ? sel : null;
+  return sel && !stepAside(view, false) ? sel : null;
 }
 
 /** Selects the nodes, as a step Shrink undoes. */

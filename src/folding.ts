@@ -56,7 +56,7 @@ function run(view: EditorView, effects: (StateEffect<unknown> | null)[], folding
 
 export function foldNode(view: EditorView) {
   const n = nodeAt(view);
-  if (n) run(view, [foldLine(view, n.line)], true);
+  run(view, n ? [foldLine(view, n.line)] : [], true);
 }
 
 export function unfoldNode(view: EditorView) {
@@ -66,7 +66,7 @@ export function unfoldNode(view: EditorView) {
 
 export function foldChildren(view: EditorView) {
   const n = nodeAt(view);
-  if (!n) return;
+  if (!n) return run(view, [], true);
   const folds = n.children.map(c => foldLine(view, c));
   if (!folds.some(f => f)) return run(view, [], true);
   run(view, [...unfoldLines(view, n.line, n.line), ...folds]);

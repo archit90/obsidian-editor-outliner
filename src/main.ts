@@ -9,9 +9,10 @@
 //   their CodeMirror glue. nodes.ts: node selection (pure); nodesel.ts: its field, keys and highlight.
 // The keys are high-precedence CodeMirror keymaps (see buildExtensions); of the commands only "Toggle outline
 // mode" has a default hotkey (Ctrl+Super+O; Ctrl+Cmd+O on macOS).
-import { Notice, Platform, Plugin, htmlToMarkdown } from "obsidian";
-import { Extension, Prec } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { Command, Editor, MarkdownFileInfo, MarkdownView, Notice, Platform, Plugin, htmlToMarkdown } from "obsidian";
+import { around } from "monkey-around";
+import { Compartment, Extension, Prec } from "@codemirror/state";
+import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
 import {
   OpKind,
   codeClipboard,
@@ -65,11 +66,31 @@ const rememberFocus = EditorView.domEventHandlers({
   },
 });
 
+/**
+ * Every editor that has the plugin's extensions, so a settings change or unloading can reconfigure them all.
+ * Obsidian's workspace.updateOptions() only reaches Markdown tabs (and Editor Lanes cards): a Canvas card's or a
+ * page preview popover's editor would keep the old extensions (drag handles, guides, keys) until it closes.
+ */
+const editors = new Set<{ view: EditorView }>();
+const tracker = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {
+      editors.add(this);
+    }
+    destroy() {
+      editors.delete(this);
+    }
+  },
+);
+
 export default class EditorOutlinerPlugin extends Plugin {
   override settings: Settings = { ...DEFAULTS };
   private extensions: Extension[] = [];
+  /** Holds the extensions in every editor (see editors). */
+  private compartment = new Compartment();
   private status: HTMLElement | null = null;
   private statusQueued = false;
+  private statusTimer = 0;
 
   override async onload() {
     this.settings = Object.assign({}, DEFAULTS, await this.loadData());
@@ -78,12 +99,41 @@ export default class EditorOutlinerPlugin extends Plugin {
     setModeCheck(() => this.settings.outlineMode);
     setKeysCheck(() => this.settings.keys);
     this.buildExtensions();
-    this.registerEditorExtension(this.extensions);
+    this.registerEditorExtension([this.compartment.of(this.extensions)]);
     this.addCommands();
     this.addStatus();
+    if (Platform.isMobile) this.app.workspace.onLayoutReady(() => this.routeToolbarIndent());
+  }
+
+  /**
+   * Mobile: the editor toolbar's indent / outdent buttons (Obsidian's "Indent list item" / "Unindent list item")
+   * indent and outdent the heading or list item with its subtree, as Tab / Shift+Tab do; elsewhere (body text, a
+   * code block, a table cell) Obsidian's own command runs. The patch comes off on unload.
+   */
+  private routeToolbarIndent() {
+    const route = (id: string, kind: OpKind) => {
+      const cmd = this.app.commands?.commands?.[id];
+      if (!cmd?.editorCallback) return;
+      const logical = this.logical;
+      this.register(
+        around(cmd, {
+          editorCallback: next =>
+            function (this: Command, editor: Editor, ctx: MarkdownView | MarkdownFileInfo) {
+              const view = editor.activeCM ?? editor.cm;
+              if (view && runOp(view, kind, logical())) return;
+              return next?.call(this, editor, ctx);
+            },
+        }),
+      );
+    };
+    route("editor:indent-list", "indent");
+    route("editor:unindent-list", "outdent");
   }
 
   override onunload() {
+    window.clearTimeout(this.statusTimer);
+    // every editor drops the extensions now (Obsidian's own unregistering misses Canvas cards and popovers)
+    this.reconfigure([]);
     setSuggestCheck(() => false);
     setModeCheck(() => false);
     setKeysCheck(() => false);
@@ -95,8 +145,13 @@ export default class EditorOutlinerPlugin extends Plugin {
     this.settings.outlineMode = on;
     await this.saveData(this.settings);
     this.refreshStatus();
-    // editors redraw: a list item's node selection highlight follows the mode
-    this.app.workspace.updateOptions();
+    // editors redraw: the status of each editor follows the mode
+    for (const e of [...editors]) e.view.dispatch({});
+  }
+
+  /** Gives every editor that has the extensions the new ones (none: unloading). */
+  private reconfigure(ext: Extension) {
+    for (const e of [...editors]) e.view.dispatch({ effects: this.compartment.reconfigure(ext) });
   }
 
   /**
@@ -113,9 +168,18 @@ export default class EditorOutlinerPlugin extends Plugin {
     this.refreshStatus();
   }
 
-  /** Updates the status bar item, at most once per frame (it runs on every selection change). */
-  private refreshStatus() {
-    if (!this.status || this.statusQueued) return;
+  /**
+   * Updates the status bar item, at most once per frame (it runs on every selection change); while typing, after a
+   * pause (typing inside an item rarely changes the active state, and working it out parses the note).
+   */
+  private refreshStatus(typing = false) {
+    if (!this.status) return;
+    window.clearTimeout(this.statusTimer);
+    if (typing) {
+      this.statusTimer = window.setTimeout(() => this.refreshStatus(), 300);
+      return;
+    }
+    if (this.statusQueued) return;
     this.statusQueued = true;
     requestAnimationFrame(() => {
       this.statusQueued = false;
@@ -136,7 +200,7 @@ export default class EditorOutlinerPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
     this.buildExtensions();
-    this.app.workspace.updateOptions();
+    this.reconfigure([...this.extensions]);
   }
 
   /** The "Logical outdenting" setting, read when a key or command runs. */
@@ -146,6 +210,7 @@ export default class EditorOutlinerPlugin extends Plugin {
     const logical = this.logical;
     const op = (kind: OpKind) => (v: EditorView) => runOp(v, kind, logical());
     this.extensions.length = 0;
+    this.extensions.push(tracker);
     // Node selection's keys come before the rest: they only act on a selection of whole nodes
     this.extensions.push(nodeSelectionExtension());
     // Outline mode's keys come first: each falls through (false) when outline mode is off or not active
@@ -194,7 +259,7 @@ export default class EditorOutlinerPlugin extends Plugin {
         const text = this.clipText(data);
         return text !== null && outlinePaste(v, text);
       }),
-      watchActive(() => this.refreshStatus()),
+      watchActive(typing => this.refreshStatus(typing)),
     );
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());

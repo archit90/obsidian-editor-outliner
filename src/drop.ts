@@ -159,7 +159,17 @@ export function drop(o: Outline, src: Source, p: number, opt: Option, ctx: Ctx):
   rows = closeSeam(moved, p > b.start ? b.start : b.end);
   const shiftBack = p > b.start ? moved.length - rows.length : 0;
   const s = at - shiftBack;
-  return finish(o, padBlank(rows, s, s + (b.end - b.start)), ctx.tabSize).rows;
+  rows = padBlank(rows, s, s + (b.end - b.start));
+  // the body's first block keeps the body's own spacing under its heading (none, usually), as Move does: a
+  // block dropped first, or the block that becomes first, gets the blank lines the first block had
+  const bs = src.section === o.root ? o.bodyStart : src.section.line + 1;
+  const first = blocksOf(o, src.section)[0]!;
+  let k = bs;
+  while (k < rows.length && rows[k]!.t.trim() === "") k++;
+  const lead = first.start - bs;
+  if (k < rows.length && k - bs !== lead)
+    rows.splice(bs, k - bs, ...Array.from({ length: lead }, () => ({ t: "", o: -1 })));
+  return finish(o, rows, ctx.tabSize).rows;
 }
 
 /** Where a chunk was removed, two runs of blank lines meet: keep only the longer run. */

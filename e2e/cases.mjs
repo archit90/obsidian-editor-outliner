@@ -10,18 +10,39 @@
 //   options   mode "off" · surfaces "all" | [...] (default lanes) · views ["lp"] / ["source"] · fold [lines] ·
 //             wantFolds [lines] · wantHl [lines] · wantClip · wantStatus off|on|active · wantMode · wantEditing ·
 //             wantRe · settings {...} · config {...} · setupEval / check (js) · undo false · note · src
+// @ts-check (JSDoc types below: a case is a Case, its keys Keys)
+import { deep } from "./cases-deep.mjs";
+
+/**
+ * @typedef {{ line: number, to?: number, ch?: number, dx?: number, dy?: number, escape?: boolean, noMove?: boolean, shot?: string }} Drag
+ * @typedef {string | { type?: string, paste?: Record<string, string>, copy?: boolean, cut?: boolean, cmd?: string,
+ *   ime?: string, eval?: string, label?: string, click?: string, wait?: number, writeClip?: string, readClip?: boolean,
+ *   drag?: Drag }} Key
+ * @typedef {{ id: string, title: string, text: string, keys: Key | Key[], want?: string, wantRe?: string,
+ *   cur?: string, mode?: "off", surfaces?: "all" | string[], views?: string[], fold?: number[], wantFolds?: number[],
+ *   wantHl?: number[], wantClip?: string, wantStatus?: "off" | "on" | "active", wantMode?: boolean,
+ *   wantEditing?: boolean, settings?: Record<string, boolean>, config?: Record<string, unknown>, setupEval?: string,
+ *   check?: string, checkLabel?: string, undo?: boolean, note?: string, src?: string, needsDecision?: string,
+ *   surfaceSetup?: string, surfaceTeardown?: string, clip?: Record<string, string> }} Case
+ * @typedef {Case & { group: string, keys: Key[], src: string }} GroupedCase
+ * @typedef {(id: string, title: string, src: string, list: Case[], note?: string) => void} Group
+ */
+
+/** @param {string[]} l */
 const L = (...l) => l.join("\n");
 const OM = "SPEC.md §7 Outline mode";
 const R = "SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)";
 const ID = "obsidian-editor-outliner";
 
+/** @type {{ id: string, title: string, note?: string }[]} */
 export const groups = [];
+/** @type {GroupedCase[]} */
 export const cases = [];
+/** @type {Group} */
 function group(id, title, src, list, note) {
   groups.push({ id, title, note });
   for (const c of list) {
-    const k = { group: id, ...c, src: c.src || src };
-    if (!Array.isArray(k.keys)) k.keys = [k.keys];
+    const k = { group: id, ...c, src: c.src || src, keys: Array.isArray(c.keys) ? c.keys : [c.keys] };
     if (cases.some(x => x.id === k.id)) throw new Error("duplicate case id " + k.id);
     cases.push(k);
   }
@@ -34,6 +55,7 @@ const READ_ONLY = `const ES = cm.state.constructor; let PE = null;
   walk(cm.state.config.base, 0); if (!PE) throw new Error("harness: no PrecExtension found");
   const SE = cm.constructor.scrollIntoView(0).constructor;
   cm.dispatch({ effects: SE.appendConfig.of(new PE(ES.readOnly.of(true), 0)) });`;
+/** @param {string} t */
 const pasteText = t => ({ paste: { "text/plain": t } });
 
 // ---------------------------------------------------------------------------------------------------------
@@ -1613,11 +1635,12 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
   },
   {
     id: "N2",
-    title: "Outline mode off: list items are never node-selected",
+    title: "Outline mode off: whole item lines are still a node selection (the Outliner keys are on)",
     mode: "off",
     text: "- a\n⟦\t- b\n\t\t- c⟧\n- d",
     keys: [],
-    wantHl: [],
+    wantHl: [1, 2],
+    surfaces: "all",
   },
   {
     id: "N3",
@@ -2951,3 +2974,6 @@ group("edge", "Edge cases of the note", OM, [
     want: "- a\n- |\n\npara\n---",
   },
 ]);
+
+// the deep cases beyond outline mode (TEST-CASES.md)
+deep(group);

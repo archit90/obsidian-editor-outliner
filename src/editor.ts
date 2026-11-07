@@ -156,7 +156,7 @@ export const nested = (view: EditorView) => !!view.dom.parentElement?.closest(".
  */
 export function runOp(view: EditorView, kind: OpKind, logical: boolean, check = false): boolean {
   const state = view.state;
-  if (state.selection.ranges.length > 1 || !usable(view)) return false;
+  if (state.selection.ranges.length > 1 || !usable(view) || view.composing) return false;
   const o = outlineOf(state);
   const [l0, l1] = lineSpan(state);
   const ctx = ctxOf(state, logical);
@@ -202,8 +202,11 @@ interface Expansion {
 }
 const expansions = new WeakMap<EditorView, Expansion>();
 
+/** Expand / Shrink step aside (Obsidian's key) in a nested editor, with several cursors and while composing. */
+const noSteps = (view: EditorView) => nested(view) || view.state.selection.ranges.length > 1 || view.composing;
+
 export function expandSelection(view: EditorView): boolean {
-  if (nested(view)) return false;
+  if (noSteps(view)) return false;
   const state = view.state;
   const r = state.selection.main;
   const prev = expansions.get(view);
@@ -245,7 +248,7 @@ export function selectStep(view: EditorView, anchor: number, head: number, from:
 }
 
 export function shrinkSelection(view: EditorView): boolean {
-  if (nested(view)) return false;
+  if (noSteps(view)) return false;
   const r = view.state.selection.main;
   const prev = expansions.get(view);
   if (!prev || prev.last.anchor !== r.anchor || prev.last.head !== r.head || !prev.stack.length) return true;

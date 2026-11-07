@@ -33,7 +33,7 @@ export function activeIn(view: EditorView): Active | null {
 /**
  * Whether an active-state key leaves the key to Obsidian before looking at the text: outline mode off,
  * several cursors, a read-only or nested editor (a Live Preview table cell), an autocomplete popup open, IME
- * composition, Vim outside insert mode (needMode false: whatever the mode, for heading node selection). The
+ * composition, Vim outside insert mode (needMode false: whatever the mode, for node selection). The
  * pure functions add the text rules (code blocks, items that aren't a clean tree).
  */
 export function stepAside(view: EditorView, needMode = true): boolean {
@@ -127,8 +127,17 @@ export const outlinePaste = (view: EditorView, text: string) =>
     return res && { ...res, userEvent: res.plain ? "input.paste" : undefined };
   });
 
-/** Calls onChange when an editor's selection, text or focus changes (the status bar follows the cursor). */
-export const watchActive = (onChange: () => void) =>
+/**
+ * Calls onChange when an editor's selection, text or focus changes (the status bar follows the cursor). typing:
+ * the change is plain typing or deleting, which can wait for a pause (working out the active state parses the
+ * whole note, and a long note shouldn't be parsed on every keystroke for it).
+ */
+export const watchActive = (onChange: (typing: boolean) => void) =>
   EditorView.updateListener.of(u => {
-    if (u.selectionSet || u.docChanged || u.focusChanged) onChange();
+    if (!(u.selectionSet || u.docChanged || u.focusChanged)) return;
+    const typing =
+      u.docChanged &&
+      !u.focusChanged &&
+      u.transactions.every(tr => tr.isUserEvent("input.type") || tr.isUserEvent("delete"));
+    onChange(typing);
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocksOf, buildOutline, itemsOf, locate } from "./parse";
+import { Outline, blocksOf, buildOutline, itemsOf, locate } from "./parse";
 import { Ctx, OpResult, indent, move, outdent } from "./ops";
 import { steps } from "./select";
 import { drop, sourceAt, targets } from "./drop";
@@ -8,7 +8,7 @@ const sp: Ctx = { tabSize: 4, unit: "    ", logical: false };
 const tab: Ctx = { tabSize: 4, unit: "\t", logical: false };
 
 /** Runs op on the note's 0-based lines l0..l1; returns the new text, or the result when it isn't rows. */
-function run(text: string, l0: number, l1: number, op: (o: any, a: number, b: number) => OpResult) {
+function run(text: string, l0: number, l1: number, op: (o: Outline, a: number, b: number) => OpResult) {
   const o = buildOutline(text.split("\n"));
   const r = op(o, l0, l1);
   if (r === null) return null;
@@ -237,8 +237,8 @@ describe("drag and drop", () => {
 
 // Regression tests for the 2026-11-06 review (reviews/2026-11-06-plugins-review.md, EO-xx).
 describe("review fixes", () => {
-  const ind = (o: any, a: number, b: number) => indent(o, a, b, sp);
-  const tind = (o: any, a: number, b: number) => indent(o, a, b, tab);
+  const ind = (o: Outline, a: number, b: number) => indent(o, a, b, sp);
+  const tind = (o: Outline, a: number, b: number) => indent(o, a, b, tab);
 
   it("EO-03: a quote indented under an item moves with it", () => {
     const t = lines("- p", "- a", "  > quoted", "  > more", "- b");
@@ -280,8 +280,8 @@ describe("review fixes", () => {
 
   it("EO-08: a demote past H6 says so", () => {
     const o = buildOutline(["##### A", "###### B"]);
-    const r = indent(o, 0, 0, sp) as any;
-    expect(r.notice).toMatch(/deeper than H6/);
+    const r = indent(o, 0, 0, sp);
+    expect(r !== null && typeof r === "object" && "rows" in r ? r.notice : r).toMatch(/deeper than H6/);
   });
 
   it("EO-09: comment, math and HTML blocks opened mid-line are opaque; inline ``` isn't a fence", () => {
@@ -350,7 +350,7 @@ describe("review fixes", () => {
 
 describe("a list always stays a list", () => {
   it("outdenting a top-level item changes nothing, in every kind of list", () => {
-    const out = (o: any, a: number, b: number) => outdent(o, a, b, tab);
+    const out = (o: Outline, a: number, b: number) => outdent(o, a, b, tab);
     for (const t of [
       lines("- a", "- b"),
       lines("# H", "- a"),
@@ -368,5 +368,63 @@ describe("a list always stays a list", () => {
         expect([t, l, out(o, l, l)]).toEqual([t, l, "noop"]);
       }
     }
+  });
+});
+
+// Regression tests for the deep test run (TEST-CASES.md, 2026-11-07).
+describe("deep test fixes", () => {
+  /** Every step's text for the cursor at (line, ch), smallest first, as Expand reaches them. */
+  const chain = (text: string, line: number, ch: number) => {
+    const o = buildOutline(text.split("\n"));
+    const t = text.split("\n");
+    const seen = new Set<string>();
+    return steps(o, line, ch)
+      .map(s => {
+        const a = t.slice(0, s.from.line).join("\n").length + (s.from.line ? 1 : 0) + s.from.ch;
+        const b = t.slice(0, s.to.line).join("\n").length + (s.to.line ? 1 : 0) + s.to.ch;
+        return [a, b] as const;
+      })
+      .sort((x, y) => x[1] - x[0] - (y[1] - y[0]))
+      .map(([a, b]) => text.slice(a, b))
+      .filter(x => !seen.has(x) && !!seen.add(x));
+  };
+
+  it("XS11: a body code block has a code-lines step before the whole block", () => {
+    const c = chain(lines("# H", "```", "xx", "yy", "```"), 2, 1);
+    expect(c.slice(0, 3)).toEqual(["xx", "xx\nyy", "```\nxx\nyy\n```"]);
+  });
+
+  it("XS11: also an unclosed fence; none for a $$ block", () => {
+    expect(chain(lines("```", "xx", "yy"), 1, 1)).toContain("xx\nyy");
+    expect(chain(lines("$$", "xx", "yy", "$$"), 1, 1)).not.toContain("xx\nyy");
+  });
+
+  it("XS17 / XS22: in a callout, the list or paragraph before the whole callout", () => {
+    const t = lines("> [!note] T", "> - a", "> - b", "> ", "> para");
+    expect(chain(t, 2, 4)).toContain("> - a\n> - b");
+    const p = lines("> [!note] T", "> one", "> two", ">", "> - x");
+    expect(chain(p, 2, 3)).toContain("> [!note] T\n> one\n> two");
+  });
+
+  it("DG6: a block dragged from under its heading leaves the next block under it, as Move does", () => {
+    const o = buildOutline(["# H", "p1", "", "p2", "", "p3"]);
+    expect(drop(o, sourceAt(o, 1)!, 5, { value: 0, depth: 0 }, sp)!.map(r => r.t)).toEqual([
+      "# H",
+      "p2",
+      "",
+      "p1",
+      "",
+      "p3",
+    ]);
+  });
+
+  it("DG6: a block dropped first under its heading gets no blank line above it", () => {
+    const o = buildOutline(["# H", "p1", "", "p2"]);
+    expect(drop(o, sourceAt(o, 3)!, 1, { value: 0, depth: 0 }, sp)!.map(r => r.t)).toEqual(["# H", "p2", "", "p1"]);
+  });
+
+  it("DG6: a body that starts with a blank line keeps it", () => {
+    const o = buildOutline(["# H", "", "p1", "", "p2"]);
+    expect(drop(o, sourceAt(o, 4)!, 2, { value: 0, depth: 0 }, sp)!.map(r => r.t)).toEqual(["# H", "", "p2", "", "p1"]);
   });
 });
