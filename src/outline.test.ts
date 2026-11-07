@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Outline, blocksOf, buildOutline, itemsOf, locate } from "./parse";
 import { Ctx, OpResult, indent, move, outdent } from "./ops";
-import { steps } from "./select";
+import { START, chainAt, move as moveSel, spanOf, stateOf, steps } from "./select";
 import { drop, sourceAt, targets } from "./drop";
 
 const sp: Ctx = { tabSize: 4, unit: "    ", logical: false };
@@ -198,7 +198,7 @@ describe("move", () => {
 });
 
 describe("expand selection steps", () => {
-  it("grows word, link, line text, line, item, parent", () => {
+  it("text steps: word, link, line text, line", () => {
     const t = ["- a", "    - see [[Some Note]] now", "# H"];
     const o = buildOutline(t);
     const s = steps(o, 1, 13).map(x => [x.from.line, x.from.ch, x.to.line, x.to.ch]);
@@ -207,7 +207,82 @@ describe("expand selection steps", () => {
     expect(s).toContainEqual([1, 10, 1, 23]); // [[Some Note]]
     expect(s).toContainEqual([1, 6, 1, 27]); // line text
     expect(s).toContainEqual([1, 0, 1, 27]); // line
-    expect(s).toContainEqual([0, 0, 1, 27]); // parent item
+  });
+});
+
+/**
+ * Presses Expand / Shrink from the cursor at (line, ch): u / d expand up / down, U / D shrink up / down. Each
+ * press's selected text ("|" for the cursor).
+ */
+function press(text: string, line: number, ch: number, keys: string): string[] {
+  const t = text.split("\n");
+  const o = buildOutline(t);
+  const c = chainAt(o, line, ch);
+  const off = (p: { line: number; ch: number }) => t.slice(0, p.line).join("\n").length + (p.line ? 1 : 0) + p.ch;
+  let st = START;
+  return [...keys].map(k => {
+    st = moveSel(o, c, st, k.toLowerCase() === "u" ? -1 : 1, k === k.toLowerCase()) ?? st;
+    const sp = spanOf(o, c, st);
+    return sp ? text.slice(off(sp.from), off(sp.to)) : "|";
+  });
+}
+
+describe("expand / shrink selection up and down", () => {
+  const LIST = lines("- p", "  - a", "  - b", "  - c", "- q");
+  it("up: siblings above, then the parent, its siblings, the list; stops at the top level", () => {
+    expect(press(LIST, 2, 4, "uuuuuu")).toEqual(["b", "  - b", "  - a\n  - b", "- p\n  - a\n  - b\n  - c", LIST, LIST]);
+  });
+  it("shrink up retraces back to the cursor", () => {
+    expect(press(LIST, 2, 4, "uuuuUUUUUUU").slice(4)).toEqual(["  - a\n  - b", "  - b", "b", "|", "|", "|", "|"]);
+  });
+  it("down: siblings below; a fully selected list goes on to the list's next sibling", () => {
+    const t = lines("para", "", "- a", "- b", "", "end");
+    expect(press(t, 2, 2, "dddd")).toEqual(["a", "- a", "- a\n- b", "- a\n- b\n\nend"]);
+    expect(press(t, 2, 2, "ddddu")[4]).toBe(t);
+    expect(press(t, 2, 2, "ddddD")[4]).toBe("- a\n- b");
+  });
+  it("the two edges retrace separately", () => {
+    // b, then up (a+b), down (a+b+c); shrink up drops a, shrink down drops c
+    expect(press(LIST, 2, 4, "uuudU")).toEqual(["b", "  - b", "  - a\n  - b", "  - a\n  - b\n  - c", "  - b\n  - c"]);
+    expect(press(LIST, 2, 4, "uuudD")[4]).toBe("  - a\n  - b");
+  });
+  it("past a parent step, shrink goes back to the run below", () => {
+    // up to the parent p, then down (p + q); shrink up returns to the run a+b
+    expect(press(LIST, 2, 4, "uuuudU").slice(4)).toEqual(["- p\n  - a\n  - b\n  - c\n- q", "  - a\n  - b"]);
+  });
+  it("headings: the section's blocks and subsections are siblings; then the section, its siblings, ...", () => {
+    const t = lines("# A", "x", "## B", "b", "## C", "c", "# D");
+    expect(press(t, 5, 0, "uuuuuuu")).toEqual([
+      "c",
+      "## C\nc",
+      "## B\nb\n## C\nc",
+      "x\n## B\nb\n## C\nc",
+      "# A\nx\n## B\nb\n## C\nc",
+      "# A\nx\n## B\nb\n## C\nc",
+      "# A\nx\n## B\nb\n## C\nc",
+    ]);
+    expect(press(t, 5, 0, "uuuuud")[5]).toBe(t);
+  });
+  it("on a heading line: its own body, then the section", () => {
+    const t = lines("# A", "x", "## B", "b");
+    expect(press(t, 0, 2, "uuu")).toEqual(["A", "# A", "# A\nx"]);
+    expect(press(t, 0, 2, "uuuu")[3]).toBe(t);
+  });
+  it("in a callout: siblings inside it, then the callout", () => {
+    const t = lines("> [!note] T", "> - a", "> - b", "> ", "> para");
+    expect(press(t, 2, 4, "uuuu")).toEqual(["b", "> - b", "> - a\n> - b", "> [!note] T\n> - a\n> - b"]);
+    expect(press(t, 2, 4, "uuuuu")[4]).toBe(t);
+  });
+  it("a code block in the body: its code lines, then the block", () => {
+    const t = lines("# H", "```", "xx", "yy", "```");
+    expect(press(t, 2, 1, "ddd")).toEqual(["xx", "xx\nyy", "```\nxx\nyy\n```"]);
+  });
+  it("a selection made by hand: a run of siblings carries on from there", () => {
+    const o = buildOutline(LIST.split("\n"));
+    const c = chainAt(o, 2, 0);
+    const at = stateOf(o, c, { line: 1, ch: 0 }, { line: 2, ch: 5 })!;
+    expect(at.exact).toBe(true);
+    expect(spanOf(o, c, moveSel(o, c, at.st, 1, true)!)).toEqual({ from: { line: 1, ch: 0 }, to: { line: 3, ch: 5 } });
   });
 });
 
@@ -389,21 +464,9 @@ describe("deep test fixes", () => {
       .filter(x => !seen.has(x) && !!seen.add(x));
   };
 
-  it("XS11: a body code block has a code-lines step before the whole block", () => {
-    const c = chain(lines("# H", "```", "xx", "yy", "```"), 2, 1);
-    expect(c.slice(0, 3)).toEqual(["xx", "xx\nyy", "```\nxx\nyy\n```"]);
-  });
-
   it("XS11: also an unclosed fence; none for a $$ block", () => {
     expect(chain(lines("```", "xx", "yy"), 1, 1)).toContain("xx\nyy");
     expect(chain(lines("$$", "xx", "yy", "$$"), 1, 1)).not.toContain("xx\nyy");
-  });
-
-  it("XS17 / XS22: in a callout, the list or paragraph before the whole callout", () => {
-    const t = lines("> [!note] T", "> - a", "> - b", "> ", "> para");
-    expect(chain(t, 2, 4)).toContain("> - a\n> - b");
-    const p = lines("> [!note] T", "> one", "> two", ">", "> - x");
-    expect(chain(p, 2, 3)).toContain("> [!note] T\n> one\n> two");
   });
 
   it("DG6: a block dragged from under its heading leaves the next block under it, as Move does", () => {
@@ -421,33 +484,6 @@ describe("deep test fixes", () => {
   it("DG6: a block dropped first under its heading gets no blank line above it", () => {
     const o = buildOutline(["# H", "p1", "", "p2"]);
     expect(drop(o, sourceAt(o, 3)!, 1, { value: 0, depth: 0 }, sp)!.map(r => r.t)).toEqual(["# H", "p2", "", "p1"]);
-  });
-
-  it("Expand: all siblings (with subtrees) come before the parent item", () => {
-    const t = lines("- p", "  - a", "  - b", "    - b1", "  - c", "- q");
-    const c = chain(t, 2, 4);
-    const i = (s: string) => c.indexOf(s);
-    expect(i("  - b\n    - b1")).toBeGreaterThan(-1);
-    expect(i("  - a\n  - b\n    - b1\n  - c")).toBeGreaterThan(i("  - b\n    - b1"));
-    expect(i("- p\n  - a\n  - b\n    - b1\n  - c")).toBeGreaterThan(i("  - a\n  - b\n    - b1\n  - c"));
-    // top-level items: their siblings are the whole list
-    expect(c).toContain(t);
-  });
-
-  it("Expand: all sibling sections come before the parent section", () => {
-    const t = lines("# A", "## B", "b", "## C", "c", "# D");
-    const c = chain(t, 4, 0);
-    const i = (s: string) => c.indexOf(s);
-    expect(i("## B\nb\n## C\nc")).toBeGreaterThan(i("## C\nc"));
-    expect(i("# A\n## B\nb\n## C\nc")).toBeGreaterThan(i("## B\nb\n## C\nc"));
-    expect(c).toContain(t); // the top-level sections A and D
-  });
-
-  it("Expand: a single child has no separate siblings step", () => {
-    const t = lines("- p", "  - a", "- q");
-    const c = chain(t, 1, 4);
-    expect(c.filter(x => x === "  - a").length).toBe(1);
-    expect(c.indexOf("- p\n  - a")).toBeGreaterThan(c.indexOf("  - a"));
   });
 
   it("DG6: a body that starts with a blank line keeps it", () => {

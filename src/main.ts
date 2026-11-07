@@ -17,12 +17,14 @@ import {
   OpKind,
   codeClipboard,
   codeEnter,
-  expandSelection,
+  expandDown,
+  expandUp,
   insertBlock,
   nested,
   runOp,
   setSuggestCheck,
-  shrinkSelection,
+  shrinkDown,
+  shrinkUp,
 } from "./editor";
 import { foldChildren, foldNode, foldToLevel, unfoldAll, unfoldNode, unfoldSubtree } from "./folding";
 import {
@@ -240,12 +242,12 @@ export default class EditorOutlinerPlugin extends Plugin {
             // to Obsidian's document start / end)
             { key: "Mod-ArrowUp", run: op("up") },
             { key: "Mod-ArrowDown", run: op("down") },
-            // Expand: Alt+↑ or Alt+↓, the same chain; Shrink: Alt+Shift+↑ or ↓, back toward the start. They
-            // replace CodeMirror's move line / copy line up / down in the editor
-            { key: "Alt-ArrowUp", run: expandSelection },
-            { key: "Alt-ArrowDown", run: expandSelection },
-            { key: "Alt-Shift-ArrowUp", run: shrinkSelection },
-            { key: "Alt-Shift-ArrowDown", run: shrinkSelection },
+            // Expand up / down: Alt+↑ / Alt+↓; Shrink up / down: Alt+Shift+↑ / Alt+Shift+↓, retracing that edge.
+            // They replace CodeMirror's move line / copy line up / down in the editor
+            { key: "Alt-ArrowUp", run: expandUp },
+            { key: "Alt-ArrowDown", run: expandDown },
+            { key: "Alt-Shift-ArrowUp", run: shrinkUp },
+            { key: "Alt-Shift-ArrowDown", run: shrinkDown },
             { key: "Enter", run: codeEnter },
           ]),
         ),
@@ -341,8 +343,10 @@ export default class EditorOutlinerPlugin extends Plugin {
       const o = op(kind);
       cmd(id, name, icon, o.run, { applies: o.applies });
     }
-    cmd("expand-selection", "Expand selection", "text-select", expandSelection);
-    cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection);
+    cmd("expand-selection-up", "Expand selection up", "text-select", expandUp);
+    cmd("expand-selection-down", "Expand selection down", "text-select", expandDown);
+    cmd("shrink-selection-up", "Shrink selection up", "text-cursor", shrinkUp);
+    cmd("shrink-selection-down", "Shrink selection down", "text-cursor", shrinkDown);
     cmd("insert-code-block", "Insert code block in item", "code", v => insertBlock(v, ""), {
       applies: v => insertBlock(v, "", true),
     });

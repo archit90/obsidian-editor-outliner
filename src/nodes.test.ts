@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildOutline } from "./parse";
-import {
-  NodeSel,
-  childSel,
-  extendSel,
-  nodeLines,
-  nodeSelOf,
-  nodeSpan,
-  nodeText,
-  parentSel,
-  removeNodes,
-} from "./nodes";
+import { NodeSel, childSel, nodeLines, nodeSelOf, nodeSpan, nodeText, parentSel, removeNodes } from "./nodes";
 
 const lines = (...l: string[]) => l.join("\n");
 const parse = (text: string) => buildOutline(text.split("\n"));
@@ -63,22 +53,11 @@ describe("nodeSelOf: which selections are node selections", () => {
   });
 });
 
-describe("extending and moving in the tree", () => {
+describe("moving in the tree", () => {
   const o = parse(LIST);
   const one = (l: number): NodeSel => ({ kind: "item", anchor: l, head: l });
-  it("↓ / ↑ extend anchored and stop at the edge", () => {
-    let s = extendSel(o, one(1), 1)!;
-    expect(s).toEqual({ kind: "item", anchor: 1, head: 3 });
-    s = extendSel(o, s, 1)!;
-    expect(nodeLines(o, s)).toEqual([1, 3, 4]);
-    expect(extendSel(o, s, 1)).toBeNull();
-    s = extendSel(o, s, -1)!;
-    expect(nodeLines(o, s)).toEqual([1, 3]);
-    expect(extendSel(o, extendSel(o, s, -1)!, -1)).toBeNull();
-  });
-  it("↑ from the anchor extends backwards", () => {
-    const s = extendSel(o, one(4), -1)!;
-    expect(s).toEqual({ kind: "item", anchor: 4, head: 3 });
+  it("a backwards span has its head at the first line", () => {
+    const s: NodeSel = { kind: "item", anchor: 4, head: 3 };
     expect(nodeSpan(o, s)).toEqual({ anchor: eol(o, 4), head: at(3, 0) });
   });
   it("the span runs from the first line's start to the last line's end", () => {
@@ -96,7 +75,7 @@ describe("extending and moving in the tree", () => {
     expect(childSel(h, s)).toEqual({ kind: "heading", anchor: 2, head: 2 });
     expect(parentSel(h, s)).toEqual({ kind: "heading", anchor: 0, head: 0 });
     expect(parentSel(h, { kind: "heading", anchor: 0, head: 0 })).toBeNull();
-    expect(nodeLines(h, extendSel(h, s, 1)!)).toEqual([1, 3]);
+    expect(nodeLines(h, { kind: "heading", anchor: 1, head: 3 })).toEqual([1, 3]);
   });
 });
 

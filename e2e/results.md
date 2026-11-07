@@ -1,6 +1,6 @@
 # Editor Outliner e2e results
 
-Run 2026-11-07T18:57:15.270Z: 2284 checks, 2284 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
+Run 2026-11-07T20:34:42.776Z: 2310 checks, 2310 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
 
 | Group | Pass | Fail | Error | Decide |
 |---|---|---|---|---|
@@ -15,7 +15,7 @@ Run 2026-11-07T18:57:15.270Z: 2284 checks, 2284 pass, 0 fail, 0 error, 0 needing
 | Delete | 72 | 0 | 0 | 0 |
 | Paste | 170 | 0 | 0 | 0 |
 | Multi-block items and code-indent rules | 120 | 0 | 0 | 0 |
-| Node selection | 156 | 0 | 0 | 0 |
+| Node selection | 158 | 0 | 0 | 0 |
 | Move / indent / outdent with nested children | 122 | 0 | 0 | 0 |
 | Folding interplay | 58 | 0 | 0 | 0 |
 | Ordered lists and tasks | 76 | 0 | 0 | 0 |
@@ -27,7 +27,7 @@ Run 2026-11-07T18:57:15.270Z: 2284 checks, 2284 pass, 0 fail, 0 error, 0 needing
 | Edge cases of the note | 54 | 0 | 0 | 0 |
 | Indent / outdent outside outline mode | 154 | 0 | 0 | 0 |
 | Move outside outline mode | 137 | 0 | 0 | 0 |
-| Expand / shrink selection | 83 | 0 | 0 | 0 |
+| Expand / shrink selection | 107 | 0 | 0 | 0 |
 | Node selection: headings and details | 33 | 0 | 0 | 0 |
 | Folding commands | 38 | 0 | 0 | 0 |
 | Heading guides, level labels and H7+ styling | 36 | 0 | 0 | 0 |

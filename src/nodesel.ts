@@ -5,12 +5,11 @@
 import { EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { foldEffect, foldable, foldedRanges, unfoldEffect } from "@codemirror/language";
-import { applyRows, offsetOf, outlineOf, posOf, selectStep } from "./editor";
+import { applyRows, offsetOf, outlineOf, posOf } from "./editor";
 import { foldedLines, stepAside, vimNormal } from "./mode";
 import {
   NodeSel,
   childSel,
-  extendSel,
   nodeLines,
   nodeRange,
   nodeSelOf,
@@ -62,22 +61,16 @@ function keySel(view: EditorView): NodeSel | null {
   return sel && !stepAside(view, false) ? sel : null;
 }
 
-/** Selects the nodes, as a step Shrink undoes. */
+/** Selects the nodes (anchored at the anchor node). */
 function select(view: EditorView, sel: NodeSel) {
   const st = view.state;
   const span = nodeSpan(outlineOf(st), sel);
   if (!span) return;
-  selectStep(view, offsetOf(st, span.anchor), offsetOf(st, span.head), st.doc.line(sel.anchor + 1).from);
+  view.dispatch({
+    selection: { anchor: offsetOf(st, span.anchor), head: offsetOf(st, span.head) },
+    scrollIntoView: true,
+  });
 }
-
-/** ↑ / ↓: extend (or shrink) the run by a sibling in that direction, anchored; nothing past the edge. */
-const extend = (dir: -1 | 1) => (view: EditorView) => {
-  const sel = keySel(view);
-  if (!sel) return false;
-  const next = extendSel(outlineOf(view.state), sel, dir);
-  if (next) select(view, next);
-  return true;
-};
 
 /** ←: fold the nodes that can fold and aren't folded; when there are none, select the parent. */
 function left(view: EditorView): boolean {
@@ -196,8 +189,6 @@ export function nodeSelectionExtension(): Extension {
     EditorView.editorAttributes.of(view => (view.plugin(highlight)?.on ? { class: "eo-node-selection" } : null)),
     Prec.highest(
       keymap.of([
-        { key: "ArrowUp", run: extend(-1) },
-        { key: "ArrowDown", run: extend(1) },
         { key: "ArrowLeft", run: left },
         { key: "ArrowRight", run: right },
         { key: "Escape", run: clear },

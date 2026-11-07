@@ -1112,53 +1112,134 @@ function steps(o, line, ch) {
   out.push(on(0, text.length));
   const loc = locate(o, line);
   if (!loc) return out;
-  const own = (s) => lines(s.line, Math.max(trimEnd(o, s.line, s.bodyEnd), s.line + 1));
-  const whole = (s) => lines(s.line, trimEnd(o, s.line, s.end));
-  if (!loc.onHeading && loc.block) {
-    if (loc.item) {
-      for (let it = loc.item; it && it.line >= 0; it = it.parent) {
-        if (it === loc.item) {
-          const part = partAt(o, line);
-          if (part?.code && part.code.innerEnd > part.code.innerStart)
-            out.push(lines(part.code.innerStart, part.code.innerEnd));
-          if (part) out.push(lines(part.start, part.end));
-          out.push(lines(it.line, it.ownEnd));
-        }
-        out.push(lines(it.line, it.end));
-        const sib = it.parent?.children ?? [];
-        if (sib.length > 1) out.push(lines(sib[0].line, sib[sib.length - 1].end));
-      }
-    }
-    if (!loc.item) {
-      const code = loc.block.kind === "code" ? loc.block : null;
-      const inner = innerBlocks(o, loc.block).find((b2) => b2.start <= line && line < b2.end) ?? null;
-      const c = codeLines(o, code ?? (inner?.kind === "code" ? inner : null));
-      if (c) out.push(lines(c[0], c[1]));
-    }
-    if (loc.block.kind === "quote") {
-      const inner = loc.list ?? innerBlocks(o, loc.block).find((b2) => b2.start <= line && line < b2.end);
-      if (inner) out.push(lines(inner.start, inner.end));
-    }
-    out.push(lines(loc.block.start, loc.block.end));
-  }
-  for (let s = loc.section; s; s = s.parent) {
-    if (s === o.root) {
-      const [b0, be] = bodyRange(o, s);
-      let bs = b0;
-      while (bs < be && o.info[bs].kind === "blank") bs++;
-      const e1 = trimEnd(o, bs, be);
-      if (e1 > bs) out.push(lines(bs, e1));
-      const e2 = trimEnd(o, bs, o.texts.length);
-      if (e2 > bs) out.push(lines(bs, e2));
-      break;
-    }
-    if (s === loc.section) out.push(own(s));
-    out.push(whole(s));
-    const sib = s.parent?.children ?? [];
-    if (sib.length > 1) out.push(lines(sib[0].line, trimEnd(o, sib[0].line, sib[sib.length - 1].end)));
+  if (loc.onHeading) {
+    const s = loc.section;
+    out.push(lines(s.line, Math.max(trimEnd(o, s.line, s.bodyEnd), s.line + 1)));
+  } else if (loc.item) {
+    const part = partAt(o, line);
+    if (part?.code && part.code.innerEnd > part.code.innerStart)
+      out.push(lines(part.code.innerStart, part.code.innerEnd));
+    if (part) out.push(lines(part.start, part.end));
+    out.push(lines(loc.item.line, loc.item.ownEnd));
+  } else if (loc.block) {
+    const code = loc.block.kind === "code" ? loc.block : null;
+    const inner = innerBlocks(o, loc.block).find((b2) => b2.start <= line && line < b2.end) ?? null;
+    const c = codeLines(o, code ?? (inner?.kind === "code" ? inner : null));
+    if (c) out.push(lines(c[0], c[1]));
   }
   return out;
 }
+var blockNode = (o, b) => ({
+  from: b.start,
+  to: b.end,
+  kids: () => b.kind === "list" ? itemsOf(o, b).children.map((it) => itemNode(it)) : b.kind === "quote" ? innerBlocks(o, b).map((x) => blockNode(o, x)) : []
+});
+var itemNode = (it) => ({ from: it.line, to: it.end, kids: () => it.children.map(itemNode) });
+var sectionKids = (o, s) => [
+  ...blocksOf(o, s).map((b) => blockNode(o, b)),
+  ...s.children.map((c) => ({ from: c.line, to: trimEnd(o, c.line, c.end), kids: () => sectionKids(o, c) }))
+];
+function chainAt(o, line, ch) {
+  const levels = [];
+  if (line >= o.bodyStart && line < o.texts.length) {
+    let sibs = sectionKids(o, o.root);
+    for (; ; ) {
+      const k = sibs.findIndex((n) => n.from <= line && (line < n.to || isSection(o, n, line)));
+      if (k < 0) break;
+      levels.unshift({ sibs, k });
+      sibs = sibs[k].kids();
+    }
+  }
+  const top = levels[0] ? levels[0].sibs[levels[0].k] : null;
+  const len = lengths(o);
+  const size = (s) => off(len, s.to) - off(len, s.from);
+  const inside = (a, b) => cmp(a.from, b.from) >= 0 && cmp(a.to, b.to) <= 0;
+  const nodeSpan2 = top ? lineSpan(o, top.from, top.to) : null;
+  const pre = [];
+  for (const s of steps(o, line, ch).sort((x, y) => size(x) - size(y))) {
+    if (size(s) <= 0) continue;
+    if (nodeSpan2 && (!inside(s, nodeSpan2) || size(s) >= size(nodeSpan2))) continue;
+    const last = pre[pre.length - 1];
+    if (last && (size(s) === size(last) || !inside(last, s))) continue;
+    pre.push(s);
+  }
+  return { pre, levels };
+}
+function isSection(o, n, line) {
+  if (o.info[n.from]?.kind !== "heading") return false;
+  const s = o.sections.find((x) => x.line === n.from);
+  return !!s && line < s.end;
+}
+var START = { level: -1, p: -1, runs: [] };
+function spanOf(o, c, st) {
+  if (st.level < 0) return st.p < 0 ? null : c.pre[st.p];
+  const { sibs } = c.levels[st.level];
+  const r = st.runs[st.level];
+  return lineSpan(o, sibs[r.i].from, sibs[r.j].to);
+}
+function step(c, st, dir, grow) {
+  if (st.level < 0) {
+    if (!grow) return st.p >= 0 ? { ...st, p: st.p - 1 } : null;
+    if (st.p + 1 < c.pre.length) return { ...st, p: st.p + 1 };
+    const l0 = c.levels[0];
+    return l0 ? { level: 0, p: st.p, runs: [{ i: l0.k, j: l0.k }] } : null;
+  }
+  const L = st.level;
+  const { sibs, k } = c.levels[L];
+  const r = st.runs[L];
+  const runs = st.runs.slice(0, L);
+  if (grow) {
+    if (dir < 0 ? r.i > 0 : r.j < sibs.length - 1)
+      return { ...st, runs: [...runs, dir < 0 ? { i: r.i - 1, j: r.j } : { i: r.i, j: r.j + 1 }] };
+    const up = c.levels[L + 1];
+    if (!up) return null;
+    return { ...st, level: L + 1, runs: [...runs, r, { i: up.k, j: up.k }] };
+  }
+  if (dir < 0 ? r.i < k : r.j > k)
+    return { ...st, runs: [...runs, dir < 0 ? { i: r.i + 1, j: r.j } : { i: r.i, j: r.j - 1 }] };
+  if (L > 0) return { ...st, level: L - 1, runs };
+  return { level: -1, p: c.pre.length - 1, runs: [] };
+}
+var same = (a, b) => a === b || !!a && !!b && cmp(a.from, b.from) === 0 && cmp(a.to, b.to) === 0;
+function move2(o, c, st, dir, grow) {
+  const was = spanOf(o, c, st);
+  for (let s = step(c, st, dir, grow); s; s = step(c, s, dir, grow)) if (!same(spanOf(o, c, s), was)) return s;
+  return null;
+}
+function stateOf(o, c, from, to) {
+  if (cmp(from, to) === 0) return { st: START, exact: true };
+  if (to.ch === 0 && to.line > from.line && from.ch === 0) to = { line: to.line - 1, ch: o.texts[to.line - 1].length };
+  const sel = { from, to };
+  const holds = (s) => cmp(s.from, from) <= 0 && cmp(s.to, to) >= 0;
+  for (let p = 0; p < c.pre.length; p++) {
+    const s = c.pre[p];
+    if (holds(s)) return { st: { level: -1, p, runs: [] }, exact: same(s, sel) };
+  }
+  const runs = [];
+  for (let L = 0; L < c.levels.length; L++) {
+    const { sibs, k } = c.levels[L];
+    const end = to.line + 1;
+    const exact = from.ch === 0 && to.ch === (o.texts[to.line] ?? "").length ? { i: sibs.findIndex((n) => n.from === from.line), j: sibs.findIndex((n) => n.to === end) } : null;
+    if (exact && exact.i >= 0 && exact.i <= k && exact.j >= k)
+      return { st: { level: L, p: c.pre.length - 1, runs: [...runs, exact] }, exact: true };
+    const one = { i: k, j: k };
+    if (holds(lineSpan(o, sibs[k].from, sibs[k].to)))
+      return { st: { level: L, p: c.pre.length - 1, runs: [...runs, one] }, exact: false };
+    runs.push(one);
+  }
+  return null;
+}
+var cmp = (a, b) => a.line - b.line || a.ch - b.ch;
+var lineSpan = (o, a, b) => ({
+  from: { line: a, ch: 0 },
+  to: { line: b - 1, ch: o.texts[b - 1].length }
+});
+var lengths = (o) => {
+  const out = [0];
+  for (const t of o.texts) out.push(out[out.length - 1] + t.length + 1);
+  return out;
+};
+var off = (len, p) => len[p.line] + p.ch;
 function codeLines(o, b) {
   if (!b || b.end - b.start < 2) return null;
   const t = (i) => o.texts[i].slice(prefixLen(o.texts[i], b.q)).trim();
@@ -1183,7 +1264,7 @@ function outlineOf(state) {
 function ctxOf(state, logical) {
   return { tabSize: state.tabSize, unit: state.facet(import_language.indentUnit), logical };
 }
-function lineSpan(state) {
+function lineSpan2(state) {
   const r = state.selection.main;
   const a = state.doc.lineAt(r.from).number - 1;
   const bl = state.doc.lineAt(r.to);
@@ -1232,7 +1313,7 @@ function applyRows(view, o, rows, userEvent = "move.outliner", cursor) {
     return starts[ni] + ch;
   };
   const r = state.selection.main;
-  const [, l1] = lineSpan(state);
+  const [, l1] = lineSpan2(state);
   const mapEnd = (pos) => {
     const l = state.doc.lineAt(pos);
     if (r.empty || pos !== r.to || pos !== l.from || l.number - 1 !== l1 + 1) return mapPos(pos);
@@ -1283,7 +1364,7 @@ function runOp(view, kind, logical, check = false) {
   const state = view.state;
   if (state.selection.ranges.length > 1 || !usable(view) || view.composing) return false;
   const o = outlineOf(state);
-  const [l0, l1] = lineSpan(state);
+  const [l0, l1] = lineSpan2(state);
   const ctx = ctxOf(state, logical);
   let inList = false;
   for (let l = l0; l <= l1 && !inList; l++) inList = !!locate(o, l)?.list;
@@ -1312,53 +1393,48 @@ function runOp(view, kind, logical, check = false) {
 }
 var expansions = /* @__PURE__ */ new WeakMap();
 var noSteps = (view) => nested(view) || view.state.selection.ranges.length > 1 || view.composing;
-function expandSelection(view) {
-  if (noSteps(view)) return false;
+function selectStep(view, dir, grow) {
+  if (noSteps(view)) return !grow;
   const state = view.state;
   const r = state.selection.main;
-  const prev = expansions.get(view);
-  const going = prev && prev.last.anchor === r.anchor && prev.last.head === r.head;
-  const origin = going ? prev.origin : r.head;
   const o = outlineOf(state);
-  const line = state.doc.lineAt(origin);
-  let best = null;
-  for (const s of steps(o, line.number - 1, origin - line.from)) {
-    const a = offsetOf(state, s.from);
-    const b = offsetOf(state, s.to);
-    if (a > r.from || b < r.to || b - a <= r.to - r.from) continue;
-    if (!best || b - a < best[1] - best[0]) best = [a, b];
+  const prev = expansions.get(view);
+  let chain;
+  let st;
+  let start = r.anchor;
+  if (prev && prev.doc === state.doc && prev.anchor === r.anchor && prev.head === r.head) {
+    chain = prev.chain;
+    st = prev.st;
+    start = prev.start;
+  } else {
+    const h = posOf(state, r.anchor);
+    chain = chainAt(o, h.line, h.ch);
+    const at = stateOf(o, chain, posOf(state, r.from), posOf(state, r.to));
+    if (!at || !at.exact && !grow) return true;
+    st = at.st;
+    if (!at.exact) return go(view, { chain, st, start }, dir);
   }
-  if (!best) return true;
-  const stack = going ? prev.stack : [];
-  stack.push({ anchor: r.anchor, head: r.head });
-  const last = { anchor: best[0], head: best[1] };
-  expansions.set(view, { origin, stack, last });
-  view.dispatch({ selection: import_state.EditorSelection.single(best[0], best[1]) });
-  return true;
+  const next = move2(o, chain, st, dir, grow);
+  return next ? go(view, { chain, st: next, start }, dir) : true;
 }
-function selectStep(view, anchor, head, from) {
-  const r = view.state.selection.main;
-  const prev = expansions.get(view);
-  const going = prev && prev.last.anchor === r.anchor && prev.last.head === r.head;
-  const lo = Math.min(anchor, head);
-  const hi = Math.max(anchor, head);
-  const origin = going && prev.origin >= lo && prev.origin <= hi ? prev.origin : from;
-  const stack = going ? prev.stack : [];
-  stack.push({ anchor: r.anchor, head: r.head });
-  expansions.set(view, { origin, stack, last: { anchor, head } });
+function go(view, x, dir) {
+  const state = view.state;
+  const span = spanOf(outlineOf(state), x.chain, x.st);
+  let anchor = x.start;
+  let head = x.start;
+  if (span) {
+    const a = offsetOf(state, span.from);
+    const b = offsetOf(state, span.to);
+    [anchor, head] = dir < 0 ? [b, a] : [a, b];
+  }
+  expansions.set(view, { ...x, anchor, head, doc: state.doc });
   view.dispatch({ selection: import_state.EditorSelection.single(anchor, head), scrollIntoView: true });
-}
-function shrinkSelection(view) {
-  if (noSteps(view)) return true;
-  const r = view.state.selection.main;
-  const prev = expansions.get(view);
-  if (!prev || prev.last.anchor !== r.anchor || prev.last.head !== r.head || !prev.stack.length) return true;
-  const back = prev.stack.pop();
-  prev.last = back;
-  if (!prev.stack.length) expansions.delete(view);
-  view.dispatch({ selection: import_state.EditorSelection.single(back.anchor, back.head) });
   return true;
 }
+var expandUp = (view) => selectStep(view, -1, true);
+var expandDown = (view) => selectStep(view, 1, true);
+var shrinkUp = (view) => selectStep(view, -1, false);
+var shrinkDown = (view) => selectStep(view, 1, false);
 function soleLine(view) {
   const st = view.state;
   if (st.selection.ranges.length > 1 || !usable(view)) return null;
@@ -1986,7 +2062,7 @@ function setModeCheck(fn) {
 function activeIn(view) {
   const st = view.state;
   if (!modeOn() || st.selection.ranges.length > 1 || !usable(view)) return null;
-  const [l0, l1] = lineSpan(st);
+  const [l0, l1] = lineSpan2(st);
   return activeAt(outlineOf(st), l0, l1);
 }
 function stepAside(view, needMode = true) {
@@ -2117,12 +2193,6 @@ function nodeSelOf(o, anchor, head) {
   }
   return null;
 }
-function extendSel(o, sel, dir) {
-  const h = nodeAt2(o, sel.kind, sel.head);
-  if (!h) return null;
-  const next = h.sibs[h.sibs.indexOf(sel.head) + dir];
-  return next === void 0 ? null : { ...sel, head: next };
-}
 function parentSel(o, sel) {
   const p = nodeAt2(o, sel.kind, sel.head)?.parent;
   return p === null || p === void 0 ? null : { kind: sel.kind, anchor: p, head: p };
@@ -2205,15 +2275,11 @@ function select(view, sel) {
   const st = view.state;
   const span = nodeSpan(outlineOf(st), sel);
   if (!span) return;
-  selectStep(view, offsetOf(st, span.anchor), offsetOf(st, span.head), st.doc.line(sel.anchor + 1).from);
+  view.dispatch({
+    selection: { anchor: offsetOf(st, span.anchor), head: offsetOf(st, span.head) },
+    scrollIntoView: true
+  });
 }
-var extend = (dir) => (view) => {
-  const sel = keySel(view);
-  if (!sel) return false;
-  const next = extendSel(outlineOf(view.state), sel, dir);
-  if (next) select(view, next);
-  return true;
-};
 function left(view) {
   const sel = keySel(view);
   if (!sel) return false;
@@ -2314,8 +2380,6 @@ function nodeSelectionExtension() {
     import_view3.EditorView.editorAttributes.of((view) => view.plugin(highlight)?.on ? { class: "eo-node-selection" } : null),
     import_state3.Prec.highest(
       import_view3.keymap.of([
-        { key: "ArrowUp", run: extend(-1) },
-        { key: "ArrowDown", run: extend(1) },
         { key: "ArrowLeft", run: left },
         { key: "ArrowRight", run: right },
         { key: "Escape", run: clear },
@@ -2380,7 +2444,7 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
     );
     this.toggle(
       "Outliner keys",
-      "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+\u2191/\u2193 (Cmd+\u2191/\u2193 on a Mac) move them, or the selected ones, with their children; Alt+\u2191 or Alt+\u2193 expands the selection and Alt+Shift+\u2191 or Alt+Shift+\u2193 shrinks it back; a selection of whole items or sections is a node selection (\u2191/\u2193 add siblings, \u2190/\u2192 fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings \u2192 Hotkeys).",
+      "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+\u2191/\u2193 (Cmd+\u2191/\u2193 on a Mac) move them, or the selected ones, with their children; Alt+\u2191 / Alt+\u2193 expand the selection up / down (word, line, then whole blocks: siblings that way, then the parent) and Alt+Shift+\u2191 / Alt+Shift+\u2193 shrink that edge back; a selection of whole items or sections is a node selection (\u2190/\u2192 fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings \u2192 Hotkeys).",
       "keys"
     );
     this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");
@@ -2449,7 +2513,7 @@ function itemTargets(o, src, ctx) {
   const lists = src.list.q > 0 ? innerBlocks(o, src.block).filter((b) => b.kind === "list") : listsOf(o, src.section).filter((b) => b.q === 0);
   const out = [];
   const inSrc = (x) => x.line >= it.line && x.line < it.end;
-  const same = sameSpot(o, it, src.list);
+  const same2 = sameSpot(o, it, src.list);
   for (const b of lists) {
     const items = flatItems(itemsOf(o, b)).filter((x) => !inSrc(x));
     const deepest = new Array(b.end - b.start).fill(null);
@@ -2457,8 +2521,8 @@ function itemTargets(o, src, ctx) {
     const lines = [...items.map((x) => x.line), b.end];
     if (b === src.list) lines.push(it.line);
     for (const p of [...new Set(lines)].sort((x, y) => x - y)) {
-      if (b === src.list && p !== it.line && same(p)) continue;
-      let q = b === src.list && same(p) ? it.line - 1 : p - 1;
+      if (b === src.list && p !== it.line && same2(p)) continue;
+      let q = b === src.list && same2(p) ? it.line - 1 : p - 1;
       if (q >= it.line && q < it.end) q = it.line - 1;
       while (q >= b.start && isBlank(o, q, true)) q--;
       const prev = q >= b.start ? deepest[q - b.start] : null;
@@ -2491,20 +2555,20 @@ function drop(o, src, p, opt, ctx) {
   let rows = rowsOf(o);
   if (src.kind === "heading") {
     const { s: s2 } = src;
-    const same = p === s2.line || p === s2.end;
-    if (same && opt.value === s2.level) return null;
+    const same2 = p === s2.line || p === s2.end;
+    if (same2 && opt.value === s2.level) return null;
     relevel(o, rows, s2.line, s2.end, opt.value - s2.level);
-    if (same) return rows;
+    if (same2) return rows;
     const [moved2, at2] = relocate(rows, s2.line, s2.end, p);
     const e = at2 + (s2.end - s2.line);
     return padBlank(moved2, at2, e);
   }
   if (src.kind === "item") {
     const { it } = src;
-    const same = sameSpot(o, it, src.list)(p);
-    if (same && opt.value === it.col) return null;
+    const same2 = sameSpot(o, it, src.list)(p);
+    if (same2 && opt.value === it.col) return null;
     shift(o, rows, it.line, it.end, opt.value - it.col, listCtx(o, src.list, ctx), src.list.q);
-    if (!same) [rows] = relocate(rows, it.line, it.end, p);
+    if (!same2) [rows] = relocate(rows, it.line, it.end, p);
     return finish(o, rows, ctx.tabSize).rows;
   }
   const { b } = src;
@@ -2634,7 +2698,7 @@ function headingGuides() {
       const content = view.contentDOM.getBoundingClientRect();
       const textLeft = content.left - baseLeft;
       const room = Math.max(0, textLeft - 10);
-      const step = deepest > 1 ? Math.max(3, Math.min(GUIDE_STEP, room / (deepest - 1))) : GUIDE_STEP;
+      const step2 = deepest > 1 ? Math.max(3, Math.min(GUIDE_STEP, room / (deepest - 1))) : GUIDE_STEP;
       const out = [];
       for (const s of spans) {
         const endLine = s.endLine;
@@ -2644,7 +2708,7 @@ function headingGuides() {
         const y0 = (s.line >= first ? top.bottom : top.top) + view.documentTop - baseTop;
         const y1 = bottom.bottom + view.documentTop - baseTop;
         if (y1 - y0 < 1) continue;
-        const x = textLeft - 6 - (deepest - s.depth) * step;
+        const x = textLeft - 6 - (deepest - s.depth) * step2;
         out.push(new import_view4.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
       }
       return out;
@@ -3050,12 +3114,12 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
             // to Obsidian's document start / end)
             { key: "Mod-ArrowUp", run: op("up") },
             { key: "Mod-ArrowDown", run: op("down") },
-            // Expand: Alt+↑ or Alt+↓, the same chain; Shrink: Alt+Shift+↑ or ↓, back toward the start. They
-            // replace CodeMirror's move line / copy line up / down in the editor
-            { key: "Alt-ArrowUp", run: expandSelection },
-            { key: "Alt-ArrowDown", run: expandSelection },
-            { key: "Alt-Shift-ArrowUp", run: shrinkSelection },
-            { key: "Alt-Shift-ArrowDown", run: shrinkSelection },
+            // Expand up / down: Alt+↑ / Alt+↓; Shrink up / down: Alt+Shift+↑ / Alt+Shift+↓, retracing that edge.
+            // They replace CodeMirror's move line / copy line up / down in the editor
+            { key: "Alt-ArrowUp", run: expandUp },
+            { key: "Alt-ArrowDown", run: expandDown },
+            { key: "Alt-Shift-ArrowUp", run: shrinkUp },
+            { key: "Alt-Shift-ArrowDown", run: shrinkDown },
             { key: "Enter", run: codeEnter }
           ])
         )
@@ -3135,8 +3199,10 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       const o = op(kind);
       cmd(id, name, icon, o.run, { applies: o.applies });
     }
-    cmd("expand-selection", "Expand selection", "text-select", expandSelection);
-    cmd("shrink-selection", "Shrink selection", "text-cursor", shrinkSelection);
+    cmd("expand-selection-up", "Expand selection up", "text-select", expandUp);
+    cmd("expand-selection-down", "Expand selection down", "text-select", expandDown);
+    cmd("shrink-selection-up", "Shrink selection up", "text-cursor", shrinkUp);
+    cmd("shrink-selection-down", "Shrink selection down", "text-cursor", shrinkDown);
     cmd("insert-code-block", "Insert code block in item", "code", (v) => insertBlock(v, ""), {
       applies: (v) => insertBlock(v, "", true)
     });

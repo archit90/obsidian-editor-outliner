@@ -1,6 +1,6 @@
 // Node selection (the repo's SPEC.md, "Editor Outliner" → "Node selection"): a selection of whole sibling
 // nodes, list items with their subtrees or heading sections, that Expand selection reaches (or the user selects
-// line by line). Pure: finds it in a text selection, extends it by siblings, and removes or copies the nodes.
+// line by line). Pure: finds it in a text selection, its parent and child, and removes or copies the nodes.
 // The CodeMirror glue (nodesel.ts) keeps it in a StateField and decides when it applies.
 import { Item, Outline, Section, isBlank, locate, sectionAt, trimEnd } from "./parse";
 import { finish, rowsOf } from "./ops";
@@ -106,14 +106,6 @@ export function nodeSelOf(o: Outline, anchor: Pos, head: Pos): NodeSel | null {
     }
   }
   return null;
-}
-
-/** ↑ / ↓: the head moves to the previous / next sibling (anchored, so the run grows or shrinks). Null at the edge. */
-export function extendSel(o: Outline, sel: NodeSel, dir: -1 | 1): NodeSel | null {
-  const h = nodeAt(o, sel.kind, sel.head);
-  if (!h) return null;
-  const next = h.sibs[h.sibs.indexOf(sel.head) + dir];
-  return next === undefined ? null : { ...sel, head: next };
 }
 
 /** ←: the nodes' parent (null for top-level items and sections). */

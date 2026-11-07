@@ -23,7 +23,7 @@ Notation:
 | Delete | 19 |
 | Paste | 45 |
 | Multi-block items and code-indent rules | 35 |
-| Node selection | 49 |
+| Node selection | 50 |
 | Move / indent / outdent with nested children | 31 |
 | Folding interplay | 14 |
 | Ordered lists and tasks | 19 |
@@ -35,7 +35,7 @@ Notation:
 | Edge cases of the note | 15 |
 | Indent / outdent outside outline mode | 28 |
 | Move outside outline mode | 25 |
-| Expand / shrink selection | 28 |
+| Expand / shrink selection | 35 |
 | Node selection: headings and details | 11 |
 | Folding commands | 14 |
 | Heading guides, level labels and H7+ styling | 13 |
@@ -43,7 +43,7 @@ Notation:
 | Where it works and settings | 13 |
 | Vim mode: the outliner keys | 8 |
 | Item node selection with outline mode off | 17 |
-| **Total** | 604 |
+| **Total** | 612 |
 
 ## Mode states and the status bar
 
@@ -4950,7 +4950,7 @@ Node-selected (highlighted) lines: none.
 
 Source: SPEC.md §7 Node selection
 
-### N5. Expand selection reaches the node (word → line → item with subtree)
+### N5. Expand down reaches the node (word → line → item with subtree)
 
 
 Setup:
@@ -4961,7 +4961,7 @@ Setup:
 	- beta
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -4974,7 +4974,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Expand / shrink selection
 
-### N6. Expand twice more: all the siblings, then the parent with its subtree
+### N6. Expand up from the first child: at the edge, the parent with its subtree
 
 
 Setup:
@@ -4986,21 +4986,21 @@ Setup:
 - after
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
-⟦- parent
+⟧- parent
 	- alpha
 		- child
-	- beta⟧
+	- beta⟦
 - after
 ````
 Node-selected (highlighted) lines: 0, 1, 2, 3.
 
 Source: SPEC.md §7 Expand / shrink selection
 
-### N7. ↓ extends by the next sibling
+### N7. Alt+↓ on a selected item adds the next sibling
 
 When: *everywhere*.
 
@@ -5012,7 +5012,7 @@ Setup:
 - d
 ````
 
-Keys: ArrowDown
+Keys: Alt-ArrowDown
 
 Expected: 
 ````
@@ -5025,7 +5025,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Node selection
 
-### N8. ↓ past the last sibling: nothing
+### N8. Alt+↓ past the last sibling: the parent, the whole list
 
 
 Setup:
@@ -5035,13 +5035,18 @@ Setup:
 - c⟧
 ````
 
-Keys: ArrowDown
+Keys: Alt-ArrowDown
 
-Expected: unchanged
+Expected: 
+````
+⟦- a
+- b
+- c⟧
+````
 
 Source: SPEC.md §7 Node selection
 
-### N9. ↑ back toward the anchor shrinks
+### N9. Alt+Shift+↓ on a hand-made run: the bottom edge back toward the anchor
 
 
 Setup:
@@ -5052,7 +5057,7 @@ Setup:
 - d
 ````
 
-Keys: ArrowUp
+Keys: Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -5061,10 +5066,32 @@ Expected:
 - c
 - d
 ````
+Node-selected (highlighted) lines: 1.
 
 Source: SPEC.md §7 Node selection
 
-### N10. ↑ from the anchor extends backwards
+### N7b. Plain ↓ with a node selection just moves the cursor (no extending)
+
+
+Setup:
+````
+- a
+⟦- b⟧
+- c
+````
+
+Keys: ArrowDown
+
+Expected: 
+````
+- a
+- b|
+- c
+````
+
+Source: SPEC.md §7 Node selection
+
+### N10. Alt+↑ adds the sibling above
 
 
 Setup:
@@ -5074,7 +5101,7 @@ Setup:
 ⟦- c⟧
 ````
 
-Keys: ArrowUp
+Keys: Alt-ArrowUp
 
 Expected: 
 ````
@@ -5086,7 +5113,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Node selection
 
-### N11. ↑ at the first sibling: nothing
+### N11. Alt+↑ at the first sibling: the parent, the whole list
 
 
 Setup:
@@ -5095,13 +5122,17 @@ Setup:
 - b
 ````
 
-Keys: ArrowUp
+Keys: Alt-ArrowUp
 
-Expected: unchanged
+Expected: 
+````
+⟧- a
+- b⟦
+````
 
 Source: SPEC.md §7 Node selection
 
-### N12. ↓ over a sibling with a subtree, nested
+### N12. Alt+↓ over a sibling with a subtree, nested
 
 
 Setup:
@@ -5113,7 +5144,7 @@ Setup:
 - q
 ````
 
-Keys: ArrowDown
+Keys: Alt-ArrowDown
 
 Expected: 
 ````
@@ -5126,7 +5157,7 @@ Expected:
 
 Source: SPEC.md §7 Node selection
 
-### N13. Alt+Shift+↓ (Shrink) undoes a ↓ step
+### N13. Alt+Shift+↓ undoes an Alt+↓ step
 
 
 Setup:
@@ -5136,7 +5167,7 @@ Setup:
 - c
 ````
 
-Keys: ArrowDown, Alt-Shift-ArrowDown
+Keys: Alt-ArrowDown, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -5736,7 +5767,7 @@ Node-selected (highlighted) lines: 4, 5, 6.
 
 Source: SPEC.md §7 Node selection
 
-### N41. Heading ↓ extends by the next section, also with outline mode off
+### N41. Heading: Alt+↓ adds the next section, also with outline mode off
 
 When: outline mode **off**.
 
@@ -5755,7 +5786,7 @@ text⟧
 end
 ````
 
-Keys: ArrowDown
+Keys: Alt-ArrowDown
 
 Expected: 
 ````
@@ -5924,7 +5955,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Node selection
 
-### N49. Expand from a whole list leaves it: the section
+### N49. Expand up from a whole list: its section
 
 
 Setup:
@@ -5938,9 +5969,9 @@ Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
-⟦# A
+⟧# A
 - x
-- y⟧
+- y⟦
 ````
 Node-selected (highlighted) lines: 0, 1, 2.
 
@@ -9572,7 +9603,7 @@ Setup:
 - c
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Ctrl-ArrowDown
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9991,7 +10022,7 @@ Setup:
 hello wor|ld here
 ````
 
-Keys: Alt-ArrowUp
+Keys: Alt-ArrowDown
 
 Expected: 
 ````
@@ -10008,7 +10039,7 @@ Setup:
 see [[No|te a]] x
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10025,7 +10056,7 @@ Setup:
 a **bo|ld it** b
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10042,7 +10073,7 @@ Setup:
 a [li|nk text](http://x.y) b
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10059,7 +10090,7 @@ Setup:
 `co|de x` ==m y== ~~s z~~ $a b$
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10076,7 +10107,7 @@ Setup:
 One two. Th|ree four. Five.
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10094,7 +10125,7 @@ Setup:
 - b
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10117,7 +10148,7 @@ Setup:
 	- kid
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10143,7 +10174,7 @@ Setup:
 	- kid
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10168,7 +10199,7 @@ Setup:
   ```
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10193,7 +10224,7 @@ yy
 ```
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10208,7 +10239,7 @@ Consistency with a code block in an item (the spec's chain names the code-lines 
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS12. Heading: its text, line, heading + body, section, parent section, whole note without frontmatter
+### XS12. Paragraph under headings: the paragraph, its section, the parent section, then the note's top level without frontmatter
 
 When: Source mode only.
 
@@ -10227,26 +10258,26 @@ c
 ## D
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
 ---
 a: 1
 ---
-⟦intro
+⟧intro
 
 # A
 ## B
 bb
 ### C
 c
-## D⟧
+## D⟦
 ````
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS13. Section steps: heading + body, then the section
+### XS13. A paragraph, then (at the edge) its section with the subsections
 
 
 Setup:
@@ -10259,15 +10290,15 @@ c
 ## D
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
 # A
-⟦## B
+⟧## B
 bb
 ### C
-c⟧
+c⟦
 ## D
 ````
 
@@ -10319,7 +10350,7 @@ Setup:
 - one tw|o three
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Shift-ArrowLeft, Alt-Shift-ArrowDown
+Keys: Alt-ArrowDown, Alt-ArrowDown, Shift-ArrowLeft, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -10328,7 +10359,7 @@ Expected:
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS17. List in a callout: the item, then the whole list, then the callout
+### XS17. List in a callout: the item, then at the list's edge the whole list
 
 
 Setup:
@@ -10340,7 +10371,7 @@ Setup:
 > para
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10355,7 +10386,7 @@ Consistency: a list's whole-list step also inside a callout.
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS-S1. Expand: item, then all its siblings, then the parent
+### XS-S1. Expand up: the item, the sibling above, then at the edge the parent
 
 When: *everywhere*.
 
@@ -10368,14 +10399,14 @@ Setup:
 - q
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
-- p
-⟦	- a
+⟧- p
+	- a
 	- b
-	- c⟧
+	- c⟦
 - q
 ````
 
@@ -10406,7 +10437,7 @@ Expected:
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS-S3. Expand: a heading section, then all its sibling sections, then the parent section
+### XS-S3. Expand up: a heading section, then the section above
 
 
 Setup:
@@ -10424,16 +10455,16 @@ Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 Expected: 
 ````
 # A
-⟦## B
+⟧## B
 b
 ## C
-c⟧
+c⟦
 # D
 ````
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS-S4. Alt+↓ expands like Alt+↑; Alt+Shift+↑ shrinks like Alt+Shift+↓
+### XS-S4. Alt+↓ grows the bottom edge, Alt+↑ the top; Alt+Shift+↑ takes the top edge back
 
 When: *everywhere*.
 
@@ -10451,9 +10482,9 @@ Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowUp, Alt-Shift-ArrowU
 Expected: 
 ````
 - p
-⟦	- a
-	- b
-	- c⟧
+	- a
+⟧	- b
+	- c⟦
 - q
 ````
 
@@ -10490,6 +10521,160 @@ Expected: unchanged
 
 Source: SPEC.md §7 → Expand / shrink selection
 
+### XS-D1. Alt+↓ through a whole list: the list then counts as one block, so its next sibling comes in
+
+When: *everywhere*.
+
+Setup:
+````
+para
+
+- a|
+- b
+
+end
+````
+
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
+
+Expected: 
+````
+para
+
+⟦- a
+- b
+
+end⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-D2. Alt+↑ stops at the note's top level
+
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+⟧- a
+- b⟦
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-D3. At the edge the parent, then the parent's siblings
+
+When: *everywhere*.
+
+Setup:
+````
+- p
+	- a|
+- q
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown
+
+Expected: 
+````
+⟦- p
+	- a
+- q⟧
+````
+Node-selected (highlighted) lines: 0, 1, 2.
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-D4. Alt+Shift+↑ past a parent step goes back to the run below
+
+
+Setup:
+````
+- p
+	- a|
+- q
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-Shift-ArrowUp
+
+Expected: 
+````
+- p
+⟧	- a⟦
+- q
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-D5. Shrink retraces to the cursor, then does nothing
+
+
+Setup:
+````
+- one tw|o
+````
+
+Keys: Alt-ArrowDown, Alt-Shift-ArrowDown, Alt-Shift-ArrowDown
+
+Expected: 
+````
+- one tw|o
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-D6. Under a heading its blocks and subsections are siblings; at the edge the section
+
+
+Setup:
+````
+# A
+x|
+## B
+b
+````
+
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
+
+Expected: 
+````
+⟦# A
+x
+## B
+b⟧
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-D7. A top-level section: Alt+↑ at the first one stops
+
+
+Setup:
+````
+# A
+a|
+# B
+b
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+⟧# A
+a⟦
+# B
+b
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
 ### XS18. Outline mode off: Expand reaches the item, a node selection (highlighted)
 
 When: outline mode **off**; *everywhere*.
@@ -10505,15 +10690,15 @@ Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
-⟦- a
-	- b⟧
+⟧- a
+	- b⟦
 - c
 ````
 Node-selected (highlighted) lines: 0, 1.
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS19. Expand and Shrink commands from the palette
+### XS19. Expand / Shrink selection down commands from the palette
 
 When: *everywhere*.
 
@@ -10522,7 +10707,7 @@ Setup:
 hello wor|ld
 ````
 
-Keys: command obsidian-editor-outliner:expand-selection, command obsidian-editor-outliner:expand-selection, command obsidian-editor-outliner:shrink-selection
+Keys: command obsidian-editor-outliner:expand-selection-down, command obsidian-editor-outliner:expand-selection-down, command obsidian-editor-outliner:shrink-selection-down
 
 Expected: 
 ````
@@ -10558,7 +10743,7 @@ key: va|lue
 # H
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
 
 Expected: 
 ````
@@ -10572,7 +10757,7 @@ Source mode: Live Preview shows frontmatter as the properties editor.
 
 Source: SPEC.md §7 → Expand / shrink selection
 
-### XS22. Paragraph in a callout: the paragraph, then the callout
+### XS22. Paragraph in a callout: the paragraph, then at its edge the callout
 
 When: Source mode only.
 
@@ -10591,11 +10776,11 @@ Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 Expected: 
 ````
 # H
-⟦> [!note] T
+⟧> [!note] T
 > one
 > two
 >
-> - x⟧
+> - x⟦
 ````
 
 Source mode: in Live Preview a callout is a widget unless the cursor is in it.
@@ -10654,7 +10839,7 @@ b
 
 Source: SPEC.md §7 → Node selection
 
-### NS3. Heading node selection made backwards is anchored at the last section
+### NS3. Heading node selection made backwards is anchored at the last section: Alt+Shift+↑ takes the first off
 
 
 Setup:
@@ -10666,15 +10851,15 @@ b
 c⟦
 ````
 
-Keys: ArrowDown
+Keys: Alt-Shift-ArrowUp
 
 Expected: 
 ````
 # A
 ## B
 b
-⟦## C
-c⟧
+⟧## C
+c⟦
 ````
 Node-selected (highlighted) lines: 3, 4.
 
@@ -10794,7 +10979,7 @@ Expected:
 
 Source: SPEC.md §7 → Node selection
 
-### NS9. Item node selection ending at the start of the next line
+### NS9. Item node selection ending at the start of the next line: Alt+↓ carries on from it
 
 
 Setup:
@@ -10804,7 +10989,7 @@ Setup:
 ⟧- c
 ````
 
-Keys: ArrowDown
+Keys: Alt-ArrowDown
 
 Expected: 
 ````
@@ -12124,7 +12309,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
 
-### NO2. ↓ extends by the next sibling
+### NO2. Alt+↓ adds the next sibling
 
 When: outline mode **off**; *everywhere*.
 
@@ -12135,7 +12320,7 @@ Setup:
 - c
 ````
 
-Keys: ArrowDown
+Keys: Alt-ArrowDown
 
 Expected: 
 ````
@@ -12147,7 +12332,7 @@ Node-selected (highlighted) lines: 0, 1.
 
 Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
 
-### NO3. ↑ back toward the anchor shrinks
+### NO3. Alt+Shift+↓ takes the bottom sibling back off
 
 When: outline mode **off**; *everywhere*.
 
@@ -12158,7 +12343,7 @@ Setup:
 - c
 ````
 
-Keys: ArrowUp
+Keys: Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -12405,7 +12590,7 @@ Node-selected (highlighted) lines: 0.
 
 Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
 
-### NO15. Expand to the item, ↓, Backspace
+### NO15. Expand to the item, Alt+↓, Backspace
 
 When: outline mode **off**; *everywhere*.
 
@@ -12416,7 +12601,7 @@ Setup:
 - c
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, ArrowDown, Backspace
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Backspace
 
 Expected: 
 ````

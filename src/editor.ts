@@ -6,7 +6,7 @@ import { foldEffect, foldable, foldedRanges, indentUnit, unfoldEffect } from "@c
 import { Notice } from "obsidian";
 import { Outline, buildOutline, locate } from "./parse";
 import { Ctx, OpResult, Row, indent, move, outdent, unitCols } from "./ops";
-import { steps } from "./select";
+import { Chain, XState, chainAt, move as moveStep, spanOf, stateOf } from "./select";
 import { renumberLikeObsidian } from "./numbering";
 import { Pos, codeCopyText, codeNewline, codePasteText, insertCodeBlock } from "./content";
 
@@ -193,72 +193,73 @@ export function runOp(view: EditorView, kind: OpKind, logical: boolean, check = 
 // ---- expand / shrink selection ----
 
 interface Expansion {
-  /** Where the first Expand started; later steps are computed from it. */
-  origin: number;
-  /** Selections to go back to, oldest first. */
-  stack: { anchor: number; head: number }[];
-  /** The selection the last step set; anything else means the user moved on. */
-  last: { anchor: number; head: number };
+  chain: Chain;
+  st: XState;
+  /** Where the first step began (the cursor Shrink goes back to). */
+  start: number;
+  /** The selection and document the last step left; anything else means the user moved on. */
+  anchor: number;
+  head: number;
+  doc: Text;
 }
 const expansions = new WeakMap<EditorView, Expansion>();
 
-/** Expand / Shrink step aside (Obsidian's key) in a nested editor, with several cursors and while composing. */
+/** Expand / Shrink step aside in a nested editor, with several cursors and while composing. */
 const noSteps = (view: EditorView) => nested(view) || view.state.selection.ranges.length > 1 || view.composing;
 
-export function expandSelection(view: EditorView): boolean {
-  if (noSteps(view)) return false;
+/**
+ * Expand / Shrink selection up (dir -1) or down (1): Alt+↑ / Alt+↓, Alt+Shift+↑ / Alt+Shift+↓. They carry on
+ * from the last step while the selection is the one it left, else start over from the selection (the anchor as
+ * the cursor's place). Where they step aside, Expand lets Obsidian's key run and Shrink does nothing; otherwise
+ * the key is used even when nothing changes (at the top level, back at the start).
+ */
+export function selectStep(view: EditorView, dir: -1 | 1, grow: boolean): boolean {
+  if (noSteps(view)) return !grow;
   const state = view.state;
   const r = state.selection.main;
-  const prev = expansions.get(view);
-  const going = prev && prev.last.anchor === r.anchor && prev.last.head === r.head;
-  const origin = going ? prev.origin : r.head;
   const o = outlineOf(state);
-  const line = state.doc.lineAt(origin);
-  let best: [number, number] | null = null;
-  for (const s of steps(o, line.number - 1, origin - line.from)) {
-    const a = offsetOf(state, s.from);
-    const b = offsetOf(state, s.to);
-    if (a > r.from || b < r.to || b - a <= r.to - r.from) continue;
-    if (!best || b - a < best[1] - best[0]) best = [a, b];
+  const prev = expansions.get(view);
+  let chain: Chain;
+  let st: XState;
+  // a selection made some other way: the anchor is where it started
+  let start = r.anchor;
+  if (prev && prev.doc === state.doc && prev.anchor === r.anchor && prev.head === r.head) {
+    chain = prev.chain;
+    st = prev.st;
+    start = prev.start;
+  } else {
+    const h = posOf(state, r.anchor);
+    chain = chainAt(o, h.line, h.ch);
+    const at = stateOf(o, chain, posOf(state, r.from), posOf(state, r.to));
+    if (!at || (!at.exact && !grow)) return true;
+    st = at.st;
+    // a selection the chain doesn't have: Expand first selects the step that holds it
+    if (!at.exact) return go(view, { chain, st, start }, dir);
   }
-  if (!best) return true;
-  const stack = going ? prev.stack : [];
-  stack.push({ anchor: r.anchor, head: r.head });
-  const last = { anchor: best[0], head: best[1] };
-  expansions.set(view, { origin, stack, last });
-  view.dispatch({ selection: EditorSelection.single(best[0], best[1]) });
-  return true;
+  const next = moveStep(o, chain, st, dir, grow);
+  return next ? go(view, { chain, st: next, start }, dir) : true;
 }
 
-/**
- * Sets the selection as a step that Shrink undoes, like an Expand step: node selection's ↑ / ↓ / ← / → are
- * steps of the same chain. Later Expands start from origin when it lies in the new selection, else from from.
- */
-export function selectStep(view: EditorView, anchor: number, head: number, from: number) {
-  const r = view.state.selection.main;
-  const prev = expansions.get(view);
-  const going = prev && prev.last.anchor === r.anchor && prev.last.head === r.head;
-  const lo = Math.min(anchor, head);
-  const hi = Math.max(anchor, head);
-  const origin = going && prev.origin >= lo && prev.origin <= hi ? prev.origin : from;
-  const stack = going ? prev.stack : [];
-  stack.push({ anchor: r.anchor, head: r.head });
-  expansions.set(view, { origin, stack, last: { anchor, head } });
+/** Selects the state's lines (back at the start: the cursor where the first step began), the moving edge as the head. */
+function go(view: EditorView, x: { chain: Chain; st: XState; start: number }, dir: -1 | 1): boolean {
+  const state = view.state;
+  const span = spanOf(outlineOf(state), x.chain, x.st);
+  let anchor = x.start;
+  let head = x.start;
+  if (span) {
+    const a = offsetOf(state, span.from);
+    const b = offsetOf(state, span.to);
+    [anchor, head] = dir < 0 ? [b, a] : [a, b];
+  }
+  expansions.set(view, { ...x, anchor, head, doc: state.doc });
   view.dispatch({ selection: EditorSelection.single(anchor, head), scrollIntoView: true });
-}
-
-/** Shrink (Alt+Shift+↑/↓). It never falls through: those keys do nothing else (no CodeMirror copy line). */
-export function shrinkSelection(view: EditorView): boolean {
-  if (noSteps(view)) return true;
-  const r = view.state.selection.main;
-  const prev = expansions.get(view);
-  if (!prev || prev.last.anchor !== r.anchor || prev.last.head !== r.head || !prev.stack.length) return true;
-  const back = prev.stack.pop()!;
-  prev.last = back;
-  if (!prev.stack.length) expansions.delete(view);
-  view.dispatch({ selection: EditorSelection.single(back.anchor, back.head) });
   return true;
 }
+
+export const expandUp = (view: EditorView) => selectStep(view, -1, true);
+export const expandDown = (view: EditorView) => selectStep(view, 1, true);
+export const shrinkUp = (view: EditorView) => selectStep(view, -1, false);
+export const shrinkDown = (view: EditorView) => selectStep(view, 1, false);
 
 // ---- multi-block items ----
 
