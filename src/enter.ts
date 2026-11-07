@@ -2,7 +2,7 @@
 // "Outline mode"), after Logseq's editor.cljs: an item is a block, Enter splits it, an empty item outdents
 // or adds another. Pure: works on the parsed note and returns the new rows (or a text change) and where the
 // cursor goes; null means the key isn't for us (Obsidian's own Enter applies).
-import { Outline, parseLines, prefixLen } from "./parse";
+import { Outline, isBlank, parseLines, prefixLen } from "./parse";
 import { Ctx, Row, finish, listCtx, makeWs, outdent, rowsOf } from "./ops";
 import {
   Edit,
@@ -155,18 +155,23 @@ export function softBreak(o: Outline, from: Pos, to: Pos, ctx: Ctx): LineChange 
 }
 
 /**
- * Shift+Tab on an empty top-level item without children ends the list: the marker goes and the line is an
- * empty line after the list (items after it stay a list after it). The one case where a top-level item
- * leaves its list: there is nothing in it to lose. Ordered items after it keep their numbers.
+ * Shift+Tab on an empty top-level item without children ends the list: the marker goes and the line is an empty
+ * paragraph line outside the list, with a blank line between it and the list above and another before the items
+ * after it (they stay a list after it), so what is typed there is a paragraph, never a lazy continuation of the
+ * item above. The one case where a top-level item leaves its list: there is nothing in it to lose.
  */
 export function endList(o: Outline, from: Pos, to: Pos): Edit | null {
   const w = target(o, from, to);
   if (!w || from.line !== w.item.line) return null;
-  const { item } = w;
+  const { item, list } = w;
   if (item.depth !== 0 || item.children.length || !emptyItem(o, item)) return null;
   const rows = rowsOf(o);
   const blank = quoteBlank(o, w);
-  rows[item.line] = { t: blank, o: item.line };
-  // no renumbering: the items after it start a list of their own and keep their numbers
-  return { rows, cursor: { line: item.line, ch: blank.length } };
+  const above = item.line > list.start && !isBlank(o, item.line - 1, true);
+  const below = item.line + 1 < list.end && !isBlank(o, item.line + 1, true);
+  const lines: Row[] = [{ t: blank, o: item.line }];
+  if (above) lines.unshift({ t: blank, o: -1 });
+  if (below) lines.push({ t: blank, o: -1 });
+  rows.splice(item.line, 1, ...lines);
+  return { rows: finish(o, rows, o.tabSize).rows, cursor: { line: item.line + (above ? 1 : 0), ch: blank.length } };
 }

@@ -226,7 +226,7 @@ const PAGE = String.raw`
 (() => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const S = {
-    views: {}, cm: null, surface: null, canvasLeaf: null,
+    views: {}, cm: null, surface: null, canvasLeaf: null, renumbered: [],
     async open(surface, view) {
       S.surface = surface;
       S.view = view;
@@ -253,7 +253,11 @@ const PAGE = String.raw`
           await v.setState({ ...st, mode: "source", source: src }, { history: false });
           await sleep(250);
         }
+        // a reused card's lanes tab may be behind another tab (the canvas): bring it forward first
+        const lanesTab = app.workspace.getLeavesOfType("editor-lanes")[0];
+        if (surface === "lanes" && lanesTab) app.workspace.setActiveLeaf(lanesTab, { focus: true });
         app.workspace.setActiveLeaf(v.leaf, { focus: true });
+        await sleep(50);
         S.cm = v.editor.cm;
         return { surface, src: !!v.getState().source, lp: S.cm.dom.closest(".markdown-source-view")?.classList.contains("is-live-preview") };
       }
@@ -307,6 +311,8 @@ const PAGE = String.raw`
       }
     },
     async setup(text, ranges, folds) {
+      // a Canvas card can swap its editor (it re-renders after saving the card): use the current one
+      if (S.node?.child?.editor?.cm && S.node.child.editor.cm !== S.cm) S.cm = S.node.child.editor.cm;
       const cm = S.cm;
       // a case that left an IME composition open (CDP has no commit): end it, or every key steps aside
       if (cm.composing) {
@@ -315,8 +321,25 @@ const PAGE = String.raw`
         await sleep(30);
       }
       if (app.workspace.editorSuggest?.isShowingSuggestion?.()) app.workspace.editorSuggest.close?.();
+      // watch for Obsidian's renumbering merged into one of the plugin's transactions (userEvent "input.renumber"
+      // next to an "*.outliner" one): the plugin should number as Obsidian does, leaving it nothing to change
+      if (!cm.__e2eWatch) {
+        cm.__e2eWatch = true;
+        const SE = cm.constructor.scrollIntoView(0).constructor;
+        const listener = cm.constructor.updateListener.of(u => {
+          for (const tr of u.transactions) {
+            const ev = tr.annotations.filter(a => a.type === tr.constructor.userEvent).map(a => a.value);
+            if (ev.includes("input.renumber") && ev.some(v => /\.outliner$/.test(v))) S.renumbered.push(ev.join(" + "));
+          }
+        });
+        cm.dispatch({ effects: SE.appendConfig.of(listener) });
+      }
       cm.focus();
+      // a normal change, so a Canvas card saves it (Obsidian treats "set" as loading: the card would later restore
+      // its old text); when Obsidian's renumbering changed the setup, put the text back as written with "set"
       cm.dispatch({ changes: { from: 0, to: cm.state.doc.length, insert: text } });
+      if (cm.state.doc.toString() !== text)
+        cm.dispatch({ changes: { from: 0, to: cm.state.doc.length, insert: text }, userEvent: "set" });
       const ES = cm.state.selection.constructor;
       const sel = (ranges, main = 0) => ES.create(ranges.map(r => ES.range(r.anchor, r.head)), main);
       for (const l of folds || []) {
@@ -325,11 +348,13 @@ const PAGE = String.raw`
         app.commands.executeCommandById("${PLUGIN_ID}:fold");
       }
       if (ranges.length) cm.dispatch({ selection: sel(ranges, ranges.length - 1), scrollIntoView: true });
+      S.renumbered = [];
       cm.focus();
       await sleep(30);
       return S.state();
     },
     state() {
+      if (S.node?.child?.editor?.cm && S.node.child.editor.cm !== S.cm) throw new Error("harness: the card's editor was replaced during the case");
       const cm = S.cm, st = cm.state;
       const lineOf = el => { try { return st.doc.lineAt(cm.posAtDOM(el)).number - 1 } catch { return -1 } };
       const sb = document.querySelector(".eo-status");
@@ -344,6 +369,7 @@ const PAGE = String.raw`
         editing: S.node ? !!S.node.isEditing && cm.hasFocus : undefined,
         suggest: !!app.workspace.editorSuggest?.isShowingSuggestion?.(),
         mode: app.plugins.plugins["${PLUGIN_ID}"].settings.outlineMode,
+        renumbered: S.renumbered,
       };
     },
     clipEvent(kind, data) {
@@ -494,6 +520,12 @@ function compare(cs, st, ref, ctx) {
     problems.push({ what: "card editing", want: String(cs.wantEditing), got: String(st.editing) });
   if (cs.wantMode !== undefined && st.mode !== cs.wantMode)
     problems.push({ what: "outline mode", want: String(cs.wantMode), got: String(st.mode) });
+  if (st.renumbered?.length)
+    problems.push({
+      what: "Obsidian renumbered after the plugin's change",
+      want: "nothing",
+      got: st.renumbered.join("; "),
+    });
   if (cs.check && st.check !== true)
     problems.push({ what: cs.checkLabel || "check", want: "true", got: JSON.stringify(st.check) });
   return problems;

@@ -17,23 +17,23 @@ Notation:
 | Enter on an empty item | 12 |
 | Enter with continuation paragraphs and code | 17 |
 | Shift+Enter | 13 |
-| Shift+Tab ending a list | 12 |
+| Shift+Tab ending a list | 15 |
 | Backspace | 28 |
 | Backspace: the invisible item indent | 17 |
 | Delete | 19 |
-| Paste | 43 |
+| Paste | 45 |
 | Multi-block items and code-indent rules | 35 |
 | Node selection | 49 |
 | Move / indent / outdent with nested children | 31 |
 | Folding interplay | 14 |
-| Ordered lists and tasks | 13 |
+| Ordered lists and tasks | 19 |
 | Callouts and quotes | 11 |
 | Tab- vs space-indented lists | 9 |
 | Loose lists (blank lines between items) | 6 |
 | Undo | 9 |
 | Step-aside | 28 |
 | Edge cases of the note | 15 |
-| **Total** | 421 |
+| **Total** | 432 |
 
 ## Mode states and the status bar
 
@@ -1660,7 +1660,7 @@ Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the
 
 ## Shift+Tab ending a list
 
-### ST1. Empty last top-level item becomes an empty line outside the list
+### ST1. Empty last top-level item becomes an empty paragraph line, a blank line after the list
 
 When: *everywhere*.
 
@@ -1675,6 +1675,7 @@ Keys: Shift-Tab
 Expected: 
 ````
 - a
+
 |
 ````
 Status bar item: on.
@@ -1695,12 +1696,13 @@ Keys: Shift-Tab
 Expected: 
 ````
 - a
+
 |
 ````
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
-### ST3. In the middle: the items after stay a list, numbers unchanged
+### ST3. In the middle: blank lines around it, the items after stay a list (numbered as Obsidian does)
 
 
 Setup:
@@ -1715,15 +1717,17 @@ Keys: Shift-Tab
 Expected: 
 ````
 1. one
+
 |
+
 2. three
 ````
 
-Obsidian (1.15, Smart lists) renumbers ordered lists after every change, outline mode off too; the plugin's own rows keep the numbers, Obsidian's renumbering follows. The spec's “ordered ones keep their numbers” holds for the plugin's change only. Obsidian's renumbering is an undo step of its own, so one Ctrl+Z only undoes the renumbering (not checked here).
+Obsidian numbers a list on across blank lines, and the plugin numbers as Obsidian does.
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
-### ST4. First item
+### ST4. First item: a blank line before the items after it
 
 
 Setup:
@@ -1737,6 +1741,7 @@ Keys: Shift-Tab
 Expected: 
 ````
 |
+
 - b
 ````
 
@@ -1757,7 +1762,9 @@ Keys: Shift-Tab
 Expected: 
 ````
 - a
+
 |
+
 - c
 ````
 
@@ -1812,7 +1819,7 @@ Expected: unchanged
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
-### ST9. Typing after ending the list writes a paragraph
+### ST9. Typing after ending the list writes a paragraph outside it
 
 
 Setup:
@@ -1826,11 +1833,10 @@ Keys: Shift-Tab, type "x"
 Expected: 
 ````
 - a
+
 x|
 ````
 Status bar item: on.
-
-**Needs decision:** After Shift+Tab ends a list at its last item, the empty line sits right under the item, so typing there makes a lazy continuation line of that item (Markdown), not a paragraph: outline mode is active again and the text belongs to “a”. Options: (a) keep it (the user adds a blank line); (b) ending the list at its end leaves a blank line before the cursor line ("- a\n\n|"); (c) like (b) also in the middle of a list.
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
 
@@ -1849,7 +1855,77 @@ Expected:
 ````
 - a
 
+
 |
+````
+
+Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+
+### ST13. Loose list (a blank line already there): no second blank line
+
+
+Setup:
+````
+- a
+
+- |
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+- a
+
+|
+````
+
+Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+
+### ST14. Typing after ending a list in the middle: a paragraph, the rest still a list
+
+
+Setup:
+````
+- a
+- |
+- c
+````
+
+Keys: Shift-Tab, type "x"
+
+Expected: 
+````
+- a
+
+x|
+
+- c
+````
+Status bar item: on.
+
+Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+
+### ST15. Blank line already below: none added
+
+
+Setup:
+````
+- a
+- |
+
+- c
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+- a
+
+|
+
+- c
 ````
 
 Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
@@ -3317,7 +3393,7 @@ Expected:
 
 Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
-### P11. A pasted ordered list into a bullet list takes the bullet
+### P11. A pasted numbered list becomes items with the bullet target's marker
 
 
 Setup:
@@ -3334,7 +3410,47 @@ Expected:
 - y|
 ````
 
-**Needs decision:** Is a pasted ordered list ("1. x\n2. y") Markdown blocks? Today the test is Logseq's regex (bullets and #s only), so it pastes as multi-line text inside the item ("- a1. x\n  2. y"). Options: (a) keep Logseq's test; (b) count ordered markers as list markers too, so they become items.
+Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+
+### P11b. A pasted 1) list into a numbered list: the target's numbers
+
+
+Setup:
+````
+1. a|
+2. b
+````
+
+Keys: paste (text/plain)
+
+Expected: 
+````
+1. a
+2. x
+3. y|
+4. b
+````
+
+Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+
+### P11c. A pasted numbered list replaces an empty item
+
+
+Setup:
+````
+- a
+- |
+````
+
+Keys: paste (text/plain)
+
+Expected: 
+````
+- a
+- x
+	1. x1
+- y|
+````
 
 Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
@@ -4002,7 +4118,7 @@ Expected:
 
 Source: SPEC.md §7 Multi-block items
 
-### MB4. Insert in an ordered item: numbers stay
+### MB4. Insert in an ordered item: numbered as Obsidian does
 
 
 Setup:
@@ -4022,9 +4138,9 @@ Expected:
 1. b
 ````
 
-Obsidian (1.15, Smart lists) renumbers ordered lists after every change, outline mode off too; the plugin's own rows keep the numbers, Obsidian's renumbering follows. Obsidian's renumbering restarts the list after a code block in an item (the same happens when the block is typed by hand). Obsidian's renumbering is an undo step of its own, so one Ctrl+Z only undoes the renumbering (not checked here).
+Obsidian's numbering reads the empty line of a code block in an item as the end of the list, so the next item starts again at 1 (also when the block is typed by hand); the plugin numbers as Obsidian does.
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### MB5. Insert in a callout item
 
@@ -7031,14 +7147,14 @@ Expected:
 
 Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
 
-### O11. 1. and 1) runs are separate lists
+### O11. 1. and 1) items count as one list (as in Obsidian)
 
 
 Setup:
 ````
 1. a
 2. b|
-1) c
+3) c
 ````
 
 Keys: Enter
@@ -7051,9 +7167,7 @@ Expected:
 4) c
 ````
 
-Obsidian (1.15, Smart lists) renumbers ordered lists after every change, outline mode off too; the plugin's own rows keep the numbers, Obsidian's renumbering follows. Obsidian's renumbering doesn't separate 1. and 1) runs. Obsidian's renumbering is an undo step of its own, so one Ctrl+Z only undoes the renumbering (not checked here).
-
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O12. Ordered children: Backspace merge renumbers the children
 
@@ -7098,6 +7212,128 @@ Expected:
 ````
 
 Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+
+### O14. Move up in a numbered list renumbers
+
+
+Setup:
+````
+1. a
+2. b|
+````
+
+Keys: Alt-Shift-ArrowUp
+
+Expected: 
+````
+1. b|
+2. a
+````
+
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+
+### O15. Outdent a numbered child: numbered into the parent list
+
+
+Setup:
+````
+1. a
+	1. |x
+2. b
+````
+
+Keys: Shift-Tab
+
+Expected: 
+````
+1. a
+2. |x
+3. b
+````
+
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+
+### O16. Node delete in the middle of a numbered list
+
+
+Setup:
+````
+1. a
+⟦2. b⟧
+3. c
+````
+
+Keys: Backspace
+
+Expected: 
+````
+1. a
+2. |c
+````
+
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+
+### O17. Enter past 9: the marker grows, the cursor stays on the text
+
+
+Setup:
+````
+8. a
+9. b|
+10. c
+````
+
+Keys: Enter
+
+Expected: 
+````
+8. a
+9. b
+10. |
+11. c
+````
+
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+
+### O18. Merge renumbers a list that starts at 3
+
+
+Setup:
+````
+3. a
+4. |b
+5. c
+````
+
+Keys: Backspace
+
+Expected: 
+````
+3. a|b
+4. c
+````
+
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+
+### O19. Shift+Enter in a numbered item: nothing renumbered
+
+
+Setup:
+````
+1. a|
+2. b
+````
+
+Keys: Shift-Enter
+
+Expected: 
+````
+1. a
+   |
+2. b
+````
+
+Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ## Callouts and quotes
 
@@ -7177,6 +7413,7 @@ Expected:
 ````
 > [!note]
 > - a
+>
 >|
 ````
 
@@ -7784,7 +8021,7 @@ Expected:
 
 Source: SPEC.md §7 Outline mode (every key is one undo step)
 
-### U9. Typing right after an Enter undoes separately from it
+### U9. Typing right after an Enter joins its undo step (as for Obsidian's own Enter)
 
 
 Setup:
@@ -7797,12 +8034,11 @@ Keys: Enter, type "x", Ctrl-z
 Expected: 
 ````
 - a
-- 
 ````
 
-**Needs decision:** Typing within 0.5 s after an outline key joins its undo step (CodeMirror's history joins typing to an adjacent change), so one Ctrl+Z undoes the Enter and the typed text together. Plain Obsidian Enter behaves the same. Options: (a) keep CodeMirror's grouping; (b) isolate every outline key's change in history, so Ctrl+Z after Enter + typing first removes only the typed text.
+CodeMirror joins typing within 0.5 s to the adjacent change in its history, so one Ctrl+Z undoes the Enter and the typed text together, as with Obsidian's own Enter. Kept by the user's decision.
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md §7 Outline mode (undo steps)
 
 ## Step-aside
 

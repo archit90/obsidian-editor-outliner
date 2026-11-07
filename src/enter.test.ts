@@ -318,16 +318,18 @@ describe("Shift+Enter", () => {
 });
 
 describe("Shift+Tab ends a list", () => {
-  it("an empty top-level item becomes an empty line after the list", () => {
-    expect(shiftTab(lines("- a", "- |"))).toBe(lines("- a", "|"));
-    expect(shiftTab(lines("- a", "- [ ] |"))).toBe(lines("- a", "|"));
+  it("an empty last item becomes an empty paragraph line, a blank line after the list", () => {
+    expect(shiftTab(lines("- a", "- |"))).toBe(lines("- a", "", "|"));
+    expect(shiftTab(lines("- a", "- [ ] |"))).toBe(lines("- a", "", "|"));
+    // a blank line is already there (a loose list): no second one
+    expect(shiftTab(lines("- a", "", "- |"))).toBe(lines("- a", "", "|"));
   });
-  it("in the middle: the items after it stay a list after the empty line, numbers unchanged", () => {
-    expect(shiftTab(lines("1. a", "2. |", "3. c"))).toBe(lines("1. a", "|", "3. c"));
-    expect(shiftTab(lines("- |", "- b"))).toBe(lines("|", "- b"));
+  it("in the middle: blank lines around it, the items after it stay a list (numbered as Obsidian does)", () => {
+    expect(shiftTab(lines("1. a", "2. |", "3. c"))).toBe(lines("1. a", "", "|", "", "2. c"));
+    expect(shiftTab(lines("- |", "- b"))).toBe(lines("|", "", "- b"));
   });
-  it("in a callout the line keeps its >", () => {
-    expect(shiftTab(lines("> [!note]", "> - a", "> - |"))).toBe(lines("> [!note]", "> - a", ">|"));
+  it("in a callout the lines keep their >", () => {
+    expect(shiftTab(lines("> [!note]", "> - a", "> - |"))).toBe(lines("> [!note]", "> - a", ">", ">|"));
   });
   it("not for a nested, non-empty or parent item", () => {
     expect(shiftTab(lines("- a", "    - |"))).toBeNull();

@@ -56,7 +56,11 @@ describe("what a paste is", () => {
   });
   it("plain text", () => {
     expect(pasteKind(["one", "two"])).toBe("plain");
-    expect(pasteKind(["#tag text", "-dash", "1. not a bullet"])).toBe("plain");
+    expect(pasteKind(["#tag text", "-dash", "1.5 not a marker", "2)no space"])).toBe("plain");
+  });
+  it("numbered lines are Markdown blocks too", () => {
+    expect(pasteKind(["1. x", "2. y"])).toBe("blocks");
+    expect(pasteKind(["text", "  3) y"])).toBe("blocks");
   });
 });
 
@@ -119,6 +123,10 @@ describe("paste blocks", () => {
   });
   it("renumbers ordered lists", () => {
     expect(pv(lines("1. a|", "2. b"), "- x\n- y")).toBe(lines("1. a", "2. x", "3. y|", "4. b"));
+  });
+  it("a pasted numbered list becomes items with the target's marker", () => {
+    expect(pv(lines("- a|"), "1. x\n2. y")).toBe(lines("- a", "- x", "- y|"));
+    expect(pv(lines("1. a|", "2. b"), "5) x\n6) y")).toBe(lines("1. a", "2. x", "3. y|", "4. b"));
   });
   it("paragraphs separated by blank lines become items", () => {
     expect(pv(lines("- a|"), "one\ntwo\n\nthree")).toBe(lines("- a", "- one", "  two", "- three|"));

@@ -19,6 +19,7 @@ import {
   siblingRun,
   trimEnd,
 } from "./parse";
+import { renumberLikeObsidian } from "./numbering";
 
 export interface Row {
   t: string;
@@ -336,8 +337,10 @@ export function move(o: Outline, l0: number, l1: number, dir: -1 | 1, ctx: Ctx):
 // ---- ordered lists ----
 
 /**
- * Renumbers the ordered lists the change touched: a row is touched when its text changed or it no longer
- * follows the row it used to follow (moved, or something was removed or inserted just before it).
+ * Numbers the ordered lists after a change: first the lists the change touched, each from its lowest number
+ * (what Obsidian's own line moves keep), then Obsidian's renumbering rules on top (numbering.ts), so the result
+ * is one Obsidian's renumbering leaves alone. A row is touched when its text changed or it no longer follows
+ * the row it used to follow (moved, or something was removed or inserted just before it).
  */
 export function finish(o: Outline, rows: Row[], tabSize = 4): { rows: Row[] } {
   const touched = new Set<number>();
@@ -345,7 +348,12 @@ export function finish(o: Outline, rows: Row[], tabSize = 4): { rows: Row[] } {
     const follows = i === 0 ? r.o === 0 : rows[i - 1]!.o >= 0 && r.o === rows[i - 1]!.o + 1;
     if (r.o < 0 || r.t !== o.texts[r.o] || !follows) touched.add(i);
   });
-  return { rows: renumber(rows, touched, tabSize) };
+  const ours = renumber(rows, touched, tabSize);
+  const { lines } = renumberLikeObsidian(
+    o.texts,
+    ours.map(r => r.t),
+  );
+  return { rows: ours.map((r, i) => (lines[i] === r.t ? r : { t: lines[i]!, o: r.o })) };
 }
 
 const ORDERED = /^(\d{1,9})([.)])/;

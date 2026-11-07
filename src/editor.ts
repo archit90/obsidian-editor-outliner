@@ -7,6 +7,7 @@ import { Notice } from "obsidian";
 import { Outline, buildOutline, locate } from "./parse";
 import { Ctx, OpResult, Row, indent, move, outdent, unitCols } from "./ops";
 import { steps } from "./select";
+import { renumberLikeObsidian } from "./numbering";
 import { Pos, codeCopyText, codeNewline, codePasteText, insertCodeBlock } from "./content";
 
 const outlines = new WeakMap<Text, Outline>();
@@ -40,6 +41,17 @@ export function lineSpan(state: EditorState): [number, number] {
  * "delete.*", so Obsidian doesn't open autocomplete for it.
  */
 export function applyRows(view: EditorView, o: Outline, rows: Row[], userEvent = "move.outliner", cursor?: Pos) {
+  // ordered lists numbered as Obsidian's own renumbering would (numbering.ts), whatever the operation, so
+  // Obsidian has nothing left to change and the note undo restores is one it leaves alone
+  const num = renumberLikeObsidian(
+    o.texts,
+    rows.map(r => r.t),
+  );
+  if (num.edits.length) {
+    rows = rows.map((r, i) => (num.lines[i] === r.t ? r : { t: num.lines[i]!, o: r.o }));
+    for (const e of num.edits)
+      if (cursor && e.line === cursor.line && cursor.ch > e.at) cursor = { line: cursor.line, ch: cursor.ch + e.delta };
+  }
   const state = view.state;
   const oldS = state.doc.toString();
   const texts = rows.map(r => r.t);

@@ -12,6 +12,7 @@
 //             wantRe · settings {...} · config {...} · setupEval / check (js) · undo false · note · src
 const L = (...l) => l.join("\n");
 const OM = "SPEC.md §7 Outline mode";
+const R = "SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)";
 const ID = "obsidian-editor-outliner";
 
 export const groups = [];
@@ -571,25 +572,30 @@ group("shiftenter", "Shift+Enter", OM + " → Shift+Enter; Logseq: soft line bre
 group("endlist", "Shift+Tab ending a list", OM + " → Shift+Tab on an empty top-level item ends the list", [
   {
     id: "ST1",
-    title: "Empty last top-level item becomes an empty line outside the list",
+    title: "Empty last top-level item becomes an empty paragraph line, a blank line after the list",
     text: "- a\n- |",
     keys: "Shift-Tab",
-    want: "- a\n|",
+    want: "- a\n\n|",
     wantStatus: "on",
     surfaces: "all",
   },
-  { id: "ST2", title: "Empty task", text: "- a\n- [ ] |", keys: "Shift-Tab", want: "- a\n|" },
+  { id: "ST2", title: "Empty task", text: "- a\n- [ ] |", keys: "Shift-Tab", want: "- a\n\n|" },
   {
     id: "ST3",
-    title: "In the middle: the items after stay a list, numbers unchanged",
+    title: "In the middle: blank lines around it, the items after stay a list (numbered as Obsidian does)",
     text: "1. one\n2. |\n3. three",
     keys: "Shift-Tab",
-    want: "1. one\n|\n2. three",
-    note: "Obsidian (1.15, Smart lists) renumbers ordered lists after every change, outline mode off too; the plugin's own rows keep the numbers, Obsidian's renumbering follows. The spec's “ordered ones keep their numbers” holds for the plugin's change only. Obsidian's renumbering is an undo step of its own, so one Ctrl+Z only undoes the renumbering (not checked here).",
-    undo: false,
+    want: "1. one\n\n|\n\n2. three",
+    note: "Obsidian numbers a list on across blank lines, and the plugin numbers as Obsidian does.",
   },
-  { id: "ST4", title: "First item", text: "- |\n- b", keys: "Shift-Tab", want: "|\n- b" },
-  { id: "ST5", title: "Bullets in the middle", text: "- a\n- |\n- c", keys: "Shift-Tab", want: "- a\n|\n- c" },
+  {
+    id: "ST4",
+    title: "First item: a blank line before the items after it",
+    text: "- |\n- b",
+    keys: "Shift-Tab",
+    want: "|\n\n- b",
+  },
+  { id: "ST5", title: "Bullets in the middle", text: "- a\n- |\n- c", keys: "Shift-Tab", want: "- a\n\n|\n\n- c" },
   {
     id: "ST6",
     title: "Nested empty item: the outdent, not the end",
@@ -614,22 +620,43 @@ group("endlist", "Shift+Tab ending a list", OM + " → Shift+Tab on an empty top
   },
   {
     id: "ST9",
-    title: "Typing after ending the list writes a paragraph",
+    title: "Typing after ending the list writes a paragraph outside it",
     text: "- a\n- |",
     keys: ["Shift-Tab", { type: "x" }],
-    want: "- a\nx|",
+    want: "- a\n\nx|",
     wantStatus: "on",
     undo: false,
-    needsDecision:
-      'After Shift+Tab ends a list at its last item, the empty line sits right under the item, so typing there makes a lazy continuation line of that item (Markdown), not a paragraph: outline mode is active again and the text belongs to “a”. Options: (a) keep it (the user adds a blank line); (b) ending the list at its end leaves a blank line before the cursor line ("- a\\n\\n|"); (c) like (b) also in the middle of a list.',
   },
   {
     id: "ST10",
     title: "Enter after ending the list is Obsidian's",
     text: "- a\n- |",
     keys: ["Shift-Tab", "Enter"],
-    want: "- a\n\n|",
+    want: "- a\n\n\n|",
     undo: false,
+  },
+  {
+    id: "ST13",
+    title: "Loose list (a blank line already there): no second blank line",
+    text: "- a\n\n- |",
+    keys: "Shift-Tab",
+    want: "- a\n\n|",
+  },
+  {
+    id: "ST14",
+    title: "Typing after ending a list in the middle: a paragraph, the rest still a list",
+    text: "- a\n- |\n- c",
+    keys: ["Shift-Tab", { type: "x" }],
+    want: "- a\n\nx|\n\n- c",
+    wantStatus: "on",
+    undo: false,
+  },
+  {
+    id: "ST15",
+    title: "Blank line already below: none added",
+    text: "- a\n- |\n\n- c",
+    keys: "Shift-Tab",
+    want: "- a\n\n|\n\n- c",
   },
   {
     id: "ST11",
@@ -1083,12 +1110,24 @@ group("paste", "Paste", OM + " → Paste; Logseq paste.cljs paste-text-or-blocks
   },
   {
     id: "P11",
-    title: "A pasted ordered list into a bullet list takes the bullet",
+    title: "A pasted numbered list becomes items with the bullet target's marker",
     text: "- a|",
     keys: pasteText("1. x\n2. y"),
     want: "- a\n- x\n- y|",
-    needsDecision:
-      'Is a pasted ordered list ("1. x\\n2. y") Markdown blocks? Today the test is Logseq\'s regex (bullets and #s only), so it pastes as multi-line text inside the item ("- a1. x\\n  2. y"). Options: (a) keep Logseq\'s test; (b) count ordered markers as list markers too, so they become items.',
+  },
+  {
+    id: "P11b",
+    title: "A pasted 1) list into a numbered list: the target's numbers",
+    text: "1. a|\n2. b",
+    keys: pasteText("5) x\n6) y"),
+    want: "1. a\n2. x\n3. y|\n4. b",
+  },
+  {
+    id: "P11c",
+    title: "A pasted numbered list replaces an empty item",
+    text: "- a\n- |",
+    keys: pasteText("1. x\n\t1. x1\n2. y"),
+    want: "- a\n- x\n\t1. x1\n- y|",
   },
   {
     id: "P12",
@@ -1327,12 +1366,12 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
   },
   {
     id: "MB4",
-    title: "Insert in an ordered item: numbers stay",
+    title: "Insert in an ordered item: numbered as Obsidian does",
     text: "1. a|\n2. b",
     keys: { cmd: `${ID}:insert-code-block` },
     want: "1. a\n   ```\n   |\n   ```\n1. b",
-    note: "Obsidian (1.15, Smart lists) renumbers ordered lists after every change, outline mode off too; the plugin's own rows keep the numbers, Obsidian's renumbering follows. Obsidian's renumbering restarts the list after a code block in an item (the same happens when the block is typed by hand). Obsidian's renumbering is an undo step of its own, so one Ctrl+Z only undoes the renumbering (not checked here).",
-    undo: false,
+    note: "Obsidian's numbering reads the empty line of a code block in an item as the end of the list, so the next item starts again at 1 (also when the block is typed by hand); the plugin numbers as Obsidian does.",
+    src: R,
   },
   {
     id: "MB5",
@@ -2283,12 +2322,11 @@ group("tasks", "Ordered lists and tasks", OM + " → Enter (Marker), renumbering
   },
   {
     id: "O11",
-    title: "1. and 1) runs are separate lists",
-    text: "1. a\n2. b|\n1) c",
+    title: "1. and 1) items count as one list (as in Obsidian)",
+    text: "1. a\n2. b|\n3) c",
     keys: "Enter",
     want: "1. a\n2. b\n3. |\n4) c",
-    note: "Obsidian (1.15, Smart lists) renumbers ordered lists after every change, outline mode off too; the plugin's own rows keep the numbers, Obsidian's renumbering follows. Obsidian's renumbering doesn't separate 1. and 1) runs. Obsidian's renumbering is an undo step of its own, so one Ctrl+Z only undoes the renumbering (not checked here).",
-    undo: false,
+    src: R,
   },
   {
     id: "O12",
@@ -2299,6 +2337,54 @@ group("tasks", "Ordered lists and tasks", OM + " → Enter (Marker), renumbering
     note: "b merges into the item just above (x), so b's children become x's children.",
   },
   { id: "O13", title: "Ordered list starting at 5", text: "5. a|\n6. b", keys: "Enter", want: "5. a\n6. |\n7. b" },
+  {
+    id: "O14",
+    title: "Move up in a numbered list renumbers",
+    text: "1. a\n2. b|",
+    keys: "Alt-Shift-ArrowUp",
+    want: "1. b|\n2. a",
+    src: R,
+  },
+  {
+    id: "O15",
+    title: "Outdent a numbered child: numbered into the parent list",
+    text: "1. a\n\t1. |x\n2. b",
+    keys: "Shift-Tab",
+    want: "1. a\n2. |x\n3. b",
+    src: R,
+  },
+  {
+    id: "O16",
+    title: "Node delete in the middle of a numbered list",
+    text: "1. a\n⟦2. b⟧\n3. c",
+    keys: "Backspace",
+    want: "1. a\n2. |c",
+    src: R,
+  },
+  {
+    id: "O17",
+    title: "Enter past 9: the marker grows, the cursor stays on the text",
+    text: "8. a\n9. b|\n10. c",
+    keys: "Enter",
+    want: "8. a\n9. b\n10. |\n11. c",
+    src: R,
+  },
+  {
+    id: "O18",
+    title: "Merge renumbers a list that starts at 3",
+    text: "3. a\n4. |b\n5. c",
+    keys: "Backspace",
+    want: "3. a|b\n4. c",
+    src: R,
+  },
+  {
+    id: "O19",
+    title: "Shift+Enter in a numbered item: nothing renumbered",
+    text: "1. a|\n2. b",
+    keys: "Shift-Enter",
+    want: "1. a\n   |\n2. b",
+    src: R,
+  },
 ]);
 
 group("callout", "Callouts and quotes", OM + " (lists in callouts keep the > prefix)", [
@@ -2322,7 +2408,7 @@ group("callout", "Callouts and quotes", OM + " (lists in callouts keep the > pre
     title: "Ending a list in a callout keeps the >",
     text: "> [!note]\n> - a\n> - |",
     keys: "Shift-Tab",
-    want: "> [!note]\n> - a\n>|",
+    want: "> [!note]\n> - a\n>\n>|",
   },
   {
     id: "Q5",
@@ -2542,13 +2628,13 @@ group("undo", "Undo", OM + " (every key is one undo step)", [
   },
   {
     id: "U9",
-    title: "Typing right after an Enter undoes separately from it",
+    title: "Typing right after an Enter joins its undo step (as for Obsidian's own Enter)",
     text: "- a|",
     keys: ["Enter", { type: "x" }, "Ctrl-z"],
-    want: "- a\n- ",
+    want: "- a",
     undo: false,
-    needsDecision:
-      "Typing within 0.5 s after an outline key joins its undo step (CodeMirror's history joins typing to an adjacent change), so one Ctrl+Z undoes the Enter and the typed text together. Plain Obsidian Enter behaves the same. Options: (a) keep CodeMirror's grouping; (b) isolate every outline key's change in history, so Ctrl+Z after Enter + typing first removes only the typed text.",
+    note: "CodeMirror joins typing within 0.5 s to the adjacent change in its history, so one Ctrl+Z undoes the Enter and the typed text together, as with Obsidian's own Enter. Kept by the user's decision.",
+    src: "SPEC.md §7 Outline mode (undo steps)",
   },
 ]);
 

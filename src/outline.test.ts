@@ -296,10 +296,21 @@ describe("review fixes", () => {
     expect(run(t, 3, 3, (o, a, b) => move(o, a, b, -1, sp))).toBe(lines("para", "", "Title", "---"));
   });
 
+  it("numbering after a change is one Obsidian's renumbering leaves alone", () => {
+    // a move keeps the list's start, as Obsidian's own Move line up does
+    expect(run(lines("1. a", "2. b"), 1, 1, (o, a, b) => move(o, a, b, -1, sp))).toBe(lines("1. b", "2. a"));
+    // a bullet at the same level ends Obsidian's list: the item after it starts a new one at 1
+    expect(run(lines("1. a", "2. b", "3) c", "- d"), 3, 3, (o, a, b) => move(o, a, b, -1, sp))).toBe(
+      lines("1. a", "2. b", "- d", "1) c"),
+    );
+  });
+
   it("EO-11: nesting follows the content column, as Obsidian renders it", () => {
     expect(run(lines("- a", " - b"), 1, 1, ind)).toBe(lines("- a", "    - b"));
+    // the child sits at the content column; Obsidian's numbering counts levels in tabs or 4 spaces only, so it
+    // reads "   1. b" as the same level and numbers it on (numbering.ts follows Obsidian)
     expect(run(lines("1. a", "2. b"), 1, 1, (o, a, b) => indent(o, a, b, { ...sp, unit: "  " }))).toBe(
-      lines("1. a", "   1. b"),
+      lines("1. a", "   2. b"),
     );
   });
 

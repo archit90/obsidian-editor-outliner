@@ -31,8 +31,11 @@ export interface PItem {
 }
 
 const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})/;
-/** Logseq's markdown-blocks? (a list marker or heading at a line start), a fence, or `$$`. */
-const BLOCKS = /^[ \t]*(?:(?:[-+*]|#+)[ \t]+|`{3,}|~{3,}|\$\$)/m;
+/**
+ * Logseq's markdown-blocks? (a bullet or heading at a line start), plus ordered markers (`1.` / `1)`: pasted
+ * numbered lists become items too), a fence, or `$$`.
+ */
+const BLOCKS = /^[ \t]*(?:(?:[-+*]|#+|\d{1,9}[.)])[ \t]+|`{3,}|~{3,}|\$\$)/m;
 
 /** The lines without leading and trailing blank lines. */
 function trimBlank(ls: string[]): string[] {
@@ -55,7 +58,7 @@ export function codeAlone(ls: string[]): boolean {
 export type PasteKind = "code" | "blocks" | "plain";
 
 /**
- * What a paste is: a code block alone; Markdown blocks (a list marker or heading at a line start, a fence or
+ * What a paste is: a code block alone; Markdown blocks (a list marker, numbered too, or heading at a line start, a fence or
  * `$$` anywhere) or paragraphs separated by blank lines; else plain text.
  */
 export function pasteKind(lines: string[]): PasteKind {
