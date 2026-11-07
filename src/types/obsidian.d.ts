@@ -9,6 +9,10 @@ declare module "obsidian" {
     /** The CodeMirror view that has focus: a Live Preview table cell's own editor while one is edited. */
     activeCM?: EditorView;
   }
+  interface Vault {
+    /** A vault setting from app.json ("autoConvertHtml": Settings, Editor, Auto convert HTML). */
+    getConfig(key: string): unknown;
+  }
   interface Workspace {
     /** Reconfigures every editor's extensions (after registerEditorExtension's array changes). */
     updateOptions(): void;

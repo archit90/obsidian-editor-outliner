@@ -731,12 +731,12 @@ function codeBlockAt(o, i) {
   const S = o.info[s];
   const open = FENCE.exec(o.texts[s].slice(S.pre + S.ws));
   if (!open) return null;
-  const owner = ownerAt(o, s);
-  if (!owner || S.qd !== owner.list.q) return null;
+  const owner2 = ownerAt(o, s);
+  if (!owner2 || S.qd !== owner2.list.q) return null;
   const last = o.texts[e - 1];
-  const lc = last.slice(prefixLen(last, owner.list.q)).trim();
+  const lc = last.slice(prefixLen(last, owner2.list.q)).trim();
   const closed = e - 1 > s && lc.length >= open[1].length && [...lc].every((x) => x === open[1][0]);
-  return { start: s, end: e, innerStart: s + 1, innerEnd: closed ? e - 1 : e, owner };
+  return { start: s, end: e, innerStart: s + 1, innerEnd: closed ? e - 1 : e, owner: owner2 };
 }
 function partsOf(o, w) {
   const out = [];
@@ -1122,7 +1122,7 @@ function codeEnter(view) {
   });
   return true;
 }
-function codeClipboard() {
+function codeClipboard(outline) {
   return [
     import_view.EditorView.clipboardOutputFilter.of((text, state) => {
       if (state.selection.ranges.length > 1) return text;
@@ -1133,13 +1133,16 @@ function codeClipboard() {
     import_state.Prec.highest(
       import_view.EditorView.domEventHandlers({
         paste: (e, view) => {
-          if (e.defaultPrevented || soleLine(view) === null) return false;
-          const text = e.clipboardData?.getData("text/plain");
-          if (!text) return false;
+          if (e.defaultPrevented || soleLine(view) === null || !e.clipboardData) return false;
+          const text = e.clipboardData.getData("text/plain");
           const st = view.state;
           const r = st.selection.main;
-          const insert = codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false));
-          if (insert === null) return false;
+          const insert = text ? codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false)) : null;
+          if (insert === null) {
+            if (!outline?.(view, e.clipboardData)) return false;
+            e.preventDefault();
+            return true;
+          }
           e.preventDefault();
           view.dispatch({
             changes: { from: r.from, to: r.to, insert },
@@ -1381,6 +1384,342 @@ function endList(o, from, to) {
   return { rows, cursor: { line: item.line, ch: blank.length } };
 }
 
+// src/merge.ts
+function owner(o, from, to) {
+  if (from.line !== to.line || from.ch !== to.ch) return null;
+  const w = cursorOwner(o, from.line);
+  return w && cleanItem(o, w) ? w : null;
+}
+var textOf = (o, it) => o.texts[it.line].slice(o.info[it.line].text);
+var emptyItem = (o, it) => textOf(o, it).trim() === "" && it.ownEnd === it.line + 1;
+function prevVisible(o, list, s, folded) {
+  const flat = flatItems(itemsOf(o, list));
+  const k = flat.indexOf(s);
+  if (k <= 0) return null;
+  let best = flat[k - 1];
+  for (let x = best; x.parent && x.parent.line >= 0; x = x.parent)
+    if (folded.has(x.parent.line) && x.parent.end <= s.line) best = x.parent;
+  return best;
+}
+function fullIndent(t, q, cc, tabSize) {
+  const p = prefixLen(t, q);
+  return columns(t.slice(p, indentEnd(t, q, cc, tabSize)), tabSize) >= cc;
+}
+function mergeInto(o, list, t, s, ctx) {
+  const q = list.q;
+  const lc = listCtx(o, list, ctx);
+  const rows = rowsOf(o);
+  const parent = s.parent === t;
+  if (s.children.length) {
+    const col = parent ? s.col : childCol(t, lc);
+    shift(o, rows, s.ownEnd, s.end, col - s.children[0].col, lc, q);
+  }
+  const wt = { item: t, list };
+  const ind = itemIndent(o, wt, ctx);
+  const last = t.ownEnd - 1;
+  const LL = o.info[last];
+  const glue = last === t.line || LL.kind === "text" && LL.qd === q;
+  const sText = textOf(o, s);
+  const lastRow = { ...rows[last] };
+  const endCh = lastRow.t.length;
+  const own = [];
+  let extra = false;
+  if (glue) lastRow.t += sText;
+  else if (sText.trim()) {
+    own.push({ t: ind + sText, o: s.line });
+    extra = true;
+  }
+  for (let i = s.line + 1; i < s.ownEnd; i++)
+    own.push({
+      t: o.info[i].empty ? quoteBlank(o, wt) : ind + stripItemIndent(o.texts[i], q, s.cc, o.tabSize),
+      o: i
+    });
+  const tEnd = parent ? t.ownEnd : t.end;
+  const next = [
+    ...rows.slice(0, last),
+    lastRow,
+    ...own,
+    ...rows.slice(t.ownEnd, tEnd),
+    ...rows.slice(s.ownEnd, s.end),
+    ...rows.slice(s.end)
+  ];
+  const out = finish(o, next, o.tabSize).rows;
+  const d = out[last].t.length - next[last].t.length;
+  return {
+    rows: out,
+    join: extra ? { line: last + 1, ch: ind.length } : { line: last, ch: endCh + d },
+    end: { line: last, ch: endCh + d }
+  };
+}
+function join(o, a, head, b, rest) {
+  const rows = rowsOf(o);
+  rows[a] = { t: head + rest, o: a };
+  rows.splice(b, 1);
+  return { rows, cursor: { line: a, ch: head.length } };
+}
+function backspace(o, from, to, ctx, folded) {
+  const w = owner(o, from, to);
+  if (!w) return null;
+  const { item: s, list } = w;
+  const q = list.q;
+  const line = from.line;
+  const t = o.texts[line];
+  const L = o.info[line];
+  if (L.qd > q) return null;
+  if (line === s.line) {
+    const m = MARKER.exec(t.slice(L.pre + L.ws, L.text));
+    const bulletEnd = L.pre + L.ws + m[1].length + m[2].length;
+    if (m[3] && from.ch === L.text) {
+      const rows = rowsOf(o);
+      rows[line] = { t: t.slice(0, bulletEnd) + t.slice(L.text), o: line };
+      return { rows, cursor: { line, ch: bulletEnd } };
+    }
+    if (from.ch > L.text) return null;
+    const p = prevVisible(o, list, s, folded);
+    if (!p) return emptyItem(o, s) && !s.children.length ? null : "noop";
+    if (p !== s.parent && emptyItem(o, p) && !p.children.length) {
+      const rows = rowsOf(o);
+      rows.splice(p.line, s.line - p.line);
+      const out = finish(o, rows, o.tabSize).rows;
+      return { rows: out, cursor: { line: p.line, ch: L.text + out[p.line].t.length - t.length } };
+    }
+    if (folded.has(p.line) && p.ownEnd > p.line + 1) return "noop";
+    const res = mergeInto(o, list, p, s, ctx);
+    return { rows: res.rows, cursor: res.join };
+  }
+  const ie = indentEnd(t, q, s.cc, o.tabSize);
+  if (from.ch > ie) return null;
+  const a = line - 1;
+  const A = o.info[a];
+  if (L.kind === "code") {
+    const cb = codeBlockAt(o, line);
+    if (!cb || cb.owner.item !== s) return null;
+    if (line <= cb.innerStart || line >= cb.innerEnd) return "noop";
+  } else if (L.kind !== "text" && L.kind !== "blank") return null;
+  else if (a !== s.line && (A.kind === "code" || A.qd > q || A.kind !== "text" && !isBlank(o, a, true)))
+    return "noop";
+  const at = o.texts[a];
+  const head = a === s.line || fullIndent(at, q, s.cc, o.tabSize) ? at : itemIndent(o, w, ctx) + at.slice(indentEnd(at, q, s.cc, o.tabSize));
+  return join(o, a, head, line, t.slice(ie));
+}
+function deleteForward(o, from, to, ctx, folded) {
+  const w = owner(o, from, to);
+  if (!w) return null;
+  const { item: t, list } = w;
+  const q = list.q;
+  const line = from.line;
+  const tx = o.texts[line];
+  const L = o.info[line];
+  if (L.qd > q || from.ch !== tx.length) return null;
+  if (folded.has(t.line) || line >= t.ownEnd) return "noop";
+  if (line < t.ownEnd - 1) {
+    const b = line + 1;
+    const B = o.info[b];
+    if (L.kind === "code") {
+      const cb = codeBlockAt(o, line);
+      if (!cb || cb.owner.item !== t) return null;
+      if (line < cb.innerStart || line >= cb.innerEnd - 1) return "noop";
+    } else if (L.kind !== "text" && L.kind !== "item" && L.kind !== "blank") return null;
+    else if (B.kind === "code" || B.qd > q || B.kind !== "text" && !isBlank(o, b, true)) return "noop";
+    const bt = o.texts[b];
+    return join(o, line, tx, b, bt.slice(indentEnd(bt, q, t.cc, o.tabSize)));
+  }
+  let n = t.children[0];
+  if (!n) {
+    const flat = flatItems(itemsOf(o, list));
+    n = flat[flat.indexOf(t) + 1];
+  }
+  if (!n) return "noop";
+  const res = mergeInto(o, list, t, n, ctx);
+  return { rows: res.rows, cursor: res.end };
+}
+
+// src/paste.ts
+var FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})/;
+var BLOCKS = /^[ \t]*(?:(?:[-+*]|#+)[ \t]+|`{3,}|~{3,}|\$\$)/m;
+function trimBlank(ls) {
+  let a = 0;
+  let b = ls.length;
+  while (a < b && ls[a].trim() === "") a++;
+  while (b > a && ls[b - 1].trim() === "") b--;
+  return ls.slice(a, b);
+}
+function codeAlone(ls) {
+  if (ls.length < 2 || !FENCE_OPEN.test(ls[0])) return false;
+  const info = parseLines(["", ...ls, "x"]).info;
+  const id = info[1].fence;
+  return id >= 0 && ls.every((_, k) => info[k + 1].fence === id) && info[ls.length + 1].kind !== "code";
+}
+function pasteKind(lines) {
+  const ls = trimBlank(lines);
+  if (codeAlone(ls)) return "code";
+  if (BLOCKS.test(ls.join("\n")) || ls.some((l) => l.trim() === "")) return "blocks";
+  return "plain";
+}
+function dropLead(t, n, tabSize) {
+  const ws = /^[ \t]*/.exec(t)[0];
+  return dropCols(ws, n, tabSize) + t.slice(ws.length);
+}
+var leadCols = (t, tabSize) => {
+  let c = 0;
+  for (const ch of /^[ \t]*/.exec(t)[0]) c = ch === "	" ? c + tabSize - c % tabSize : c + 1;
+  return c;
+};
+function toItems(lines, tabSize) {
+  const o = buildOutline(["", ...trimBlank(lines)], tabSize);
+  const out = [];
+  const chunk = (s, e) => {
+    const base = leadCols(o.texts[s], tabSize);
+    const ls = [];
+    for (let i = s; i < e; i++) ls.push(o.info[i].empty ? "" : dropLead(o.texts[i], base, tabSize));
+    if (o.info[s].kind === "code") return { marker: null, text: "", own: ls, kids: [] };
+    return { marker: null, text: ls[0], own: ls.slice(1), kids: [] };
+  };
+  const fromItem = (it) => {
+    const L = o.info[it.line];
+    const t = o.texts[it.line];
+    const m = MARKER.exec(t.slice(L.pre + L.ws, L.text));
+    const own = [];
+    for (let i = it.line + 1; i < it.ownEnd; i++)
+      own.push(o.info[i].empty ? "" : stripItemIndent(o.texts[i], 0, it.cc, tabSize));
+    return {
+      marker: { bullet: m[1], gap: m[2] || " ", box: m[3] ?? "" },
+      text: t.slice(L.text),
+      own,
+      kids: it.children.map(fromItem)
+    };
+  };
+  for (const s of [o.root, ...o.sections]) {
+    let head = null;
+    if (s !== o.root) {
+      head = { marker: null, text: o.texts[s.line].trim(), own: [], kids: [] };
+      out.push(head);
+    }
+    for (const b of blocksOf(o, s)) {
+      if (b.kind === "list") {
+        for (const it of itemsOf(o, b).children) out.push(fromItem(it));
+        continue;
+      }
+      const p = chunk(b.start, b.end);
+      if (head && b.kind === "para" && b.start === s.line + 1) head.own.push(p.text, ...p.own);
+      else out.push(p);
+    }
+  }
+  return out;
+}
+function render(items, col, top, prefix, blank, lc) {
+  const out = [];
+  for (const p of items) {
+    const mk = top ?? p.marker ?? { bullet: "-", gap: " " };
+    const head = prefix + makeWs(col, lc) + mk.bullet + mk.gap;
+    out.push(head + (p.marker?.box ?? "") + p.text);
+    const cc = parseLines([head + "x"], lc.tabSize).info[0].cc;
+    for (const s of p.own) out.push(s === "" ? blank : prefix + makeWs(cc, lc) + s);
+    out.push(...render(p.kids, Math.max(col + unitCols(lc), cc), null, prefix, blank, lc));
+  }
+  return out;
+}
+function pasteBlocks(o, w, line, items, ctx, folded) {
+  const { item: t, list } = w;
+  const lc = listCtx(o, list, ctx);
+  const tl = o.texts[t.line];
+  const prefix = tl.slice(0, prefixLen(tl, list.q));
+  const blank = quoteBlank(o, w);
+  const empty = o.texts[t.line].slice(o.info[t.line].text).trim() === "" && t.ownEnd === t.line + 1;
+  let at;
+  let del = 0;
+  let col;
+  let tpl;
+  if (empty && (!t.children.length || items.length === 1)) {
+    at = t.line;
+    del = 1;
+    col = t.col;
+    tpl = t.line;
+  } else if (t.children.length && !folded.has(t.line)) {
+    at = t.children[0].line;
+    col = t.children[0].col;
+    tpl = at;
+  } else {
+    at = t.end;
+    col = t.col;
+    tpl = t.line;
+  }
+  const m = markerOf(o, tpl);
+  const fresh = render(items, col, { bullet: m.bullet, gap: m.gap }, prefix, blank, lc).map((x) => ({
+    t: x,
+    o: -1
+  }));
+  let rows = rowsOf(o);
+  rows.splice(at, del, ...fresh);
+  if (line >= t.ownEnd) rows = rows.filter((r) => r.o !== line);
+  const lastRow = fresh[fresh.length - 1];
+  const k = rows.indexOf(lastRow);
+  const out = finish(o, rows, o.tabSize).rows;
+  return { rows: out, cursor: { line: k, ch: out[k].t.length } };
+}
+function paste(o, from, to, text, ctx, folded) {
+  if (from.line !== to.line) return null;
+  const line = from.line;
+  const w = cursorOwner(o, line);
+  if (!w || !cleanItem(o, w)) return null;
+  const L = o.info[line];
+  if (L.qd > w.list.q) return null;
+  const all = text.split(/\r\n?|\n/);
+  const ls = trimBlank(all);
+  if (!ls.length) return null;
+  const kind = pasteKind(ls);
+  const onCode = L.kind === "code";
+  const t = o.texts[line];
+  const sc = onCode ? 0 : textStart(o, w, line);
+  const a = Math.max(from.ch, sc);
+  const b = Math.max(to.ch, sc);
+  if (kind === "plain") {
+    if (all.length < 2 || onCode) return null;
+    const ind = itemIndent(o, w, ctx);
+    const rest = all.slice(1);
+    const min = Math.min(...rest.filter((l) => l.trim() !== "").map((l) => leadCols(l, o.tabSize)), Infinity);
+    const ins = [
+      all[0],
+      ...rest.map((l) => l.trim() === "" ? ind : ind + dropLead(l, min === Infinity ? 0 : min, o.tabSize))
+    ];
+    const rows = rowsOf(o);
+    const n = ins.length;
+    const fresh = ins.map((x, k) => ({
+      t: (k === 0 ? t.slice(0, a) : "") + x + (k === n - 1 ? t.slice(b) : ""),
+      o: k === 0 ? line : -1
+    }));
+    rows.splice(line, 1, ...fresh);
+    return { rows, cursor: { line: line + n - 1, ch: ins[n - 1].length }, plain: true };
+  }
+  if (kind === "code") {
+    const base = leadCols(ls[0], o.tabSize);
+    const ind = itemIndent(o, w, ctx);
+    const blank = quoteBlank(o, w);
+    const fresh = ls.map((l) => {
+      const d = dropLead(l, base, o.tabSize);
+      return { t: d === "" ? blank : ind + d, o: -1 };
+    });
+    const cb = onCode ? codeBlockAt(o, line) : null;
+    if (onCode && !cb) return null;
+    const rows = rowsOf(o);
+    const at = cb ? cb.end : line + 1;
+    rows.splice(at, 0, ...fresh);
+    const k = at + fresh.length - 1;
+    return { rows, cursor: { line: k, ch: rows[k].t.length }, plain: false };
+  }
+  if (onCode) return null;
+  let oo = o;
+  let ww = w;
+  if (b > a) {
+    const texts = [...o.texts];
+    texts[line] = t.slice(0, a) + t.slice(b);
+    oo = buildOutline(texts, o.tabSize);
+    ww = cursorOwner(oo, line);
+    if (!ww || !cleanItem(oo, ww)) return null;
+  }
+  return { ...pasteBlocks(oo, ww, line, toItems(ls, o.tabSize), ctx, folded), plain: false };
+}
+
 // src/mode.ts
 var modeOn = () => false;
 function setModeCheck(fn) {
@@ -1393,7 +1732,11 @@ function activeIn(view) {
   return activeAt(outlineOf(st), l0, l1);
 }
 function stepAside(view) {
-  return !modeOn() || view.composing || suggestOpen() || view.state.selection.ranges.length > 1 || !usable(view);
+  return !modeOn() || view.composing || suggestOpen() || view.state.selection.ranges.length > 1 || !usable(view) || vimNormal(view);
+}
+function vimNormal(view) {
+  const vim = view.cm?.state?.vim;
+  return !!vim && !vim.insertMode;
 }
 function foldedLines(state) {
   const out = /* @__PURE__ */ new Set();
@@ -1441,6 +1784,28 @@ function outlineEndList(view) {
   applyRows(view, o, res.rows, "indent.outliner", res.cursor);
   return true;
 }
+function mergeKey(view, op) {
+  if (stepAside(view)) return false;
+  const st = view.state;
+  const o = outlineOf(st);
+  const { from, to } = selected(st);
+  const res = op(o, from, to, ctxOf(st, false), foldedLines(st));
+  if (!res) return false;
+  if (res !== "noop") applyRows(view, o, res.rows, "merge.outliner", res.cursor);
+  return true;
+}
+var outlineBackspace = (view) => mergeKey(view, backspace);
+var outlineDelete = (view) => mergeKey(view, deleteForward);
+function outlinePaste(view, text) {
+  if (stepAside(view)) return false;
+  const st = view.state;
+  const o = outlineOf(st);
+  const { from, to } = selected(st);
+  const res = paste(o, from, to, text, ctxOf(st, false), foldedLines(st));
+  if (!res) return false;
+  applyRows(view, o, res.rows, res.plain ? "input.paste" : "paste.outliner", res.cursor);
+  return true;
+}
 var watchActive = (onChange) => import_view2.EditorView.updateListener.of((u) => {
   if (u.selectionSet || u.docChanged || u.focusChanged) onChange();
 });
@@ -1472,7 +1837,7 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
   display() {
     this.containerEl.empty();
     new import_obsidian3.Setting(this.containerEl).setName("Outline mode").setDesc(
-      'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Alt+O) and the status bar item switch it too.'
+      'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list; Backspace at the start of an item merges it into the one above, Delete at its end pulls the next one in; pasted Markdown lists, headings and paragraphs become items. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Ctrl+Super+O; Ctrl+Cmd+O on macOS) and the status bar item switch it too.'
     ).addToggle((t) => t.setValue(this.plugin.settings.outlineMode).onChange((v) => this.plugin.setOutlineMode(v)));
     this.toggle(
       "Logical outdenting",
@@ -2042,7 +2407,9 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
         import_view4.keymap.of([
           { key: "Enter", run: (v) => outlineEnter(v, logical()) },
           { key: "Shift-Enter", run: outlineShiftEnter },
-          { key: "Shift-Tab", run: outlineEndList }
+          { key: "Shift-Tab", run: outlineEndList },
+          { key: "Backspace", run: outlineBackspace },
+          { key: "Delete", run: outlineDelete }
         ])
       )
     );
@@ -2068,12 +2435,34 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     }
     this.extensions.push(
       rememberFocus,
-      codeClipboard(),
+      codeClipboard((v, data) => {
+        const text = this.clipText(data);
+        return text !== null && outlinePaste(v, text);
+      }),
       watchActive(() => this.refreshStatus())
     );
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !import_obsidian5.Platform.isMobile) this.extensions.push(dragHandles(logical));
+  }
+  /**
+   * The text Obsidian's own paste would insert (its clipboard manager, app.js): its own copies' plain text, else
+   * text/markdown, else HTML converted to Markdown (when "Auto convert HTML" is on), else plain text. Null for
+   * what only Obsidian handles: files, links from a URL list, HTML with images or media.
+   */
+  clipText(data) {
+    if (data.files.length || data.getData("text/uri-list")) return null;
+    const plain = data.getData("text/plain");
+    const html = data.getData("text/html");
+    if (html && html.includes("<!-- obsidian -->") && plain) return plain;
+    const md = data.getData("text/markdown");
+    if (md) return md;
+    if (html) {
+      if (!this.app.vault.getConfig("autoConvertHtml")) return plain || null;
+      if (/<(img|audio|video)\b/i.test(html)) return null;
+      return (0, import_obsidian5.htmlToMarkdown)(html);
+    }
+    return plain || null;
   }
   /** The editor a command acts on: the focused one, else the last one focused, else Obsidian's active one. */
   targetView() {
@@ -2086,7 +2475,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       id: "toggle-outline-mode",
       name: "Toggle outline mode",
       icon: "list-tree",
-      hotkeys: [{ modifiers: ["Alt"], key: "o" }],
+      hotkeys: [{ modifiers: ["Ctrl", "Meta"], key: "O" }],
       callback: async () => {
         await this.setOutlineMode(!this.settings.outlineMode);
         new import_obsidian5.Notice(`Outline mode ${this.settings.outlineMode ? "on" : "off"}`, 1500);

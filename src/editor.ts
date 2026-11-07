@@ -283,9 +283,10 @@ export function codeEnter(view: EditorView): boolean {
 
 /**
  * The clipboard rules for code blocks in items, on whether or not the outliner keys are: copied / cut / dragged
- * text loses the item indent; pasted multi-line text gains it on every line after the first.
+ * text loses the item indent; pasted multi-line text gains it on every line after the first. outline: outline
+ * mode's paste, tried when they don't apply (it says whether it took the paste).
  */
-export function codeClipboard(): Extension {
+export function codeClipboard(outline?: (view: EditorView, data: DataTransfer) => boolean): Extension {
   return [
     EditorView.clipboardOutputFilter.of((text, state) => {
       if (state.selection.ranges.length > 1) return text;
@@ -296,13 +297,18 @@ export function codeClipboard(): Extension {
     Prec.highest(
       EditorView.domEventHandlers({
         paste: (e, view) => {
-          if (e.defaultPrevented || soleLine(view) === null) return false;
-          const text = e.clipboardData?.getData("text/plain");
-          if (!text) return false;
+          if (e.defaultPrevented || soleLine(view) === null || !e.clipboardData) return false;
+          const text = e.clipboardData.getData("text/plain");
           const st = view.state;
           const r = st.selection.main;
-          const insert = codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false));
-          if (insert === null) return false;
+          const insert = text
+            ? codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false))
+            : null;
+          if (insert === null) {
+            if (!outline?.(view, e.clipboardData)) return false;
+            e.preventDefault();
+            return true;
+          }
           e.preventDefault();
           view.dispatch({
             changes: { from: r.from, to: r.to, insert },

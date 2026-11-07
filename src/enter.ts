@@ -24,22 +24,22 @@ function target(o: Outline, from: Pos, to: Pos): Owner | null {
 }
 
 /** Where the line's own text starts: after the marker (and checkbox) on the marker line, else after the item indent. */
-function textStart(o: Outline, w: Owner, line: number): number {
+export function textStart(o: Outline, w: Owner, line: number): number {
   if (line === w.item.line) return o.info[line]!.text;
   return indentEnd(o.texts[line]!, w.list.q, w.item.cc, o.tabSize);
 }
 
-const MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
+export const MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
 
 /** The marker part of an item line (bullet or number, the gap after it, a checkbox), split up. */
-function markerOf(o: Outline, line: number) {
+export function markerOf(o: Outline, line: number) {
   const L = o.info[line]!;
   const m = MARKER.exec(o.texts[line]!.slice(L.pre + L.ws, L.text))!;
   return { bullet: m[1]!, gap: m[2] || " ", task: !!m[3] };
 }
 
 /** The quote prefix of the item's marker line (`> ` in a callout), as a blank line inside the list writes it. */
-const quoteBlank = (o: Outline, w: Owner) => {
+export const quoteBlank = (o: Outline, w: Owner) => {
   const t = o.texts[w.item.line]!;
   return t.slice(0, prefixLen(t, w.list.q)).trimEnd();
 };

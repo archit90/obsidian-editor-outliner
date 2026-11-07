@@ -5,10 +5,11 @@
 //   code-indent rules and the insert commands (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
 //   view.ts: heading guides, H7+ styling, drag handles. active.ts / enter.ts: outline mode's active state and
-//   its Enter / Shift+Enter / Shift+Tab (pure); mode.ts: their CodeMirror glue.
+//   its Enter / Shift+Enter / Shift+Tab (pure); merge.ts: Backspace / Delete; paste.ts: Paste (pure);
+//   mode.ts: their CodeMirror glue.
 // The keys are high-precedence CodeMirror keymaps (see buildExtensions); of the commands only "Toggle outline
-// mode" has a default hotkey (Alt+O).
-import { Notice, Platform, Plugin } from "obsidian";
+// mode" has a default hotkey (Ctrl+Super+O; Ctrl+Cmd+O on macOS).
+import { Notice, Platform, Plugin, htmlToMarkdown } from "obsidian";
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import {
@@ -23,7 +24,17 @@ import {
   shrinkSelection,
 } from "./editor";
 import { foldChildren, foldNode, foldToLevel, unfoldAll, unfoldNode, unfoldSubtree } from "./folding";
-import { activeIn, outlineEndList, outlineEnter, outlineShiftEnter, setModeCheck, watchActive } from "./mode";
+import {
+  activeIn,
+  outlineBackspace,
+  outlineDelete,
+  outlineEndList,
+  outlineEnter,
+  outlinePaste,
+  outlineShiftEnter,
+  setModeCheck,
+  watchActive,
+} from "./mode";
 import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
 import { dragHandles, headingGuides, lineDecorations } from "./view";
 
@@ -135,6 +146,8 @@ export default class EditorOutlinerPlugin extends Plugin {
           { key: "Enter", run: v => outlineEnter(v, logical()) },
           { key: "Shift-Enter", run: outlineShiftEnter },
           { key: "Shift-Tab", run: outlineEndList },
+          { key: "Backspace", run: outlineBackspace },
+          { key: "Delete", run: outlineDelete },
         ]),
       ),
     );
@@ -167,12 +180,35 @@ export default class EditorOutlinerPlugin extends Plugin {
     }
     this.extensions.push(
       rememberFocus,
-      codeClipboard(),
+      codeClipboard((v, data) => {
+        const text = this.clipText(data);
+        return text !== null && outlinePaste(v, text);
+      }),
       watchActive(() => this.refreshStatus()),
     );
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !Platform.isMobile) this.extensions.push(dragHandles(logical));
+  }
+
+  /**
+   * The text Obsidian's own paste would insert (its clipboard manager, app.js): its own copies' plain text, else
+   * text/markdown, else HTML converted to Markdown (when "Auto convert HTML" is on), else plain text. Null for
+   * what only Obsidian handles: files, links from a URL list, HTML with images or media.
+   */
+  private clipText(data: DataTransfer): string | null {
+    if (data.files.length || data.getData("text/uri-list")) return null;
+    const plain = data.getData("text/plain");
+    const html = data.getData("text/html");
+    if (html && html.includes("<!-- obsidian -->") && plain) return plain;
+    const md = data.getData("text/markdown");
+    if (md) return md;
+    if (html) {
+      if (!this.app.vault.getConfig("autoConvertHtml")) return plain || null;
+      if (/<(img|audio|video)\b/i.test(html)) return null;
+      return htmlToMarkdown(html);
+    }
+    return plain || null;
   }
 
   /** The editor a command acts on: the focused one, else the last one focused, else Obsidian's active one. */
@@ -188,7 +224,7 @@ export default class EditorOutlinerPlugin extends Plugin {
       id: "toggle-outline-mode",
       name: "Toggle outline mode",
       icon: "list-tree",
-      hotkeys: [{ modifiers: ["Alt"], key: "o" }],
+      hotkeys: [{ modifiers: ["Ctrl", "Meta"], key: "O" }],
       callback: async () => {
         await this.setOutlineMode(!this.settings.outlineMode);
         new Notice(`Outline mode ${this.settings.outlineMode ? "on" : "off"}`, 1500);

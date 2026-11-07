@@ -46,7 +46,7 @@ export class EditorOutlinerTab extends PluginSettingTab {
     new Setting(this.containerEl)
       .setName("Outline mode")
       .setDesc(
-        'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Alt+O) and the status bar item switch it too.',
+        'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list; Backspace at the start of an item merges it into the one above, Delete at its end pulls the next one in; pasted Markdown lists, headings and paragraphs become items. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Ctrl+Super+O; Ctrl+Cmd+O on macOS) and the status bar item switch it too.',
       )
       .addToggle(t => t.setValue(this.plugin.settings.outlineMode).onChange(v => this.plugin.setOutlineMode(v)));
     this.toggle(
