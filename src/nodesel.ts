@@ -112,16 +112,6 @@ function right(view: EditorView): boolean {
   return true;
 }
 
-/** Escape: clear the node selection; the cursor goes to the start of the anchor node's text. */
-function clear(view: EditorView): boolean {
-  const sel = keySel(view);
-  if (!sel) return false;
-  const st = view.state;
-  const L = outlineOf(st).info[sel.anchor]!;
-  view.dispatch({ selection: { anchor: st.doc.line(sel.anchor + 1).from + L.text }, scrollIntoView: true });
-  return true;
-}
-
 /** Backspace / Delete (and cut): remove the nodes with their subtrees, one undo step. */
 function remove(view: EditorView, userEvent = "remove.outliner"): boolean {
   const sel = keySel(view);
@@ -191,7 +181,6 @@ export function nodeSelectionExtension(): Extension {
       keymap.of([
         { key: "ArrowLeft", run: left },
         { key: "ArrowRight", run: right },
-        { key: "Escape", run: clear },
         { key: "Backspace", run: v => remove(v) },
         { key: "Delete", run: v => remove(v) },
       ]),

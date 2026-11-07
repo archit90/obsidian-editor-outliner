@@ -1561,11 +1561,11 @@ export function deep(group) {
     }),
     off({
       id: "NO12",
-      title: "Escape clears: the cursor to the start of the anchor's text",
+      title: "Escape clears (Obsidian's): the cursor at the head",
       text: "- a\n⟦- b⟧\n- c",
       keys: "Escape",
-      want: "- a\n- |b\n- c",
-      surfaces: ["lanes", "tab", "popover"],
+      want: "- a\n- b|\n- c",
+      surfaces: ["lanes", "tab"],
     }),
     off({
       id: "NO13",

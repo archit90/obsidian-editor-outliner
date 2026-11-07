@@ -1773,11 +1773,12 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
   { id: "N20", title: "→ without children: nothing", text: "⟦- a⟧\n- b", keys: "ArrowRight", want: "@same" },
   {
     id: "N21",
-    title: "Escape: the cursor to the start of the anchor node's text",
+    title: "Escape is Obsidian's: it clears the selection, the cursor at its head",
     text: "- one\n⟦- two\n\t- c⟧\n- three",
     keys: "Escape",
-    want: "- one\n- |two\n\t- c\n- three",
-    surfaces: "all",
+    want: "- one\n- two\n\t- c|\n- three",
+    surfaces: ["lanes", "tab"],
+    note: "In a Canvas card Escape leaves the card (N47); in a hover popover it closes it, as Obsidian does.",
   },
   {
     id: "N22",
@@ -1936,10 +1937,10 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
   },
   {
     id: "N44",
-    title: "Heading Escape",
+    title: "Heading Escape: cleared, the cursor at the head",
     text: "# A\n\n⟦## B\nx⟧\n\n## C",
     keys: "Escape",
-    want: "# A\n\n## |B\nx\n\n## C",
+    want: "# A\n\n## B\nx|\n\n## C",
   },
   {
     id: "N45",
@@ -1949,21 +1950,13 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
     want: "@off",
   },
   {
-    id: "N46",
-    title: "Canvas: Escape clears the node selection, the card stays in editing; a second Escape leaves it",
+    id: "N47",
+    title: "Canvas: Escape with a node selection leaves the card, as with any selection",
     surfaces: ["canvas-text", "canvas-file"],
     text: "- one\n⟦- two⟧\n- three",
     keys: ["Escape"],
-    want: "- one\n- |two\n- three",
-    wantEditing: true,
-  },
-  {
-    id: "N47",
-    title: "Canvas: the second Escape leaves the card",
-    surfaces: ["canvas-text", "canvas-file"],
-    text: "- one\n⟦- two⟧\n- three",
-    keys: ["Escape", "Escape"],
     wantEditing: false,
+    undo: false,
   },
   {
     id: "N48",

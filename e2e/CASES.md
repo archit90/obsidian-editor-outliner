@@ -23,7 +23,7 @@ Notation:
 | Delete | 19 |
 | Paste | 45 |
 | Multi-block items and code-indent rules | 35 |
-| Node selection | 50 |
+| Node selection | 49 |
 | Move / indent / outdent with nested children | 31 |
 | Folding interplay | 14 |
 | Ordered lists and tasks | 19 |
@@ -43,7 +43,7 @@ Notation:
 | Where it works and settings | 13 |
 | Vim mode: the outliner keys | 8 |
 | Item node selection with outline mode off | 17 |
-| **Total** | 612 |
+| **Total** | 611 |
 
 ## Mode states and the status bar
 
@@ -5324,9 +5324,9 @@ Expected: unchanged
 
 Source: SPEC.md §7 Node selection
 
-### N21. Escape: the cursor to the start of the anchor node's text
+### N21. Escape is Obsidian's: it clears the selection, the cursor at its head
 
-When: *everywhere*.
+When: in lanes, tab.
 
 Setup:
 ````
@@ -5341,10 +5341,12 @@ Keys: Escape
 Expected: 
 ````
 - one
-- |two
-	- c
+- two
+	- c|
 - three
 ````
+
+In a Canvas card Escape leaves the card (N47); in a hover popover it closes it, as Obsidian does.
 
 Source: SPEC.md §7 Node selection
 
@@ -5854,7 +5856,7 @@ Expected:
 
 Source: SPEC.md §7 Node selection
 
-### N44. Heading Escape
+### N44. Heading Escape: cleared, the cursor at the head
 
 
 Setup:
@@ -5873,8 +5875,8 @@ Expected:
 ````
 # A
 
-## |B
-x
+## B
+x|
 
 ## C
 ````
@@ -5897,7 +5899,7 @@ Expected: = Obsidian
 
 Source: SPEC.md §7 Node selection
 
-### N46. Canvas: Escape clears the node selection, the card stays in editing; a second Escape leaves it
+### N47. Canvas: Escape with a node selection leaves the card, as with any selection
 
 When: in canvas-text, canvas-file.
 
@@ -5909,29 +5911,6 @@ Setup:
 ````
 
 Keys: Escape
-
-Expected: 
-````
-- one
-- |two
-- three
-````
-The card is still being edited.
-
-Source: SPEC.md §7 Node selection
-
-### N47. Canvas: the second Escape leaves the card
-
-When: in canvas-text, canvas-file.
-
-Setup:
-````
-- one
-⟦- two⟧
-- three
-````
-
-Keys: Escape, Escape
 
 Expected: (see checks)
 The card is no longer being edited.
@@ -12526,9 +12505,9 @@ Clipboard text:
 
 Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
 
-### NO12. Escape clears: the cursor to the start of the anchor's text
+### NO12. Escape clears (Obsidian's): the cursor at the head
 
-When: outline mode **off**; in lanes, tab, popover.
+When: outline mode **off**; in lanes, tab.
 
 Setup:
 ````
@@ -12542,7 +12521,7 @@ Keys: Escape
 Expected: 
 ````
 - a
-- |b
+- b|
 - c
 ````
 

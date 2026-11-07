@@ -1,6 +1,6 @@
 # Editor Outliner e2e results
 
-Run 2026-11-07T20:34:42.776Z: 2310 checks, 2310 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
+Run 2026-11-07T20:48:56.162Z: 2304 checks, 2304 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
 
 | Group | Pass | Fail | Error | Decide |
 |---|---|---|---|---|
@@ -15,7 +15,7 @@ Run 2026-11-07T20:34:42.776Z: 2310 checks, 2310 pass, 0 fail, 0 error, 0 needing
 | Delete | 72 | 0 | 0 | 0 |
 | Paste | 170 | 0 | 0 | 0 |
 | Multi-block items and code-indent rules | 120 | 0 | 0 | 0 |
-| Node selection | 158 | 0 | 0 | 0 |
+| Node selection | 153 | 0 | 0 | 0 |
 | Move / indent / outdent with nested children | 122 | 0 | 0 | 0 |
 | Folding interplay | 58 | 0 | 0 | 0 |
 | Ordered lists and tasks | 76 | 0 | 0 | 0 |
@@ -34,7 +34,7 @@ Run 2026-11-07T20:34:42.776Z: 2310 checks, 2310 pass, 0 fail, 0 error, 0 needing
 | Drag handles (real mouse drags) | 90 | 0 | 0 | 0 |
 | Where it works and settings | 25 | 0 | 0 | 0 |
 | Vim mode: the outliner keys | 17 | 0 | 0 | 0 |
-| Item node selection with outline mode off | 145 | 0 | 0 | 0 |
+| Item node selection with outline mode off | 144 | 0 | 0 | 0 |
 
 Console during the run: 2 uncaught exception(s) / console.error call(s) (0 mentioning editor-outliner):
 

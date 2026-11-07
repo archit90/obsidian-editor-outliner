@@ -2316,14 +2316,6 @@ function right(view) {
   }
   return true;
 }
-function clear(view) {
-  const sel = keySel(view);
-  if (!sel) return false;
-  const st = view.state;
-  const L = outlineOf(st).info[sel.anchor];
-  view.dispatch({ selection: { anchor: st.doc.line(sel.anchor + 1).from + L.text }, scrollIntoView: true });
-  return true;
-}
 function remove(view, userEvent = "remove.outliner") {
   const sel = keySel(view);
   if (!sel) return false;
@@ -2382,7 +2374,6 @@ function nodeSelectionExtension() {
       import_view3.keymap.of([
         { key: "ArrowLeft", run: left },
         { key: "ArrowRight", run: right },
-        { key: "Escape", run: clear },
         { key: "Backspace", run: (v) => remove(v) },
         { key: "Delete", run: (v) => remove(v) }
       ])

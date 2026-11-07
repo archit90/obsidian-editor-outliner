@@ -7,8 +7,8 @@ card, Canvas text and file card, page preview popover, popout window, Source / L
 emulation), settings, keys and hotkey conflicts, IME, several cursors, undo, unloading, console errors, long notes and
 typing (`TYPING`).
 
-**Final full run: 2026-11-07 (after directional Expand / Shrink up / down)** in an isolated Obsidian 1.15.0 (test vault 948 copy, sandbox 4), real key and mouse input
-over the DevTools protocol. Result: `run.mjs` 2310 checks: 2310 pass, 0 fail, 0 error, 0 decide; `extra.mjs` 11 / 11 pass; visual checks pass; TYPING passes.
+**Final full run: 2026-11-07 (after directional Expand / Shrink and Obsidian's Escape)** in an isolated Obsidian 1.15.0 (test vault 948 copy, sandbox 4), real key and mouse input
+over the DevTools protocol. Result: `run.mjs` 2304 checks: 2304 pass, 0 fail, 0 error, 0 decide; `extra.mjs` 11 / 11 pass; visual checks pass; TYPING passes.
 
 How the cases run:
 
@@ -298,7 +298,7 @@ Source: SPEC.md §7 Node selection (user decision 2026-11-07: list items with th
 | NO9  | Delete removes the nodes                                    | mode off; everywhere                 | `- a↵⟦- b⟧↵- c`        | Delete                      | `- a↵- \|c`                    | PASS   |
 | NO10 | Copy gives the nodes at column 0                            | mode off; everywhere                 | `- a↵⟦⇥- b↵⇥⇥- c⟧`     | copy                        | clip `- b↵⇥- c`                | PASS   |
 | NO11 | Cut gives them at column 0 and removes them                 | mode off; everywhere                 | `- a↵⟦⇥- b⟧↵- c`       | {"cut":true}                | `- a\|↵- c`; clip `- b`        | PASS   |
-| NO12 | Escape clears: the cursor to the start of the anchor's text | mode off; lanes, tab, popover        | `- a↵⟦- b⟧↵- c`        | Escape                      | `- a↵- \|b↵- c`                | PASS   |
+| NO12 | Escape clears (Obsidian's): the cursor at the head          | mode off; lanes, tab, popover        | `- a↵⟦- b⟧↵- c`        | Escape                      | `- a↵- b\|↵- c`                | PASS   |
 | NO13 | Tab indents, still node-selected                            | mode off; everywhere                 | `- a↵⟦- b⟧`            | Tab                         | `- a↵⟦⇥- b⟧`; highlight 1      | PASS   |
 | NO14 | Ctrl+↑ moves, still node-selected                           | mode off; everywhere                 | `- a↵⟦- b⟧`            | Ctrl-ArrowUp                | `⟦- b⟧↵- a`; highlight 0       | PASS   |
 | NO15 | Expand to the item, Alt+↓, Backspace                        | mode off; everywhere                 | `- a\|↵- b↵- c`        | Alt-ArrowDown ×3, Backspace | `- \|c`                        | PASS   |
@@ -334,28 +334,28 @@ Source: SPEC.md §7 Node selection (user decision 2026-11-07: list items with th
 
 Each item, where it is covered (all PASS in the final run unless noted):
 
-| Checklist item                                                                                                                   | Covered by                                      |
-| -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Insert code block / Dataview query from the palette, also from a lanes card                                                      | MB cases (CASES.md), lanes default surface      |
-| Alt+↑ / ↓: paragraph and code steps inside an item                                                                               | XS8, XS9, XS10, MB cases                        |
-| Enter in a code block in an item keeps both indents                                                                              | EB12, EB13, MB cases                            |
-| Copy / cut / drag out of such a block; paste into it, also from a browser                                                        | MB and P cases (HTML clipboard)                 |
-| A dataview query in a nested item renders in Live Preview and Reading view                                                       | WH11                                            |
-| Ctrl+Super+O toggles with a notice; palette, setting, status bar click                                                           | M16–M19, X5, X8, WH8                            |
-| Status bar item faint / normal / accent; follows the cursor in a tab, lanes card, Canvas card                                    | M1–M21 (everywhere), WH3 (popover), X4 (popout) |
-| Enter splits … ; Enter / Shift+Enter / Shift+Tab win over Obsidian's in LP and Source                                            | E, EE, EB, SE, ST groups (both views)           |
-| Shift+Enter continuation; Shift+Tab ends the list                                                                                | SE, ST groups                                   |
-| Keys step aside with the `[[` popup, IME, table cell, several cursors, code block                                                | SA group, KI28, WH12, WH13, XS20                |
-| Backspace / Delete merges, folded items, line joins                                                                              | B, BI, D, F groups                              |
-| Paste from Obsidian, a browser, a plain-text editor; Ctrl/Cmd+Shift+V                                                            | P group, WH10                                   |
-| Expand reaches an item and a section; the highlight in LP, Source and the theme                                                  | N5, N40, XS12, XS13, NS10, NS11, V1             |
-| Alt+↑ / ↓ / Alt+Shift+↑ / ↓ / ← / → / Escape / Backspace / Delete / Tab / Shift+Tab / Ctrl+↑ / ↓ / copy / cut on node selections | N group, NS1–NS9, NO1–NO17 (outline mode off)   |
-| Canvas: guides, labels, H7+, handle position                                                                                     | G1, G5, G6, G8, DG11 (Canvas cards), V2         |
-| Canvas: dragging moves items and headings, picks depth, doesn't pan or move the card; Escape cancels and stays                   | DG1, DG2, DG4, DG7, DG9                         |
-| Canvas: Escape with a node selection stays in the card; the next leaves                                                          | N46, N47                                        |
-| Vim normal mode keys are vim's; insert mode keys are outline mode's; Expand gives a node selection; Escape to normal             | SA25–SA27, VM1–VM8                              |
-| A popout window: the keys, the status bar item, drag handles with Escape                                                         | X3–X7                                           |
-| Mobile: no status bar, no drag handles; outline-mode keys with a hardware keyboard; toolbar indent / outdent                     | X10, X11                                        |
+| Checklist item                                                                                                                                | Covered by                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Insert code block / Dataview query from the palette, also from a lanes card                                                                   | MB cases (CASES.md), lanes default surface      |
+| Alt+↑ / ↓: paragraph and code steps inside an item                                                                                            | XS8, XS9, XS10, MB cases                        |
+| Enter in a code block in an item keeps both indents                                                                                           | EB12, EB13, MB cases                            |
+| Copy / cut / drag out of such a block; paste into it, also from a browser                                                                     | MB and P cases (HTML clipboard)                 |
+| A dataview query in a nested item renders in Live Preview and Reading view                                                                    | WH11                                            |
+| Ctrl+Super+O toggles with a notice; palette, setting, status bar click                                                                        | M16–M19, X5, X8, WH8                            |
+| Status bar item faint / normal / accent; follows the cursor in a tab, lanes card, Canvas card                                                 | M1–M21 (everywhere), WH3 (popover), X4 (popout) |
+| Enter splits … ; Enter / Shift+Enter / Shift+Tab win over Obsidian's in LP and Source                                                         | E, EE, EB, SE, ST groups (both views)           |
+| Shift+Enter continuation; Shift+Tab ends the list                                                                                             | SE, ST groups                                   |
+| Keys step aside with the `[[` popup, IME, table cell, several cursors, code block                                                             | SA group, KI28, WH12, WH13, XS20                |
+| Backspace / Delete merges, folded items, line joins                                                                                           | B, BI, D, F groups                              |
+| Paste from Obsidian, a browser, a plain-text editor; Ctrl/Cmd+Shift+V                                                                         | P group, WH10                                   |
+| Expand reaches an item and a section; the highlight in LP, Source and the theme                                                               | N5, N40, XS12, XS13, NS10, NS11, V1             |
+| Alt+↑ / ↓ / Alt+Shift+↑ / ↓ / ← / → / Escape (Obsidian's) / Backspace / Delete / Tab / Shift+Tab / Ctrl+↑ / ↓ / copy / cut on node selections | N group, NS1–NS9, NO1–NO17 (outline mode off)   |
+| Canvas: guides, labels, H7+, handle position                                                                                                  | G1, G5, G6, G8, DG11 (Canvas cards), V2         |
+| Canvas: dragging moves items and headings, picks depth, doesn't pan or move the card; Escape cancels and stays                                | DG1, DG2, DG4, DG7, DG9                         |
+| Canvas: Escape with a node selection leaves the card, as Obsidian does with any selection                                                     | N47                                             |
+| Vim normal mode keys are vim's; insert mode keys are outline mode's; Expand gives a node selection; Escape to normal                          | SA25–SA27, VM1–VM8                              |
+| A popout window: the keys, the status bar item, drag handles with Escape                                                                      | X3–X7                                           |
+| Mobile: no status bar, no drag handles; outline-mode keys with a hardware keyboard; toolbar indent / outdent                                  | X10, X11                                        |
 
 ## TYPING
 
