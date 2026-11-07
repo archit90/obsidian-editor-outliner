@@ -1,5 +1,5 @@
 // Editor view extensions: heading guides, H7+ styling and heading level labels (line decorations), and drag handles.
-import { RangeSetBuilder } from "@codemirror/state";
+import { Extension, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
@@ -137,6 +137,8 @@ export function headingGuides() {
 const HEADING_STEP = 24;
 /** Movement before a press on the handle becomes a drag, in px (a click does nothing). */
 const DRAG_START = 4;
+/** Gap between the drag handle and the text, in px (the 22px in styles.css .eo-drag-handle's transform). */
+const HANDLE_GAP = 22;
 
 interface Drag {
   o: Outline;
@@ -153,8 +155,8 @@ interface Drag {
   scroller: HTMLElement | null;
 }
 
-export function dragHandles(logical: () => boolean) {
-  return ViewPlugin.fromClass(
+export function dragHandles(logical: () => boolean): Extension {
+  const plugin = ViewPlugin.fromClass(
     class {
       handle: HTMLElement;
       indicator: HTMLElement;
@@ -239,7 +241,9 @@ export function dragHandles(logical: () => boolean) {
         this.handle.style.display = "";
         this.handle.style.top = `${c.top - box.top}px`;
         this.handle.style.height = `${Math.max(16, c.bottom - c.top)}px`;
-        this.handle.style.left = `${c.left - box.left}px`;
+        // styles.css puts the handle HANDLE_GAP px left of the text; where the editor has no margin for it (a
+        // Canvas card), it stays inside the editor's left edge instead of being cut off
+        this.handle.style.left = `${Math.max(c.left - box.left, this.handle.offsetWidth + HANDLE_GAP)}px`;
       };
 
       onDown = (e: PointerEvent) => {
@@ -386,6 +390,13 @@ export function dragHandles(logical: () => boolean) {
       }
     },
   );
+  // CodeMirror owns the editor element's class attribute (it rewrites it when focus changes): the classes go
+  // through editorAttributes. eo-dragging is also set directly while a drag starts, before any update.
+  const classes = EditorView.editorAttributes.of(view => {
+    const p = view.plugin(plugin);
+    return p && !p.off ? { class: p.drag ? "eo-drag-handles eo-dragging" : "eo-drag-handles" } : null;
+  });
+  return [plugin, classes];
 }
 
 function scrollParent(el: HTMLElement): HTMLElement | null {

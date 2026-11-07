@@ -199,11 +199,10 @@ export function expandSelection(view: EditorView): boolean {
   const origin = going ? prev.origin : r.head;
   const o = outlineOf(state);
   const line = state.doc.lineAt(origin);
-  const off = (p: { line: number; ch: number }) => state.doc.line(p.line + 1).from + p.ch;
   let best: [number, number] | null = null;
   for (const s of steps(o, line.number - 1, origin - line.from)) {
-    const a = off(s.from);
-    const b = off(s.to);
+    const a = offsetOf(state, s.from);
+    const b = offsetOf(state, s.to);
     if (a > r.from || b < r.to || b - a <= r.to - r.from) continue;
     if (!best || b - a < best[1] - best[0]) best = [a, b];
   }
@@ -266,10 +265,12 @@ export function insertBlock(view: EditorView, lang: string, check = false): bool
   return true;
 }
 
+/** A document offset as a (0-based) line and column, as the pure modules use them; offsetOf converts back. */
 export const posOf = (state: EditorState, pos: number): Pos => {
   const l = state.doc.lineAt(pos);
   return { line: l.number - 1, ch: pos - l.from };
 };
+export const offsetOf = (state: EditorState, p: Pos) => state.doc.line(p.line + 1).from + p.ch;
 
 /**
  * Enter in a fenced code block in an item: the new line gets the item indent plus the code line's own indent,

@@ -27,10 +27,46 @@ export function ownerAt(o: Outline, i: number): Owner | null {
   return i >= it.line && i < it.ownEnd ? { item: it, list: loc.list } : null;
 }
 
+/** A change to the note: its new rows, and where the cursor goes in them. */
+export interface Edit {
+  rows: Row[];
+  cursor: Pos;
+}
+
+/** The quote prefix of the item's marker line (`> ` in a callout): every line of the list starts with it. */
+export function quotePrefix(o: Outline, w: Owner): string {
+  const t = o.texts[w.item.line]!;
+  return t.slice(0, prefixLen(t, w.list.q));
+}
+
+/** A blank line inside the item's list: its quote prefix without the trailing space (empty outside callouts). */
+export const quoteBlank = (o: Outline, w: Owner) => quotePrefix(o, w).trimEnd();
+
 /** What goes before a new line to put it in the item: the quote prefix and cc columns in the list's style. */
 export function itemIndent(o: Outline, w: Owner, ctx: Ctx): string {
-  const t = o.texts[w.item.line]!;
-  return t.slice(0, prefixLen(t, w.list.q)) + makeWs(w.item.cc, listCtx(o, w.list, ctx));
+  return quotePrefix(o, w) + makeWs(w.item.cc, listCtx(o, w.list, ctx));
+}
+
+/** An item marker: bullet or number, the gap after it, a checkbox (with the gap after it). */
+export const MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
+
+/** The marker part of an item line (bullet or number, the gap after it, a checkbox), split up. */
+export function markerOf(o: Outline, line: number) {
+  const L = o.info[line]!;
+  const m = MARKER.exec(o.texts[line]!.slice(L.pre + L.ws, L.text))!;
+  return { bullet: m[1]!, gap: m[2] || " ", task: !!m[3] };
+}
+
+/** The item's text: its marker line after the marker and checkbox. */
+export const itemText = (o: Outline, it: Item) => o.texts[it.line]!.slice(o.info[it.line]!.text);
+
+/** Nothing after the marker (or checkbox) and no own lines below it. */
+export const emptyItem = (o: Outline, it: Item) => itemText(o, it).trim() === "" && it.ownEnd === it.line + 1;
+
+/** Where the line's own text starts: after the marker (and checkbox) on the marker line, else after the item indent. */
+export function textStart(o: Outline, w: Owner, line: number): number {
+  if (line === w.item.line) return o.info[line]!.text;
+  return indentEnd(o.texts[line]!, w.list.q, w.item.cc, o.tabSize);
 }
 
 /** Where the item indent of line t ends: after the quote prefix and the whitespace covering cc columns. */
@@ -132,7 +168,7 @@ export function partAt(o: Outline, i: number): Part | null {
  * its children, indented to its content column, with no blank lines around it. The cursor goes on the empty
  * line. Null when line isn't in an item's own lines.
  */
-export function insertCodeBlock(o: Outline, line: number, lang: string, ctx: Ctx): { rows: Row[]; cursor: Pos } | null {
+export function insertCodeBlock(o: Outline, line: number, lang: string, ctx: Ctx): Edit | null {
   const w = ownerAt(o, line);
   if (!w) return null;
   const ind = itemIndent(o, w, ctx);

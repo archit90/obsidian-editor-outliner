@@ -3,11 +3,23 @@
 // other multi-line text stays in the item. Pure: works on the parsed note and the clipboard text (the glue
 // picks the text the way Obsidian would, Markdown converted from HTML included). Pasting inside a code block
 // in an item is the code-indent rule of Multi-block items (content.ts), which comes first.
-import { Item, Outline, blocksOf, buildOutline, itemsOf, parseLines, prefixLen } from "./parse";
-import { Ctx, Row, dropCols, finish, listCtx, makeWs, rowsOf, unitCols } from "./ops";
-import { Owner, Pos, codeBlockAt, itemIndent, stripItemIndent } from "./content";
-import { cleanItem, cursorOwner } from "./active";
-import { Edit, MARKER, markerOf, quoteBlank, textStart } from "./enter";
+import { Item, Outline, blocksOf, buildOutline, columns, itemsOf, parseLines } from "./parse";
+import { Ctx, Row, finish, listCtx, makeWs, rowsOf, unitCols } from "./ops";
+import {
+  Edit,
+  MARKER,
+  Owner,
+  Pos,
+  codeBlockAt,
+  emptyItem,
+  itemIndent,
+  markerOf,
+  quoteBlank,
+  quotePrefix,
+  stripItemIndent,
+  textStart,
+} from "./content";
+import { cleanOwner } from "./active";
 
 /** A pasted block as an item: its marker (null: the neighbour's), its text line, own lines, children. */
 export interface PItem {
@@ -23,7 +35,7 @@ const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})/;
 const BLOCKS = /^[ \t]*(?:(?:[-+*]|#+)[ \t]+|`{3,}|~{3,}|\$\$)/m;
 
 /** The lines without leading and trailing blank lines. */
-export function trimBlank(ls: string[]): string[] {
+function trimBlank(ls: string[]): string[] {
   let a = 0;
   let b = ls.length;
   while (a < b && ls[a]!.trim() === "") a++;
@@ -54,16 +66,10 @@ export function pasteKind(lines: string[]): PasteKind {
 }
 
 /** Drops n columns of leading whitespace from t (a line's own indentation beyond n stays as it is). */
-function dropLead(t: string, n: number, tabSize: number): string {
-  const ws = /^[ \t]*/.exec(t)![0];
-  return dropCols(ws, n, tabSize) + t.slice(ws.length);
-}
+const dropLead = (t: string, n: number, tabSize: number) => stripItemIndent(t, 0, n, tabSize);
 
-const leadCols = (t: string, tabSize: number) => {
-  let c = 0;
-  for (const ch of /^[ \t]*/.exec(t)![0]) c = ch === "\t" ? c + tabSize - (c % tabSize) : c + 1;
-  return c;
-};
+/** The columns of t's leading whitespace. */
+const leadCols = (t: string, tabSize: number) => columns(/^[ \t]*/.exec(t)![0], tabSize);
 
 /**
  * The pasted text as a list of items (Logseq's block parsing): list items keep their tree, markers and own
@@ -158,10 +164,9 @@ export interface PasteEdit extends Edit {
 function pasteBlocks(o: Outline, w: Owner, line: number, items: PItem[], ctx: Ctx, folded: ReadonlySet<number>): Edit {
   const { item: t, list } = w;
   const lc = listCtx(o, list, ctx);
-  const tl = o.texts[t.line]!;
-  const prefix = tl.slice(0, prefixLen(tl, list.q));
+  const prefix = quotePrefix(o, w);
   const blank = quoteBlank(o, w);
-  const empty = o.texts[t.line]!.slice(o.info[t.line]!.text).trim() === "" && t.ownEnd === t.line + 1;
+  const empty = emptyItem(o, t);
   let at: number;
   let del = 0;
   let col: number;
@@ -216,8 +221,8 @@ export function paste(
 ): PasteEdit | null {
   if (from.line !== to.line) return null;
   const line = from.line;
-  const w = cursorOwner(o, line);
-  if (!w || !cleanItem(o, w)) return null;
+  const w = cleanOwner(o, line);
+  if (!w) return null;
   const L = o.info[line]!;
   if (L.qd > w.list.q) return null;
   const all = text.split(/\r\n?|\n/);
@@ -274,8 +279,8 @@ export function paste(
     const texts = [...o.texts];
     texts[line] = t.slice(0, a) + t.slice(b);
     oo = buildOutline(texts, o.tabSize);
-    ww = cursorOwner(oo, line);
-    if (!ww || !cleanItem(oo, ww)) return null;
+    ww = cleanOwner(oo, line);
+    if (!ww) return null;
   }
   return { ...pasteBlocks(oo, ww, line, toItems(ls, o.tabSize), ctx, folded), plain: false };
 }

@@ -1,8 +1,7 @@
 // Outline mode's active state (the repo's SPEC.md, "Editor Outliner" → "Outline mode"): whether the selection
 // lies inside one list, which item the cursor edits, and whether that item is plain enough for the
-// Logseq-like keys to take over. Pure: works on the parsed note, no Obsidian or CodeMirror. The key handlers
-// (Enter, Shift+Enter, Shift+Tab ending a list here; Backspace / Delete / Paste and node selection later)
-// all start from cursorOwner / activeAt and step aside when cleanItem says no.
+// Logseq-like keys to take over. Pure: works on the parsed note, no Obsidian or CodeMirror. The keys (enter.ts,
+// merge.ts, paste.ts) all start from cleanOwner, and step aside where it finds no item.
 import { Block, Outline, isBlank } from "./parse";
 import { Owner, ownerAt } from "./content";
 
@@ -66,4 +65,10 @@ export function cleanItem(o: Outline, w: Owner): boolean {
     if (L.qd !== list.q || L.col < item.cc) return false;
   }
   return true;
+}
+
+/** The item the cursor on line i edits (cursorOwner), when it is a clean tree node (cleanItem): what the keys act on. */
+export function cleanOwner(o: Outline, i: number): Owner | null {
+  const w = cursorOwner(o, i);
+  return w && cleanItem(o, w) ? w : null;
 }

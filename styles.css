@@ -46,6 +46,11 @@
   border-radius: var(--radius-s);
   touch-action: none;
 }
+/* A Canvas card's editor (in an iframe, .mod-inside-iframe) has a 16px margin, which Obsidian's fold arrow
+   fills: widen it by the handle's room so the handle sits left of the fold arrow, as in a tab. */
+.markdown-source-view.mod-inside-iframe > .cm-editor.eo-drag-handles > .cm-scroller {
+  padding-left: calc(var(--size-4-4) + 22px);
+}
 .eo-drag-handle:hover {
   color: var(--text-muted);
   background-color: var(--background-modifier-hover);

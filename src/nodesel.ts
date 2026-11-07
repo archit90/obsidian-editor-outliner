@@ -5,8 +5,8 @@
 import { EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { foldEffect, foldable, foldedRanges, unfoldEffect } from "@codemirror/language";
-import { applyRows, outlineOf, posOf, selectStep } from "./editor";
-import { foldedLines, outlineModeOn, stepAside } from "./mode";
+import { applyRows, offsetOf, outlineOf, posOf, selectStep } from "./editor";
+import { foldedLines, outlineModeOn, stepAside, vimNormal } from "./mode";
 import {
   NodeSel,
   childSel,
@@ -46,16 +46,19 @@ export function setKeysCheck(fn: () => boolean) {
   keysOn = fn;
 }
 
-/** The node selection, when it applies: headings with the outliner keys on, list items in outline mode. */
-export function nodeSelection(state: EditorState): NodeSel | null {
-  const sel = state.field(nodeField, false) ?? null;
-  if (!sel || state.readOnly) return null;
+/**
+ * The node selection, when it applies: headings with the outliner keys on, list items in outline mode; none in
+ * Vim outside insert mode (a visual-mode selection stays vim's).
+ */
+function nodeSelection(view: EditorView): NodeSel | null {
+  const sel = view.state.field(nodeField, false) ?? null;
+  if (!sel || view.state.readOnly || vimNormal(view)) return null;
   return (sel.kind === "item" ? outlineModeOn() : keysOn()) ? sel : null;
 }
 
 /** The node selection a key acts on: none when the key steps aside (stepAside, also for heading nodes). */
 function keySel(view: EditorView): NodeSel | null {
-  const sel = nodeSelection(view.state);
+  const sel = nodeSelection(view);
   return sel && !stepAside(view, sel.kind === "item") ? sel : null;
 }
 
@@ -64,8 +67,7 @@ function select(view: EditorView, sel: NodeSel) {
   const st = view.state;
   const span = nodeSpan(outlineOf(st), sel);
   if (!span) return;
-  const off = (p: { line: number; ch: number }) => st.doc.line(p.line + 1).from + p.ch;
-  selectStep(view, off(span.anchor), off(span.head), st.doc.line(sel.anchor + 1).from);
+  selectStep(view, offsetOf(st, span.anchor), offsetOf(st, span.head), st.doc.line(sel.anchor + 1).from);
 }
 
 /** ↑ / ↓: extend (or shrink) the run by a sibling in that direction, anchored; nothing past the edge. */
@@ -146,10 +148,18 @@ function copied(state: EditorState, sel: NodeSel): string | null {
   return state.selection.main.to > state.doc.line(r[1]).to ? text + "\n" : text;
 }
 
-/** The whole-line highlight: a class on every selected line, and one on the editor that hides the text selection. */
+/** The node selection highlighted in each editor state: copy (which only gets the state) follows the highlight. */
+const highlighted = new WeakMap<EditorState, NodeSel>();
+
+/**
+ * The whole-line highlight: a class on every selected line, and one on the editor that hides the text selection
+ * (through editorAttributes: CodeMirror rewrites the editor element's class attribute, on a focus change say).
+ */
 const highlight = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet = Decoration.none;
+    /** Whether there is a node selection to highlight (editorAttributes below reads it). */
+    on = false;
     constructor(view: EditorView) {
       this.build(view);
     }
@@ -157,9 +167,10 @@ const highlight = ViewPlugin.fromClass(
       this.build(u.view);
     }
     build(view: EditorView) {
-      const sel = nodeSelection(view.state);
+      const sel = nodeSelection(view);
       const r = sel && nodeRange(outlineOf(view.state), sel);
-      view.dom.classList.toggle("eo-node-selection", !!r);
+      this.on = !!r;
+      if (sel && r) highlighted.set(view.state, sel);
       if (!r) {
         this.decorations = Decoration.none;
         return;
@@ -182,6 +193,7 @@ export function nodeSelectionExtension(): Extension {
   return [
     nodeField,
     highlight,
+    EditorView.editorAttributes.of(view => (view.plugin(highlight)?.on ? { class: "eo-node-selection" } : null)),
     Prec.highest(
       keymap.of([
         { key: "ArrowUp", run: extend(-1) },
@@ -194,7 +206,7 @@ export function nodeSelectionExtension(): Extension {
       ]),
     ),
     EditorView.clipboardOutputFilter.of((text, state) => {
-      const sel = nodeSelection(state);
+      const sel = highlighted.get(state);
       return (sel && copied(state, sel)) ?? text;
     }),
     // cut removes the nodes like Backspace (CodeMirror's cut would leave an empty line in the list)

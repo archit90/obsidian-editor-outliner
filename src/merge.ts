@@ -5,23 +5,27 @@
 // rows and cursor, "noop" (the key is ours but nothing happens), or null (Obsidian's own key applies).
 import { Block, Item, Outline, columns, flatItems, isBlank, itemsOf, prefixLen } from "./parse";
 import { Ctx, Row, childCol, finish, listCtx, rowsOf, shift } from "./ops";
-import { Owner, Pos, codeBlockAt, indentEnd, itemIndent, stripItemIndent } from "./content";
-import { cleanItem, cursorOwner } from "./active";
-import { Edit, MARKER, quoteBlank } from "./enter";
+import {
+  Edit,
+  MARKER,
+  Owner,
+  Pos,
+  codeBlockAt,
+  emptyItem,
+  indentEnd,
+  itemIndent,
+  itemText,
+  quoteBlank,
+  stripItemIndent,
+} from "./content";
+import { cleanOwner } from "./active";
 
 export type KeyResult = Edit | "noop" | null;
 
 /** The clean item a cursor (not a selection: Obsidian deletes that) edits. */
 function owner(o: Outline, from: Pos, to: Pos): Owner | null {
-  if (from.line !== to.line || from.ch !== to.ch) return null;
-  const w = cursorOwner(o, from.line);
-  return w && cleanItem(o, w) ? w : null;
+  return from.line === to.line && from.ch === to.ch ? cleanOwner(o, from.line) : null;
 }
-
-const textOf = (o: Outline, it: Item) => o.texts[it.line]!.slice(o.info[it.line]!.text);
-
-/** Nothing after the marker (or checkbox) and no own lines below it. */
-const emptyItem = (o: Outline, it: Item) => textOf(o, it).trim() === "" && it.ownEnd === it.line + 1;
 
 /**
  * The item just above s in document order that the reader sees: an item hidden in a folded item counts as
@@ -66,7 +70,7 @@ function mergeInto(o: Outline, list: Block, t: Item, s: Item, ctx: Ctx): { rows:
   const last = t.ownEnd - 1;
   const LL = o.info[last]!;
   const glue = last === t.line || (LL.kind === "text" && LL.qd === q);
-  const sText = textOf(o, s);
+  const sText = itemText(o, s);
   const lastRow = { ...rows[last]! };
   const endCh = lastRow.t.length;
   const own: Row[] = [];

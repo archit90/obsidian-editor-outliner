@@ -4,9 +4,9 @@
 //   drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
 //   code-indent rules and the insert commands (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
-//   view.ts: heading guides, H7+ styling, drag handles. active.ts / enter.ts: outline mode's active state and
-//   its Enter / Shift+Enter / Shift+Tab (pure); merge.ts: Backspace / Delete; paste.ts: Paste (pure);
-//   mode.ts: their CodeMirror glue. nodes.ts: node selection (pure); nodesel.ts: its field, keys and highlight.
+//   view.ts: heading guides, H7+ styling, drag handles. Outline mode: active.ts (the active state), enter.ts
+//   (Enter / Shift+Enter / Shift+Tab), merge.ts (Backspace / Delete), paste.ts (Paste), all pure; mode.ts
+//   their CodeMirror glue. nodes.ts: node selection (pure); nodesel.ts: its field, keys and highlight.
 // The keys are high-precedence CodeMirror keymaps (see buildExtensions); of the commands only "Toggle outline
 // mode" has a default hotkey (Ctrl+Super+O; Ctrl+Cmd+O on macOS).
 import { Notice, Platform, Plugin, htmlToMarkdown } from "obsidian";
@@ -139,8 +139,11 @@ export default class EditorOutlinerPlugin extends Plugin {
     this.app.workspace.updateOptions();
   }
 
+  /** The "Logical outdenting" setting, read when a key or command runs. */
+  private logical = () => this.settings.logicalOutdent;
+
   private buildExtensions() {
-    const logical = () => this.settings.logicalOutdent;
+    const logical = this.logical;
     const op = (kind: OpKind) => (v: EditorView) => runOp(v, kind, logical());
     this.extensions.length = 0;
     // Node selection's keys come before the rest: they only act on a selection of whole nodes
@@ -225,7 +228,7 @@ export default class EditorOutlinerPlugin extends Plugin {
   }
 
   private addCommands() {
-    const logical = () => this.settings.logicalOutdent;
+    const logical = this.logical;
     // global, not per editor: available everywhere, also with no editor open
     this.addCommand({
       id: "toggle-outline-mode",

@@ -2,9 +2,9 @@
 // nodes, list items with their subtrees or heading sections, that Expand selection reaches (or the user selects
 // line by line). Pure: finds it in a text selection, extends it by siblings, and removes or copies the nodes.
 // The CodeMirror glue (nodesel.ts) keeps it in a StateField and decides when it applies.
-import { Item, Outline, Section, isBlank, locate, prefixLen, sectionAt, trimEnd } from "./parse";
-import { Row, dropCols, finish, rowsOf } from "./ops";
-import { Pos } from "./content";
+import { Item, Outline, Section, isBlank, locate, sectionAt, trimEnd } from "./parse";
+import { finish, rowsOf } from "./ops";
+import { Edit, Pos, stripItemIndent } from "./content";
 
 export interface NodeSel {
   kind: "item" | "heading";
@@ -131,10 +131,11 @@ export function childSel(o: Outline, sel: NodeSel): NodeSel | null {
 /**
  * Backspace / Delete / cut: removes the nodes with their subtrees. Blank lines that separated them from the
  * next sibling go with them; with no sibling after, the blank lines before them go instead (so text after a
- * list doesn't become a lazy continuation of the item above), and none when there are none before. Ordered lists are renumbered. The cursor goes
- * to the start of the next sibling's text, else to the end of the line above.
+ * list doesn't become a lazy continuation of the item above), and none when there are none before. Ordered
+ * lists are renumbered. The cursor goes to the start of the next sibling's text, else to the end of the line
+ * above.
  */
-export function removeNodes(o: Outline, sel: NodeSel): { rows: Row[]; cursor: Pos } | null {
+export function removeNodes(o: Outline, sel: NodeSel): Edit | null {
   const r = nodeRange(o, sel);
   if (!r) return null;
   let [s, e] = r;
@@ -183,11 +184,5 @@ export function nodeText(o: Outline, sel: NodeSel): string | null {
   if (sel.kind === "heading") return lines.join("\n");
   const list = locate(o, r[0])!.list!;
   const col = o.info[r[0]]!.col;
-  return lines
-    .map(t => {
-      const rest = t.slice(prefixLen(t, list.q));
-      const ws = /^[ \t]*/.exec(rest)![0];
-      return dropCols(ws, col, o.tabSize) + rest.slice(ws.length);
-    })
-    .join("\n");
+  return lines.map(t => stripItemIndent(t, list.q, col, o.tabSize)).join("\n");
 }

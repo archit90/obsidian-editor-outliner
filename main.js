@@ -702,9 +702,25 @@ function ownerAt(o, i) {
   const it = loc.item;
   return i >= it.line && i < it.ownEnd ? { item: it, list: loc.list } : null;
 }
-function itemIndent(o, w, ctx) {
+function quotePrefix(o, w) {
   const t = o.texts[w.item.line];
-  return t.slice(0, prefixLen(t, w.list.q)) + makeWs(w.item.cc, listCtx(o, w.list, ctx));
+  return t.slice(0, prefixLen(t, w.list.q));
+}
+var quoteBlank = (o, w) => quotePrefix(o, w).trimEnd();
+function itemIndent(o, w, ctx) {
+  return quotePrefix(o, w) + makeWs(w.item.cc, listCtx(o, w.list, ctx));
+}
+var MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
+function markerOf(o, line) {
+  const L = o.info[line];
+  const m = MARKER.exec(o.texts[line].slice(L.pre + L.ws, L.text));
+  return { bullet: m[1], gap: m[2] || " ", task: !!m[3] };
+}
+var itemText = (o, it) => o.texts[it.line].slice(o.info[it.line].text);
+var emptyItem = (o, it) => itemText(o, it).trim() === "" && it.ownEnd === it.line + 1;
+function textStart(o, w, line) {
+  if (line === w.item.line) return o.info[line].text;
+  return indentEnd(o.texts[line], w.list.q, w.item.cc, o.tabSize);
 }
 function indentEnd(t, q, cc, tabSize) {
   let k = prefixLen(t, q);
@@ -1055,11 +1071,10 @@ function expandSelection(view) {
   const origin = going ? prev.origin : r.head;
   const o = outlineOf(state);
   const line = state.doc.lineAt(origin);
-  const off = (p) => state.doc.line(p.line + 1).from + p.ch;
   let best = null;
   for (const s of steps(o, line.number - 1, origin - line.from)) {
-    const a = off(s.from);
-    const b = off(s.to);
+    const a = offsetOf(state, s.from);
+    const b = offsetOf(state, s.to);
     if (a > r.from || b < r.to || b - a <= r.to - r.from) continue;
     if (!best || b - a < best[1] - best[0]) best = [a, b];
   }
@@ -1113,6 +1128,7 @@ var posOf = (state, pos) => {
   const l = state.doc.lineAt(pos);
   return { line: l.number - 1, ch: pos - l.from };
 };
+var offsetOf = (state, p) => state.doc.line(p.line + 1).from + p.ch;
 function codeEnter(view) {
   if (soleLine(view) === null || view.composing || suggestOpen()) return false;
   const st = view.state;
@@ -1275,30 +1291,20 @@ function cleanItem(o, w) {
   }
   return true;
 }
+function cleanOwner(o, i) {
+  const w = cursorOwner(o, i);
+  return w && cleanItem(o, w) ? w : null;
+}
 
 // src/enter.ts
 function target(o, from, to) {
   if (from.line !== to.line) return null;
-  const w = cursorOwner(o, from.line);
-  if (!w || !cleanItem(o, w)) return null;
+  const w = cleanOwner(o, from.line);
+  if (!w) return null;
   const L = o.info[from.line];
   if (L.kind === "code" || L.qd > w.list.q) return null;
   return w;
 }
-function textStart(o, w, line) {
-  if (line === w.item.line) return o.info[line].text;
-  return indentEnd(o.texts[line], w.list.q, w.item.cc, o.tabSize);
-}
-var MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
-function markerOf(o, line) {
-  const L = o.info[line];
-  const m = MARKER.exec(o.texts[line].slice(L.pre + L.ws, L.text));
-  return { bullet: m[1], gap: m[2] || " ", task: !!m[3] };
-}
-var quoteBlank = (o, w) => {
-  const t = o.texts[w.item.line];
-  return t.slice(0, prefixLen(t, w.list.q)).trimEnd();
-};
 var isEmptyText = (s) => s.trim() === "";
 function enter(o, from, to, ctx, folded) {
   const w = target(o, from, to);
@@ -1318,8 +1324,7 @@ function enter(o, from, to, ctx, folded) {
   if (line === item.line || cut.length > sc) head.push({ t: cut, o: line });
   while (head.length > 1 && isEmptyText(head[head.length - 1].t.slice(prefixLen(head[head.length - 1].t, q))))
     head.pop();
-  const markerText = head[0].t.slice(o.info[item.line].text);
-  const headEmpty = head.length === 1 && isEmptyText(markerText);
+  const headEmpty = head.length === 1 && isEmptyText(head[0].t.slice(o.info[item.line].text));
   const tail = [];
   const rest = t.slice(b).replace(/^[ \t]+/, "");
   if (rest) tail.push({ t: rest, plain: true });
@@ -1358,7 +1363,7 @@ function enter(o, from, to, ctx, folded) {
   const own = markerOf(o, item.line);
   const prefix = itemPrefix(o, w, tpl.col, tm.bullet, tm.gap, own.task, lc);
   const cc = parseLines([prefix + "x"], o.tabSize).info[0].cc;
-  const contIndent = o.texts[item.line].slice(0, prefixLen(o.texts[item.line], q)) + makeWs(cc, lc);
+  const contIndent = quotePrefix(o, w) + makeWs(cc, lc);
   const joined = tail[0]?.plain ? tail.shift().t : "";
   const fresh = [{ t: prefix + joined, o: -1 }];
   for (const x of tail) fresh.push({ t: x.t === "" ? quoteBlank(o, w) : contIndent + x.t, o: -1 });
@@ -1371,8 +1376,7 @@ function enter(o, from, to, ctx, folded) {
   return { rows: out, cursor: { line: at, ch: out[at].t.length - joined.length } };
 }
 function itemPrefix(o, w, col, bullet, gap, task, lc) {
-  const t = o.texts[w.item.line];
-  return t.slice(0, prefixLen(t, w.list.q)) + makeWs(col, lc) + bullet + gap + (task ? "[ ] " : "");
+  return quotePrefix(o, w) + makeWs(col, lc) + bullet + gap + (task ? "[ ] " : "");
 }
 function softBreak(o, from, to, ctx) {
   const w = target(o, from, to);
@@ -1388,8 +1392,7 @@ function endList(o, from, to) {
   const w = target(o, from, to);
   if (!w || from.line !== w.item.line) return null;
   const { item } = w;
-  if (item.depth !== 0 || item.children.length || item.ownEnd !== item.line + 1) return null;
-  if (!isEmptyText(o.texts[item.line].slice(o.info[item.line].text))) return null;
+  if (item.depth !== 0 || item.children.length || !emptyItem(o, item)) return null;
   const rows = rowsOf(o);
   const blank = quoteBlank(o, w);
   rows[item.line] = { t: blank, o: item.line };
@@ -1398,12 +1401,8 @@ function endList(o, from, to) {
 
 // src/merge.ts
 function owner(o, from, to) {
-  if (from.line !== to.line || from.ch !== to.ch) return null;
-  const w = cursorOwner(o, from.line);
-  return w && cleanItem(o, w) ? w : null;
+  return from.line === to.line && from.ch === to.ch ? cleanOwner(o, from.line) : null;
 }
-var textOf = (o, it) => o.texts[it.line].slice(o.info[it.line].text);
-var emptyItem = (o, it) => textOf(o, it).trim() === "" && it.ownEnd === it.line + 1;
 function prevVisible(o, list, s, folded) {
   const flat = flatItems(itemsOf(o, list));
   const k = flat.indexOf(s);
@@ -1431,7 +1430,7 @@ function mergeInto(o, list, t, s, ctx) {
   const last = t.ownEnd - 1;
   const LL = o.info[last];
   const glue = last === t.line || LL.kind === "text" && LL.qd === q;
-  const sText = textOf(o, s);
+  const sText = itemText(o, s);
   const lastRow = { ...rows[last] };
   const endCh = lastRow.t.length;
   const own = [];
@@ -1568,15 +1567,8 @@ function pasteKind(lines) {
   if (BLOCKS.test(ls.join("\n")) || ls.some((l) => l.trim() === "")) return "blocks";
   return "plain";
 }
-function dropLead(t, n, tabSize) {
-  const ws = /^[ \t]*/.exec(t)[0];
-  return dropCols(ws, n, tabSize) + t.slice(ws.length);
-}
-var leadCols = (t, tabSize) => {
-  let c = 0;
-  for (const ch of /^[ \t]*/.exec(t)[0]) c = ch === "	" ? c + tabSize - c % tabSize : c + 1;
-  return c;
-};
+var dropLead = (t, n, tabSize) => stripItemIndent(t, 0, n, tabSize);
+var leadCols = (t, tabSize) => columns(/^[ \t]*/.exec(t)[0], tabSize);
 function toItems(lines, tabSize) {
   const o = buildOutline(["", ...trimBlank(lines)], tabSize);
   const out = [];
@@ -1634,10 +1626,9 @@ function render(items, col, top, prefix, blank, lc) {
 function pasteBlocks(o, w, line, items, ctx, folded) {
   const { item: t, list } = w;
   const lc = listCtx(o, list, ctx);
-  const tl = o.texts[t.line];
-  const prefix = tl.slice(0, prefixLen(tl, list.q));
+  const prefix = quotePrefix(o, w);
   const blank = quoteBlank(o, w);
-  const empty = o.texts[t.line].slice(o.info[t.line].text).trim() === "" && t.ownEnd === t.line + 1;
+  const empty = emptyItem(o, t);
   let at;
   let del = 0;
   let col;
@@ -1672,8 +1663,8 @@ function pasteBlocks(o, w, line, items, ctx, folded) {
 function paste(o, from, to, text, ctx, folded) {
   if (from.line !== to.line) return null;
   const line = from.line;
-  const w = cursorOwner(o, line);
-  if (!w || !cleanItem(o, w)) return null;
+  const w = cleanOwner(o, line);
+  if (!w) return null;
   const L = o.info[line];
   if (L.qd > w.list.q) return null;
   const all = text.split(/\r\n?|\n/);
@@ -1726,8 +1717,8 @@ function paste(o, from, to, text, ctx, folded) {
     const texts = [...o.texts];
     texts[line] = t.slice(0, a) + t.slice(b);
     oo = buildOutline(texts, o.tabSize);
-    ww = cursorOwner(oo, line);
-    if (!ww || !cleanItem(oo, ww)) return null;
+    ww = cleanOwner(oo, line);
+    if (!ww) return null;
   }
   return { ...pasteBlocks(oo, ww, line, toItems(ls, o.tabSize), ctx, folded), plain: false };
 }
@@ -1758,25 +1749,22 @@ function foldedLines(state) {
   });
   return out;
 }
-var selected = (state) => {
-  const r = state.selection.main;
-  return { from: posOf(state, r.from), to: posOf(state, r.to) };
-};
-function outlineEnter(view, logical) {
+function runKey(view, userEvent, fn) {
   if (stepAside(view)) return false;
   const st = view.state;
   const o = outlineOf(st);
-  const { from, to } = selected(st);
-  const res = enter(o, from, to, ctxOf(st, logical), foldedLines(st));
+  const r = st.selection.main;
+  const res = fn(o, posOf(st, r.from), posOf(st, r.to), st);
   if (!res) return false;
-  applyRows(view, o, res.rows, "split.outliner", res.cursor);
+  if (res !== "noop") applyRows(view, o, res.rows, res.userEvent ?? userEvent, res.cursor);
   return true;
 }
+var outlineEnter = (view, logical) => runKey(view, "split.outliner", (o, from, to, st) => enter(o, from, to, ctxOf(st, logical), foldedLines(st)));
 function outlineShiftEnter(view) {
   if (stepAside(view)) return false;
   const st = view.state;
-  const { from, to } = selected(st);
-  const c = softBreak(outlineOf(st), from, to, ctxOf(st, false));
+  const r = st.selection.main;
+  const c = softBreak(outlineOf(st), posOf(st, r.from), posOf(st, r.to), ctxOf(st, false));
   if (!c) return false;
   const line = st.doc.line(c.line + 1);
   view.dispatch({
@@ -1787,38 +1775,13 @@ function outlineShiftEnter(view) {
   });
   return true;
 }
-function outlineEndList(view) {
-  if (stepAside(view)) return false;
-  const st = view.state;
-  const o = outlineOf(st);
-  const { from, to } = selected(st);
-  const res = endList(o, from, to);
-  if (!res) return false;
-  applyRows(view, o, res.rows, "indent.outliner", res.cursor);
-  return true;
-}
-function mergeKey(view, op) {
-  if (stepAside(view)) return false;
-  const st = view.state;
-  const o = outlineOf(st);
-  const { from, to } = selected(st);
-  const res = op(o, from, to, ctxOf(st, false), foldedLines(st));
-  if (!res) return false;
-  if (res !== "noop") applyRows(view, o, res.rows, "merge.outliner", res.cursor);
-  return true;
-}
-var outlineBackspace = (view) => mergeKey(view, backspace);
-var outlineDelete = (view) => mergeKey(view, deleteForward);
-function outlinePaste(view, text) {
-  if (stepAside(view)) return false;
-  const st = view.state;
-  const o = outlineOf(st);
-  const { from, to } = selected(st);
+var outlineEndList = (view) => runKey(view, "indent.outliner", endList);
+var outlineBackspace = (view) => runKey(view, "merge.outliner", (o, from, to, st) => backspace(o, from, to, ctxOf(st, false), foldedLines(st)));
+var outlineDelete = (view) => runKey(view, "merge.outliner", (o, from, to, st) => deleteForward(o, from, to, ctxOf(st, false), foldedLines(st)));
+var outlinePaste = (view, text) => runKey(view, "paste.outliner", (o, from, to, st) => {
   const res = paste(o, from, to, text, ctxOf(st, false), foldedLines(st));
-  if (!res) return false;
-  applyRows(view, o, res.rows, res.plain ? "input.paste" : "paste.outliner", res.cursor);
-  return true;
-}
+  return res && { ...res, userEvent: res.plain ? "input.paste" : void 0 };
+});
 var watchActive = (onChange) => import_view2.EditorView.updateListener.of((u) => {
   if (u.selectionSet || u.docChanged || u.focusChanged) onChange();
 });
@@ -1953,11 +1916,7 @@ function nodeText(o, sel) {
   if (sel.kind === "heading") return lines.join("\n");
   const list = locate(o, r[0]).list;
   const col = o.info[r[0]].col;
-  return lines.map((t) => {
-    const rest = t.slice(prefixLen(t, list.q));
-    const ws = /^[ \t]*/.exec(rest)[0];
-    return dropCols(ws, col, o.tabSize) + rest.slice(ws.length);
-  }).join("\n");
+  return lines.map((t) => stripItemIndent(t, list.q, col, o.tabSize)).join("\n");
 }
 
 // src/nodesel.ts
@@ -1977,21 +1936,20 @@ var keysOn = () => false;
 function setKeysCheck(fn) {
   keysOn = fn;
 }
-function nodeSelection(state) {
-  const sel = state.field(nodeField, false) ?? null;
-  if (!sel || state.readOnly) return null;
+function nodeSelection(view) {
+  const sel = view.state.field(nodeField, false) ?? null;
+  if (!sel || view.state.readOnly || vimNormal(view)) return null;
   return (sel.kind === "item" ? outlineModeOn() : keysOn()) ? sel : null;
 }
 function keySel(view) {
-  const sel = nodeSelection(view.state);
+  const sel = nodeSelection(view);
   return sel && !stepAside(view, sel.kind === "item") ? sel : null;
 }
 function select(view, sel) {
   const st = view.state;
   const span = nodeSpan(outlineOf(st), sel);
   if (!span) return;
-  const off = (p) => st.doc.line(p.line + 1).from + p.ch;
-  selectStep(view, off(span.anchor), off(span.head), st.doc.line(sel.anchor + 1).from);
+  selectStep(view, offsetOf(st, span.anchor), offsetOf(st, span.head), st.doc.line(sel.anchor + 1).from);
 }
 var extend = (dir) => (view) => {
   const sel = keySel(view);
@@ -2059,19 +2017,23 @@ function copied(state, sel) {
   if (text === null || !r) return null;
   return state.selection.main.to > state.doc.line(r[1]).to ? text + "\n" : text;
 }
+var highlighted = /* @__PURE__ */ new WeakMap();
 var highlight = import_view3.ViewPlugin.fromClass(
   class {
     constructor(view) {
       this.decorations = import_view3.Decoration.none;
+      /** Whether there is a node selection to highlight (editorAttributes below reads it). */
+      this.on = false;
       this.build(view);
     }
     update(u) {
       this.build(u.view);
     }
     build(view) {
-      const sel = nodeSelection(view.state);
+      const sel = nodeSelection(view);
       const r = sel && nodeRange(outlineOf(view.state), sel);
-      view.dom.classList.toggle("eo-node-selection", !!r);
+      this.on = !!r;
+      if (sel && r) highlighted.set(view.state, sel);
       if (!r) {
         this.decorations = import_view3.Decoration.none;
         return;
@@ -2093,6 +2055,7 @@ function nodeSelectionExtension() {
   return [
     nodeField,
     highlight,
+    import_view3.EditorView.editorAttributes.of((view) => view.plugin(highlight)?.on ? { class: "eo-node-selection" } : null),
     import_state3.Prec.highest(
       import_view3.keymap.of([
         { key: "ArrowUp", run: extend(-1) },
@@ -2105,7 +2068,7 @@ function nodeSelectionExtension() {
       ])
     ),
     import_view3.EditorView.clipboardOutputFilter.of((text, state) => {
-      const sel = nodeSelection(state);
+      const sel = highlighted.get(state);
       return (sel && copied(state, sel)) ?? text;
     }),
     // cut removes the nodes like Backspace (CodeMirror's cut would leave an empty line in the list)
@@ -2408,8 +2371,9 @@ function headingGuides() {
 }
 var HEADING_STEP = 24;
 var DRAG_START = 4;
+var HANDLE_GAP = 22;
 function dragHandles(logical) {
-  return import_view4.ViewPlugin.fromClass(
+  const plugin = import_view4.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.view = view;
@@ -2446,7 +2410,7 @@ function dragHandles(logical) {
           this.handle.style.display = "";
           this.handle.style.top = `${c.top - box.top}px`;
           this.handle.style.height = `${Math.max(16, c.bottom - c.top)}px`;
-          this.handle.style.left = `${c.left - box.left}px`;
+          this.handle.style.left = `${Math.max(c.left - box.left, this.handle.offsetWidth + HANDLE_GAP)}px`;
         };
         this.onDown = (e) => {
           if (e.button !== 0 || this.hoverLine < 0) return;
@@ -2618,6 +2582,11 @@ function dragHandles(logical) {
       }
     }
   );
+  const classes = import_view4.EditorView.editorAttributes.of((view) => {
+    const p = view.plugin(plugin);
+    return p && !p.off ? { class: p.drag ? "eo-drag-handles eo-dragging" : "eo-drag-handles" } : null;
+  });
+  return [plugin, classes];
 }
 function scrollParent(el) {
   const win = el.ownerDocument.defaultView ?? window;
@@ -2654,6 +2623,8 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     this.extensions = [];
     this.status = null;
     this.statusQueued = false;
+    /** The "Logical outdenting" setting, read when a key or command runs. */
+    this.logical = () => this.settings.logicalOutdent;
   }
   async onload() {
     this.settings = Object.assign({}, DEFAULTS, await this.loadData());
@@ -2717,7 +2688,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     this.app.workspace.updateOptions();
   }
   buildExtensions() {
-    const logical = () => this.settings.logicalOutdent;
+    const logical = this.logical;
     const op = (kind) => (v) => runOp(v, kind, logical());
     this.extensions.length = 0;
     this.extensions.push(nodeSelectionExtension());
@@ -2789,7 +2760,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     return focusedView() ?? shown(lastFocused) ?? shown(this.app.workspace.activeEditor?.editor?.cm ?? null);
   }
   addCommands() {
-    const logical = () => this.settings.logicalOutdent;
+    const logical = this.logical;
     this.addCommand({
       id: "toggle-outline-mode",
       name: "Toggle outline mode",

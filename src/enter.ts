@@ -4,45 +4,30 @@
 // cursor goes; null means the key isn't for us (Obsidian's own Enter applies).
 import { Outline, parseLines, prefixLen } from "./parse";
 import { Ctx, Row, finish, listCtx, makeWs, outdent, rowsOf } from "./ops";
-import { Owner, Pos, indentEnd, itemIndent, stripItemIndent } from "./content";
-import { cursorOwner, cleanItem } from "./active";
-
-export interface Edit {
-  rows: Row[];
-  cursor: Pos;
-}
+import {
+  Edit,
+  Owner,
+  Pos,
+  emptyItem,
+  itemIndent,
+  markerOf,
+  quoteBlank,
+  quotePrefix,
+  stripItemIndent,
+  textStart,
+} from "./content";
+import { cleanOwner } from "./active";
 
 /** The item a key at from..to (one line) acts on: a clean item, the line not code nor a quote under it. */
 function target(o: Outline, from: Pos, to: Pos): Owner | null {
   if (from.line !== to.line) return null;
-  const w = cursorOwner(o, from.line);
-  if (!w || !cleanItem(o, w)) return null;
+  const w = cleanOwner(o, from.line);
+  if (!w) return null;
   const L = o.info[from.line]!;
   // code (fenced, math, comments) and quotes inside an item keep Obsidian's Enter (and stage A's code Enter)
   if (L.kind === "code" || L.qd > w.list.q) return null;
   return w;
 }
-
-/** Where the line's own text starts: after the marker (and checkbox) on the marker line, else after the item indent. */
-export function textStart(o: Outline, w: Owner, line: number): number {
-  if (line === w.item.line) return o.info[line]!.text;
-  return indentEnd(o.texts[line]!, w.list.q, w.item.cc, o.tabSize);
-}
-
-export const MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
-
-/** The marker part of an item line (bullet or number, the gap after it, a checkbox), split up. */
-export function markerOf(o: Outline, line: number) {
-  const L = o.info[line]!;
-  const m = MARKER.exec(o.texts[line]!.slice(L.pre + L.ws, L.text))!;
-  return { bullet: m[1]!, gap: m[2] || " ", task: !!m[3] };
-}
-
-/** The quote prefix of the item's marker line (`> ` in a callout), as a blank line inside the list writes it. */
-export const quoteBlank = (o: Outline, w: Owner) => {
-  const t = o.texts[w.item.line]!;
-  return t.slice(0, prefixLen(t, w.list.q)).trimEnd();
-};
 
 const isEmptyText = (s: string) => s.trim() === "";
 
@@ -77,8 +62,7 @@ export function enter(o: Outline, from: Pos, to: Pos, ctx: Ctx, folded: Readonly
   if (line === item.line || cut.length > sc) head.push({ t: cut, o: line });
   while (head.length > 1 && isEmptyText(head[head.length - 1]!.t.slice(prefixLen(head[head.length - 1]!.t, q))))
     head.pop();
-  const markerText = head[0]!.t.slice(o.info[item.line]!.text);
-  const headEmpty = head.length === 1 && isEmptyText(markerText);
+  const headEmpty = head.length === 1 && isEmptyText(head[0]!.t.slice(o.info[item.line]!.text));
 
   // after the cursor: the rest of the split line and the own lines below it, without the item indent and
   // without leading blank lines
@@ -127,7 +111,7 @@ export function enter(o: Outline, from: Pos, to: Pos, ctx: Ctx, folded: Readonly
   const own = markerOf(o, item.line);
   const prefix = itemPrefix(o, w, tpl.col, tm.bullet, tm.gap, own.task, lc);
   const cc = parseLines([prefix + "x"], o.tabSize).info[0]!.cc;
-  const contIndent = o.texts[item.line]!.slice(0, prefixLen(o.texts[item.line]!, q)) + makeWs(cc, lc);
+  const contIndent = quotePrefix(o, w) + makeWs(cc, lc);
   const joined = tail[0]?.plain ? tail.shift()!.t : "";
   const fresh: Row[] = [{ t: prefix + joined, o: -1 }];
   for (const x of tail) fresh.push({ t: x.t === "" ? quoteBlank(o, w) : contIndent + x.t, o: -1 });
@@ -143,8 +127,7 @@ export function enter(o: Outline, from: Pos, to: Pos, ctx: Ctx, folded: Readonly
 
 /** An item line's start: the list's quote prefix, the indent, bullet or number, gap, `[ ] ` for a task. */
 function itemPrefix(o: Outline, w: Owner, col: number, bullet: string, gap: string, task: boolean, lc: Ctx) {
-  const t = o.texts[w.item.line]!;
-  return t.slice(0, prefixLen(t, w.list.q)) + makeWs(col, lc) + bullet + gap + (task ? "[ ] " : "");
+  return quotePrefix(o, w) + makeWs(col, lc) + bullet + gap + (task ? "[ ] " : "");
 }
 
 /** A text change: replace [from, to) on line with insert; the cursor goes after the insert. */
@@ -180,8 +163,7 @@ export function endList(o: Outline, from: Pos, to: Pos): Edit | null {
   const w = target(o, from, to);
   if (!w || from.line !== w.item.line) return null;
   const { item } = w;
-  if (item.depth !== 0 || item.children.length || item.ownEnd !== item.line + 1) return null;
-  if (!isEmptyText(o.texts[item.line]!.slice(o.info[item.line]!.text))) return null;
+  if (item.depth !== 0 || item.children.length || !emptyItem(o, item)) return null;
   const rows = rowsOf(o);
   const blank = quoteBlank(o, w);
   rows[item.line] = { t: blank, o: item.line };
