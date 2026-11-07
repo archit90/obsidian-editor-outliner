@@ -247,8 +247,9 @@ export function selectStep(view: EditorView, anchor: number, head: number, from:
   view.dispatch({ selection: EditorSelection.single(anchor, head), scrollIntoView: true });
 }
 
+/** Shrink (Alt+Shift+↑/↓). It never falls through: those keys do nothing else (no CodeMirror copy line). */
 export function shrinkSelection(view: EditorView): boolean {
-  if (noSteps(view)) return false;
+  if (noSteps(view)) return true;
   const r = view.state.selection.main;
   const prev = expansions.get(view);
   if (!prev || prev.last.anchor !== r.anchor || prev.last.head !== r.head || !prev.stack.length) return true;

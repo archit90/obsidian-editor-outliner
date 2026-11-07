@@ -1349,7 +1349,7 @@ function selectStep(view, anchor, head, from) {
   view.dispatch({ selection: import_state.EditorSelection.single(anchor, head), scrollIntoView: true });
 }
 function shrinkSelection(view) {
-  if (noSteps(view)) return false;
+  if (noSteps(view)) return true;
   const r = view.state.selection.main;
   const prev = expansions.get(view);
   if (!prev || prev.last.anchor !== r.anchor || prev.last.head !== r.head || !prev.stack.length) return true;
@@ -2380,7 +2380,7 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
     );
     this.toggle(
       "Outliner keys",
-      "Tab / Shift+Tab indent and outdent headings and list items; Alt+Shift+\u2191/\u2193 or Alt+Fn+\u2191/\u2193 (Option+Fn+\u2191/\u2193 on a Mac) move them with their children; Alt+\u2191/\u2193 expand and shrink the selection; a selection of whole items or sections is a node selection (\u2191/\u2193 add siblings, \u2190/\u2192 fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings \u2192 Hotkeys).",
+      "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+\u2191/\u2193 (Cmd+\u2191/\u2193 on a Mac) move them, or the selected ones, with their children; Alt+\u2191 or Alt+\u2193 expands the selection and Alt+Shift+\u2191 or Alt+Shift+\u2193 shrinks it back; a selection of whole items or sections is a node selection (\u2191/\u2193 add siblings, \u2190/\u2192 fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings \u2192 Hotkeys).",
       "keys"
     );
     this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");
@@ -3041,24 +3041,21 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
       )
     );
     if (this.settings.keys) {
-      const move2 = import_obsidian5.Platform.isMacOS ? [] : [
-        { key: "Alt-Shift-ArrowUp", run: op("up") },
-        { key: "Alt-Shift-ArrowDown", run: op("down") }
-      ];
       this.extensions.push(
         import_state5.Prec.highest(
           import_view5.keymap.of([
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
-            ...move2,
-            // Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through to
-            // Obsidian's document start / end)
+            // Move: Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through
+            // to Obsidian's document start / end)
             { key: "Mod-ArrowUp", run: op("up") },
             { key: "Mod-ArrowDown", run: op("down") },
-            { key: "Alt-PageUp", run: op("up") },
-            { key: "Alt-PageDown", run: op("down") },
+            // Expand: Alt+↑ or Alt+↓, the same chain; Shrink: Alt+Shift+↑ or ↓, back toward the start. They
+            // replace CodeMirror's move line / copy line up / down in the editor
             { key: "Alt-ArrowUp", run: expandSelection },
-            { key: "Alt-ArrowDown", run: shrinkSelection },
+            { key: "Alt-ArrowDown", run: expandSelection },
+            { key: "Alt-Shift-ArrowUp", run: shrinkSelection },
+            { key: "Alt-Shift-ArrowDown", run: shrinkSelection },
             { key: "Enter", run: codeEnter }
           ])
         )

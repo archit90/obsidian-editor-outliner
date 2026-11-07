@@ -35,7 +35,7 @@ Notation:
 | Edge cases of the note | 15 |
 | Indent / outdent outside outline mode | 28 |
 | Move outside outline mode | 25 |
-| Expand / shrink selection | 25 |
+| Expand / shrink selection | 28 |
 | Node selection: headings and details | 11 |
 | Folding commands | 14 |
 | Heading guides, level labels and H7+ styling | 13 |
@@ -43,7 +43,7 @@ Notation:
 | Where it works and settings | 13 |
 | Vim mode: the outliner keys | 8 |
 | Item node selection with outline mode off | 17 |
-| **Total** | 601 |
+| **Total** | 604 |
 
 ## Mode states and the status bar
 
@@ -4810,7 +4810,7 @@ Setup:
   ```
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -5126,7 +5126,7 @@ Expected:
 
 Source: SPEC.md §7 Node selection
 
-### N13. Alt+↓ undoes a ↓ step
+### N13. Alt+Shift+↓ (Shrink) undoes a ↓ step
 
 
 Setup:
@@ -5136,7 +5136,7 @@ Setup:
 - c
 ````
 
-Keys: ArrowDown, Alt-ArrowDown
+Keys: ArrowDown, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -5668,7 +5668,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Node selection
 
-### N38. Alt+Shift+↑ on a node selection: moves, still selected
+### N38. Ctrl+↑ on a node selection: moves, still selected
 
 
 Setup:
@@ -5678,7 +5678,7 @@ Setup:
 - z⟧
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -5963,7 +5963,7 @@ Setup:
 - e
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -5992,7 +5992,7 @@ Setup:
 - e
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -6047,7 +6047,7 @@ Setup:
 	- b2
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6071,7 +6071,7 @@ Setup:
 	- b1
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -6093,7 +6093,7 @@ Setup:
 	- b1|
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6114,7 +6114,7 @@ Setup:
 	- a2
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: unchanged
 
@@ -6130,7 +6130,7 @@ Setup:
 	- b1|
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
@@ -6148,7 +6148,7 @@ Setup:
 		- g|
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: unchanged
 
@@ -6166,7 +6166,7 @@ Setup:
 	- b1
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
@@ -6186,7 +6186,7 @@ Setup:
 	- 5
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6265,7 +6265,7 @@ Setup:
 - c
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -6328,7 +6328,7 @@ Expected: unchanged
 
 Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
-### MV18. Alt+PageUp moves up
+### MV18. Alt+PageUp isn't a move key: Obsidian's
 
 
 Setup:
@@ -6339,11 +6339,7 @@ Setup:
 
 Keys: Alt-PageUp
 
-Expected: 
-````
-- b|
-- a
-````
+Expected: = Obsidian
 
 Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
@@ -6359,7 +6355,7 @@ Setup:
 	- c1
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6405,7 +6401,7 @@ Setup:
 - |b
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6488,7 +6484,7 @@ x
 y
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6515,7 +6511,7 @@ para1
 pa|ra2
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6551,7 +6547,7 @@ Setup:
 > - |b
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -6607,7 +6603,7 @@ para
 - b
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: unchanged
 
@@ -7232,7 +7228,7 @@ Setup:
 2. b|
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -7806,7 +7802,7 @@ Setup:
 - c
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9432,7 +9428,7 @@ Setup:
 - b
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9455,7 +9451,7 @@ Setup:
 	- y
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9480,7 +9476,7 @@ a
 b
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9650,7 +9646,7 @@ Setup:
 ## B
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
@@ -9668,7 +9664,7 @@ a
 b
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -9693,7 +9689,7 @@ para1|
 para2
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9716,7 +9712,7 @@ para|
 s
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
@@ -9736,7 +9732,7 @@ para|
 end
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9764,7 +9760,7 @@ co|de
 ```
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -9792,7 +9788,7 @@ Setup:
 para
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9820,7 +9816,7 @@ p2
 # H
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9833,7 +9829,7 @@ p1|
 
 Source: SPEC.md §7 → Move up / down
 
-### KM12. Alt+PageDown moves a heading section
+### KM12. Alt+PageDown isn't a move key: Obsidian's
 
 
 Setup:
@@ -9844,12 +9840,7 @@ Setup:
 
 Keys: Alt-PageDown
 
-Expected: 
-````
-# B
-
-# A|
-````
+Expected: = Obsidian
 
 Source: SPEC.md §7 → Move up / down
 
@@ -9865,7 +9856,7 @@ x
 # B
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9894,7 +9885,7 @@ Setup:
 - b
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -9942,7 +9933,7 @@ Setup:
 # B|
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
@@ -9957,7 +9948,7 @@ Setup:
 # B
 ````
 
-Keys: Alt-Shift-ArrowDown, Ctrl-z
+Keys: Ctrl-ArrowDown, Ctrl-z
 
 Expected: 
 ````
@@ -9978,7 +9969,7 @@ Setup:
     - y|
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````
@@ -10291,7 +10282,7 @@ Setup:
 - one tw|o
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-ArrowDown
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-Shift-ArrowDown, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -10310,7 +10301,7 @@ Setup:
 - one tw|o
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-ArrowDown
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-Shift-ArrowDown, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -10328,7 +10319,7 @@ Setup:
 - one tw|o three
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Shift-ArrowLeft, Alt-ArrowDown
+Keys: Alt-ArrowUp, Alt-ArrowUp, Shift-ArrowLeft, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -10402,7 +10393,7 @@ Setup:
 - q
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-Shift-ArrowDown, Alt-Shift-ArrowDown, Alt-Shift-ArrowDown, Alt-Shift-ArrowDown
 
 Expected: 
 ````
@@ -10439,6 +10430,63 @@ b
 c⟧
 # D
 ````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-S4. Alt+↓ expands like Alt+↑; Alt+Shift+↑ shrinks like Alt+Shift+↓
+
+When: *everywhere*.
+
+Setup:
+````
+- p
+	- a
+	- b|
+	- c
+- q
+````
+
+Keys: Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowUp, Alt-Shift-ArrowUp
+
+Expected: 
+````
+- p
+⟦	- a
+	- b
+	- c⟧
+- q
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-S5. Alt+Shift+↓ with nothing to shrink, or with several cursors: nothing (never Obsidian's copy line)
+
+When: *everywhere*.
+
+Setup:
+````
+ab|c
+de|f
+````
+
+Keys: Alt-Shift-ArrowDown, Alt-Shift-ArrowUp
+
+Expected: unchanged
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-S6. Alt+Shift+↑ with no Expand before it: nothing
+
+
+Setup:
+````
+- a|
+- b
+````
+
+Keys: Alt-Shift-ArrowUp
+
+Expected: unchanged
 
 Source: SPEC.md §7 → Expand / shrink selection
 
@@ -10699,7 +10747,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 → Node selection
 
-### NS7. Heading Alt+Shift+↓ on a node selection: moved, still selected
+### NS7. Heading Ctrl+↓ on a node selection: moved, still selected
 
 
 Setup:
@@ -10710,7 +10758,7 @@ b⟧
 ## C
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -11058,7 +11106,7 @@ A notice says nothing can fold here.
 
 Source: SPEC.md §7 → Folding
 
-### FC14. Fold an item, then Alt+Shift+↓ moves it folded
+### FC14. Fold an item, then Ctrl+↓ moves it folded
 
 When: outline mode **off**; folded lines (0-based) 0.
 
@@ -11069,7 +11117,7 @@ Setup:
 - b
 ````
 
-Keys: Alt-Shift-ArrowDown
+Keys: Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -11779,7 +11827,7 @@ No other hotkey is Ctrl+Meta+O.
 
 Source: SPEC.md §7 → Where it works; Settings; Keys
 
-### WH7. No Obsidian hotkey sits on a plugin key (Alt+↑/↓, Alt+Shift+↑/↓, Alt+PageUp/PageDown, Tab)
+### WH7. No Obsidian hotkey sits on a plugin key (Alt+↑/↓, Alt+Shift+↑/↓, Ctrl+↑/↓, Tab)
 
 
 Setup:
@@ -11940,7 +11988,7 @@ Expected:
 
 Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
 
-### VM3. Normal mode: Alt+Shift+↓ moves a heading section
+### VM3. Normal mode: Ctrl+↓ moves a heading section
 
 When: Live Preview only; Obsidian config {"vimMode":true}.
 
@@ -11950,7 +11998,7 @@ Setup:
 # B
 ````
 
-Keys: wait 200 ms, Alt-Shift-ArrowDown
+Keys: wait 200 ms, Ctrl-ArrowDown
 
 Expected: 
 ````
@@ -12336,7 +12384,7 @@ Node-selected (highlighted) lines: 1.
 
 Source: SPEC.md §7 → Node selection (list items with the Outliner keys on, whatever outline mode is)
 
-### NO14. Alt+Shift+↑ moves, still node-selected
+### NO14. Ctrl+↑ moves, still node-selected
 
 When: outline mode **off**; *everywhere*.
 
@@ -12346,7 +12394,7 @@ Setup:
 ⟦- b⟧
 ````
 
-Keys: Alt-Shift-ArrowUp
+Keys: Ctrl-ArrowUp
 
 Expected: 
 ````

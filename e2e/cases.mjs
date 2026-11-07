@@ -2,7 +2,7 @@
 //
 // A case: { id, title, text, keys, want, ...options }
 //   text      the note before the keys: `|` a cursor (`cur` overrides the marker), ⟦ anchor … ⟧ head of a selection
-//   keys      key names ("Enter", "Shift-Tab", "Alt-Shift-ArrowUp", "Ctrl-z") or actions:
+//   keys      key names ("Enter", "Shift-Tab", "Ctrl-ArrowUp", "Ctrl-z") or actions:
 //             {type}, {paste: {mime: data}}, {copy: true}, {cut: true}, {cmd: id}, {ime: text}, {eval: js},
 //             {click: js returning [x, y]}, {wait: ms}, {writeClip: text} / {readClip: true} (the real clipboard)
 //   want      the note after, with markers (no markers: only the text is compared); "@off": the same as with
@@ -1595,7 +1595,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     id: "MB32",
     title: "Move up with code: untouched",
     text: "- one\n- tw|o\n  ```\n  \tx\n  ```",
-    keys: "Alt-Shift-ArrowUp",
+    keys: "Ctrl-ArrowUp",
     want: "- tw|o\n  ```\n  \tx\n  ```\n- one",
   },
   {
@@ -1703,9 +1703,9 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
   },
   {
     id: "N13",
-    title: "Alt+↓ undoes a ↓ step",
+    title: "Alt+Shift+↓ (Shrink) undoes a ↓ step",
     text: "- a\n⟦- b⟧\n- c",
-    keys: ["ArrowDown", "Alt-ArrowDown"],
+    keys: ["ArrowDown", "Alt-Shift-ArrowDown"],
     want: "- a\n⟦- b⟧\n- c",
   },
   {
@@ -1871,9 +1871,9 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
   },
   {
     id: "N38",
-    title: "Alt+Shift+↑ on a node selection: moves, still selected",
+    title: "Ctrl+↑ on a node selection: moves, still selected",
     text: "- x\n⟦- y\n- z⟧",
-    keys: "Alt-Shift-ArrowUp",
+    keys: "Ctrl-ArrowUp",
     want: "⟦- y\n- z⟧\n- x",
     wantHl: [0, 1],
   },
@@ -1971,7 +1971,7 @@ group(
       id: "MV1",
       title: "Move up an item with children",
       text: "- a\n- b\n- c|\n\t- c1\n\t- c2\n- d\n- e",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "- a\n- c|\n\t- c1\n\t- c2\n- b\n- d\n- e",
       surfaces: "all",
     },
@@ -1979,7 +1979,7 @@ group(
       id: "MV2",
       title: "Move down an item with children",
       text: "- a\n- b\n- c|\n\t- c1\n\t- c2\n- d\n- e",
-      keys: "Alt-Shift-ArrowDown",
+      keys: "Ctrl-ArrowDown",
       want: "- a\n- b\n- d\n- c|\n\t- c1\n\t- c2\n- e",
     },
     {
@@ -1994,56 +1994,56 @@ group(
       id: "MV4",
       title: "First child up: the last child of the parent's previous sibling",
       text: "- a\n\t- a1\n- b\n\t- b1|\n\t- b2",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "- a\n\t- a1\n\t- b1|\n- b\n\t- b2",
     },
     {
       id: "MV5",
       title: "Last child down: the first child of the parent's next sibling",
       text: "- a\n\t- a1|\n- b\n\t- b1",
-      keys: "Alt-Shift-ArrowDown",
+      keys: "Ctrl-ArrowDown",
       want: "- a\n- b\n\t- a1|\n\t- b1",
     },
     {
       id: "MV6",
       title: "First child up, the previous sibling has no children",
       text: "- a\n- b\n\t- b1|",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "- a\n\t- b1|\n- b",
     },
     {
       id: "MV7",
       title: "First child of the first item up: nothing",
       text: "- a\n\t- a1|\n\t- a2",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "@same",
     },
     {
       id: "MV8",
       title: "Last child of the last item down: nothing",
       text: "- a\n- b\n\t- b1|",
-      keys: "Alt-Shift-ArrowDown",
+      keys: "Ctrl-ArrowDown",
       want: "@same",
     },
     {
       id: "MV9",
       title: "Grandchild, parent is a first child: up does nothing (no jump further away)",
       text: "- x\n\t- x1\n- a\n\t- a1\n\t\t- g|",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "@same",
     },
     {
       id: "MV10",
       title: "Grandchild, parent is a last child: down does nothing",
       text: "- a\n\t- a1\n\t\t- g|\n- b\n\t- b1",
-      keys: "Alt-Shift-ArrowDown",
+      keys: "Ctrl-ArrowDown",
       want: "@same",
     },
     {
       id: "MV11",
       title: "Nested: 3rd of 5 up",
       text: "- p\n\t- 1\n\t- 2\n\t- 3|\n\t\t- 3a\n\t- 4\n\t- 5",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "- p\n\t- 1\n\t- 3|\n\t\t- 3a\n\t- 2\n\t- 4\n\t- 5",
     },
     {
@@ -2065,7 +2065,7 @@ group(
       id: "MV14",
       title: "Move down past a sibling with children",
       text: "- a|\n- b\n\t- b1\n- c",
-      keys: "Alt-Shift-ArrowDown",
+      keys: "Ctrl-ArrowDown",
       want: "- b\n\t- b1\n- a|\n- c",
     },
     {
@@ -2077,13 +2077,19 @@ group(
     },
     { id: "MV16", title: "Indent the first item: nothing", text: "- |a\n- b", keys: "Tab", want: "@same" },
     { id: "MV17", title: "Outdent a top-level item: nothing", text: "- a\n- |b", keys: "Shift-Tab", want: "@same" },
-    { id: "MV18", title: "Alt+PageUp moves up", text: "- a\n- b|", keys: "Alt-PageUp", want: "- b|\n- a" },
+    {
+      id: "MV18",
+      title: "Alt+PageUp isn't a move key: Obsidian's",
+      text: "- a\n- b|",
+      keys: "Alt-PageUp",
+      want: "@off",
+    },
     {
       id: "MV19",
       title: "Move keeps a fold inside the moved node",
       fold: [2],
       text: "- a\n- b\n- |c\n\t- c1",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "- a\n- |c\n\t- c1\n- b",
       wantFolds: [1],
       src: "SPEC.md §7 Folding (folds inside moved nodes survive)",
@@ -2101,7 +2107,7 @@ group(
       id: "MV21",
       title: "Move up across a blank line keeps it",
       text: "- a\n\n- |b",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "- |b\n\n- a",
     },
     {
@@ -2123,18 +2129,18 @@ group(
       id: "MV25",
       title: "Move heading sections",
       text: "# A\n\nx\n\n# |B\n\ny",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "# |B\n\ny\n\n# A\n\nx",
     },
     {
       id: "MV26",
       title: "Move a body block",
       text: "# H\n\npara1\n\npa|ra2",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "# H\n\npa|ra2\n\npara1",
     },
     { id: "MV27", title: "Tab in a paragraph: Obsidian's", text: "pa|ra", keys: "Tab", want: "@off" },
-    { id: "MV28", title: "Move in a callout", text: "> - a\n> - |b", keys: "Alt-Shift-ArrowUp", want: "> - |b\n> - a" },
+    { id: "MV28", title: "Move in a callout", text: "> - a\n> - |b", keys: "Ctrl-ArrowUp", want: "> - |b\n> - a" },
     {
       id: "MV29",
       title: "Outdent from deep nesting (10 levels)",
@@ -2146,7 +2152,7 @@ group(
       id: "MV30",
       title: "Top-level items stop at the list's edge",
       text: "para\n\n- |a\n- b",
-      keys: "Alt-Shift-ArrowUp",
+      keys: "Ctrl-ArrowUp",
       want: "@same",
     },
     {
@@ -2364,7 +2370,7 @@ group("tasks", "Ordered lists and tasks", OM + " → Enter (Marker), renumbering
     id: "O14",
     title: "Move up in a numbered list renumbers",
     text: "1. a\n2. b|",
-    keys: "Alt-Shift-ArrowUp",
+    keys: "Ctrl-ArrowUp",
     want: "1. b|\n2. a",
     src: R,
   },
@@ -2563,7 +2569,7 @@ group(
       id: "L3",
       title: "Move keeps the blank lines",
       text: "- a\n\n- |b\n\n- c",
-      keys: "Alt-Shift-ArrowDown",
+      keys: "Ctrl-ArrowDown",
       want: "- a\n\n- c\n\n- |b",
     },
     {

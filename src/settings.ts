@@ -4,7 +4,7 @@ import type EditorOutlinerPlugin from "./main";
 export interface Settings {
   outlineMode: boolean; // Logseq-like Enter / Shift+Enter / Shift+Tab inside lists (the "Toggle outline mode" command too)
   logicalOutdent: boolean; // outdented nodes move after their parent's subtree; following siblings stay
-  keys: boolean; // Tab / Shift+Tab, Alt+Shift+Up/Down, Alt+PageUp/PageDown, Alt+Up/Down (a CodeMirror keymap)
+  keys: boolean; // Tab / Shift+Tab, Mod+Up/Down, Alt+Up/Down, Alt+Shift+Up/Down (a CodeMirror keymap)
   headingGuides: boolean;
   dragHandles: boolean;
   deepHeadings: boolean; // style lines of 7+ # as headings
@@ -56,7 +56,7 @@ export class EditorOutlinerTab extends PluginSettingTab {
     );
     this.toggle(
       "Outliner keys",
-      "Tab / Shift+Tab indent and outdent headings and list items; Alt+Shift+↑/↓ or Alt+Fn+↑/↓ (Option+Fn+↑/↓ on a Mac) move them with their children; Alt+↑/↓ expand and shrink the selection; a selection of whole items or sections is a node selection (↑/↓ add siblings, ←/→ fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
+      "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+↑/↓ (Cmd+↑/↓ on a Mac) move them, or the selected ones, with their children; Alt+↑ or Alt+↓ expands the selection and Alt+Shift+↑ or Alt+Shift+↓ shrinks it back; a selection of whole items or sections is a node selection (↑/↓ add siblings, ←/→ fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
       "keys",
     );
     this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");

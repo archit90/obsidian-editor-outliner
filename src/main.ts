@@ -231,27 +231,21 @@ export default class EditorOutlinerPlugin extends Plugin {
     // while a key is held. Keys here act on the focused editor, repeat, and fall through (false) to
     // Obsidian where the outline doesn't apply.
     if (this.settings.keys) {
-      // Option+Shift+↑/↓ selects by paragraph on macOS: there only Option+Fn+↑/↓ (PageUp/PageDown) moves
-      const move = Platform.isMacOS
-        ? []
-        : [
-            { key: "Alt-Shift-ArrowUp", run: op("up") },
-            { key: "Alt-Shift-ArrowDown", run: op("down") },
-          ];
       this.extensions.push(
         Prec.highest(
           keymap.of([
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
-            ...move,
-            // Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through to
-            // Obsidian's document start / end)
+            // Move: Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through
+            // to Obsidian's document start / end)
             { key: "Mod-ArrowUp", run: op("up") },
             { key: "Mod-ArrowDown", run: op("down") },
-            { key: "Alt-PageUp", run: op("up") },
-            { key: "Alt-PageDown", run: op("down") },
+            // Expand: Alt+↑ or Alt+↓, the same chain; Shrink: Alt+Shift+↑ or ↓, back toward the start. They
+            // replace CodeMirror's move line / copy line up / down in the editor
             { key: "Alt-ArrowUp", run: expandSelection },
-            { key: "Alt-ArrowDown", run: shrinkSelection },
+            { key: "Alt-ArrowDown", run: expandSelection },
+            { key: "Alt-Shift-ArrowUp", run: shrinkSelection },
+            { key: "Alt-Shift-ArrowDown", run: shrinkSelection },
             { key: "Enter", run: codeEnter },
           ]),
         ),
