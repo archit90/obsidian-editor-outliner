@@ -216,6 +216,23 @@ export function expandSelection(view: EditorView): boolean {
   return true;
 }
 
+/**
+ * Sets the selection as a step that Shrink undoes, like an Expand step: node selection's ↑ / ↓ / ← / → are
+ * steps of the same chain. Later Expands start from origin when it lies in the new selection, else from from.
+ */
+export function selectStep(view: EditorView, anchor: number, head: number, from: number) {
+  const r = view.state.selection.main;
+  const prev = expansions.get(view);
+  const going = prev && prev.last.anchor === r.anchor && prev.last.head === r.head;
+  const lo = Math.min(anchor, head);
+  const hi = Math.max(anchor, head);
+  const origin = going && prev.origin >= lo && prev.origin <= hi ? prev.origin : from;
+  const stack = going ? prev.stack : [];
+  stack.push({ anchor: r.anchor, head: r.head });
+  expansions.set(view, { origin, stack, last: { anchor, head } });
+  view.dispatch({ selection: EditorSelection.single(anchor, head), scrollIntoView: true });
+}
+
 export function shrinkSelection(view: EditorView): boolean {
   if (nested(view)) return false;
   const r = view.state.selection.main;

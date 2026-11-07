@@ -6,7 +6,7 @@
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
 //   view.ts: heading guides, H7+ styling, drag handles. active.ts / enter.ts: outline mode's active state and
 //   its Enter / Shift+Enter / Shift+Tab (pure); merge.ts: Backspace / Delete; paste.ts: Paste (pure);
-//   mode.ts: their CodeMirror glue.
+//   mode.ts: their CodeMirror glue. nodes.ts: node selection (pure); nodesel.ts: its field, keys and highlight.
 // The keys are high-precedence CodeMirror keymaps (see buildExtensions); of the commands only "Toggle outline
 // mode" has a default hotkey (Ctrl+Super+O; Ctrl+Cmd+O on macOS).
 import { Notice, Platform, Plugin, htmlToMarkdown } from "obsidian";
@@ -35,6 +35,7 @@ import {
   setModeCheck,
   watchActive,
 } from "./mode";
+import { nodeSelectionExtension, setKeysCheck } from "./nodesel";
 import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
 import { dragHandles, headingGuides, lineDecorations } from "./view";
 
@@ -75,6 +76,7 @@ export default class EditorOutlinerPlugin extends Plugin {
     this.addSettingTab(new EditorOutlinerTab(this.app, this));
     setSuggestCheck(() => !!this.app.workspace.editorSuggest?.isShowingSuggestion?.());
     setModeCheck(() => this.settings.outlineMode);
+    setKeysCheck(() => this.settings.keys);
     this.buildExtensions();
     this.registerEditorExtension(this.extensions);
     this.addCommands();
@@ -84,6 +86,7 @@ export default class EditorOutlinerPlugin extends Plugin {
   override onunload() {
     setSuggestCheck(() => false);
     setModeCheck(() => false);
+    setKeysCheck(() => false);
     lastFocused = null;
   }
 
@@ -92,6 +95,8 @@ export default class EditorOutlinerPlugin extends Plugin {
     this.settings.outlineMode = on;
     await this.saveData(this.settings);
     this.refreshStatus();
+    // editors redraw: a list item's node selection highlight follows the mode
+    this.app.workspace.updateOptions();
   }
 
   /**
@@ -138,6 +143,8 @@ export default class EditorOutlinerPlugin extends Plugin {
     const logical = () => this.settings.logicalOutdent;
     const op = (kind: OpKind) => (v: EditorView) => runOp(v, kind, logical());
     this.extensions.length = 0;
+    // Node selection's keys come before the rest: they only act on a selection of whole nodes
+    this.extensions.push(nodeSelectionExtension());
     // Outline mode's keys come first: each falls through (false) when outline mode is off or not active
     // here, and then the outliner keys below (Shift+Tab outdent, Enter in code) or Obsidian's apply
     this.extensions.push(

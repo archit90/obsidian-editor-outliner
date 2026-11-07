@@ -88,3 +88,15 @@
   color: var(--text-accent);
   font-weight: var(--font-semibold, 600);
 }
+
+/* Node selection (nodesel.ts): whole selected lines are highlighted, and the text selection inside is hidden. */
+.cm-editor .cm-line.eo-node-selected {
+  background-color: var(--text-selection);
+}
+.cm-editor.eo-node-selection .cm-selectionBackground {
+  background: transparent !important;
+}
+.cm-editor.eo-node-selection .cm-content ::selection,
+.cm-editor.eo-node-selection .cm-content::selection {
+  background: transparent;
+}

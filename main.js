@@ -28,8 +28,8 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian5 = require("obsidian");
-var import_state4 = require("@codemirror/state");
-var import_view4 = require("@codemirror/view");
+var import_state5 = require("@codemirror/state");
+var import_view5 = require("@codemirror/view");
 
 // src/editor.ts
 var import_state = require("@codemirror/state");
@@ -1071,6 +1071,18 @@ function expandSelection(view) {
   view.dispatch({ selection: import_state.EditorSelection.single(best[0], best[1]) });
   return true;
 }
+function selectStep(view, anchor, head, from) {
+  const r = view.state.selection.main;
+  const prev = expansions.get(view);
+  const going = prev && prev.last.anchor === r.anchor && prev.last.head === r.head;
+  const lo = Math.min(anchor, head);
+  const hi = Math.max(anchor, head);
+  const origin = going && prev.origin >= lo && prev.origin <= hi ? prev.origin : from;
+  const stack = going ? prev.stack : [];
+  stack.push({ anchor: r.anchor, head: r.head });
+  expansions.set(view, { origin, stack, last: { anchor, head } });
+  view.dispatch({ selection: import_state.EditorSelection.single(anchor, head), scrollIntoView: true });
+}
 function shrinkSelection(view) {
   if (nested(view)) return false;
   const r = view.state.selection.main;
@@ -1725,14 +1737,15 @@ var modeOn = () => false;
 function setModeCheck(fn) {
   modeOn = fn;
 }
+var outlineModeOn = () => modeOn();
 function activeIn(view) {
   const st = view.state;
   if (!modeOn() || st.selection.ranges.length > 1 || !usable(view)) return null;
   const [l0, l1] = lineSpan(st);
   return activeAt(outlineOf(st), l0, l1);
 }
-function stepAside(view) {
-  return !modeOn() || view.composing || suggestOpen() || view.state.selection.ranges.length > 1 || !usable(view) || vimNormal(view);
+function stepAside(view, needMode = true) {
+  return needMode && !modeOn() || view.composing || suggestOpen() || view.state.selection.ranges.length > 1 || !usable(view) || vimNormal(view);
 }
 function vimNormal(view) {
   const vim = view.cm?.state?.vim;
@@ -1810,6 +1823,308 @@ var watchActive = (onChange) => import_view2.EditorView.updateListener.of((u) =>
   if (u.selectionSet || u.docChanged || u.focusChanged) onChange();
 });
 
+// src/nodesel.ts
+var import_state3 = require("@codemirror/state");
+var import_view3 = require("@codemirror/view");
+var import_language4 = require("@codemirror/language");
+
+// src/nodes.ts
+var sectionEnd = (o, s) => trimEnd(o, s.line, s.end);
+function itemAt(o, line) {
+  const it = locate(o, line)?.item;
+  return it && it.line === line ? it : null;
+}
+function nodeAt2(o, kind, line) {
+  if (kind === "item") {
+    const it = itemAt(o, line);
+    if (!it) return null;
+    return {
+      line,
+      end: it.end,
+      sibs: it.parent.children.map((x) => x.line),
+      parent: it.parent && it.parent.line >= 0 ? it.parent.line : null,
+      children: it.children.map((x) => x.line)
+    };
+  }
+  const s = sectionAt(o, line);
+  if (s === o.root || s.line !== line || o.info[line]?.kind !== "heading") return null;
+  return {
+    line,
+    end: sectionEnd(o, s),
+    sibs: s.parent.children.map((x) => x.line),
+    parent: s.parent && s.parent !== o.root ? s.parent.line : null,
+    children: s.children.map((x) => x.line)
+  };
+}
+function nodeLines(o, sel) {
+  const a = nodeAt2(o, sel.kind, sel.anchor);
+  if (!a) return [];
+  const i = a.sibs.indexOf(sel.anchor);
+  const j = a.sibs.indexOf(sel.head);
+  if (j < 0) return [];
+  return a.sibs.slice(Math.min(i, j), Math.max(i, j) + 1);
+}
+function nodeRange(o, sel) {
+  const ls = nodeLines(o, sel);
+  if (!ls.length) return null;
+  return [ls[0], nodeAt2(o, sel.kind, ls[ls.length - 1]).end];
+}
+function nodeSpan(o, sel) {
+  const r = nodeRange(o, sel);
+  if (!r) return null;
+  const start = { line: r[0], ch: 0 };
+  const end = { line: r[1] - 1, ch: o.texts[r[1] - 1].length };
+  const back = sel.head < sel.anchor;
+  return back ? { anchor: end, head: start } : { anchor: start, head: end };
+}
+function nodeSelOf(o, anchor, head) {
+  const fwd = anchor.line < head.line || anchor.line === head.line && anchor.ch <= head.ch;
+  const from = fwd ? anchor : head;
+  const to = fwd ? head : anchor;
+  if (from.ch !== 0 || from.line === to.line && from.ch === to.ch) return null;
+  let end;
+  if (to.line < o.texts.length && to.ch === o.texts[to.line].length) end = to.line + 1;
+  else if (to.ch === 0 && to.line > from.line) end = to.line;
+  else return null;
+  for (const kind of ["item", "heading"]) {
+    const a = nodeAt2(o, kind, from.line);
+    if (!a) continue;
+    const i = a.sibs.indexOf(a.line);
+    for (let j = i; j < a.sibs.length; j++) {
+      const b = nodeAt2(o, kind, a.sibs[j]);
+      if (b.end > end) break;
+      if (b.end === end) return fwd ? { kind, anchor: a.line, head: b.line } : { kind, anchor: b.line, head: a.line };
+    }
+  }
+  return null;
+}
+function extendSel(o, sel, dir) {
+  const h = nodeAt2(o, sel.kind, sel.head);
+  if (!h) return null;
+  const next = h.sibs[h.sibs.indexOf(sel.head) + dir];
+  return next === void 0 ? null : { ...sel, head: next };
+}
+function parentSel(o, sel) {
+  const p = nodeAt2(o, sel.kind, sel.head)?.parent;
+  return p === null || p === void 0 ? null : { kind: sel.kind, anchor: p, head: p };
+}
+function childSel(o, sel) {
+  const c = nodeAt2(o, sel.kind, sel.head)?.children[0];
+  return c === void 0 ? null : { kind: sel.kind, anchor: c, head: c };
+}
+function removeNodes(o, sel) {
+  const r = nodeRange(o, sel);
+  if (!r) return null;
+  let [s, e] = r;
+  const last = nodeAt2(o, sel.kind, nodeLines(o, sel).pop());
+  const after = last.sibs[last.sibs.indexOf(last.line) + 1];
+  let b = e;
+  while (b < o.texts.length && isBlank(o, b)) b++;
+  let a = s;
+  while (a > o.bodyStart && isBlank(o, a - 1)) a--;
+  if (after !== void 0 || a === o.bodyStart) e = b;
+  else s = a;
+  const rows = rowsOf(o);
+  const first = nodeLines(o, sel)[0];
+  if (sel.kind === "item" && after !== void 0 && last.sibs[0] === first) {
+    const num = (i) => /^(\d{1,9})[.)]/.exec(o.texts[i].slice(o.info[i].pre + o.info[i].ws));
+    const m = num(first);
+    const n = num(after);
+    if (m && n) {
+      const at = o.info[after].pre + o.info[after].ws;
+      rows[after] = { t: rows[after].t.slice(0, at) + m[1] + rows[after].t.slice(at + n[1].length), o: after };
+    }
+  }
+  rows.splice(s, e - s);
+  const out = finish(o, rows, o.tabSize).rows;
+  if (!out.length) out.push({ t: "", o: -1 });
+  let cursor;
+  if (after !== void 0) {
+    const k = out.findIndex((x) => x.o === after);
+    cursor = { line: k, ch: o.info[after].text + out[k].t.length - o.texts[after].length };
+  } else if (s > 0) cursor = { line: s - 1, ch: out[s - 1].t.length };
+  else cursor = { line: 0, ch: 0 };
+  return { rows: out, cursor };
+}
+function nodeText(o, sel) {
+  const r = nodeRange(o, sel);
+  if (!r) return null;
+  const lines = o.texts.slice(r[0], r[1]);
+  if (sel.kind === "heading") return lines.join("\n");
+  const list = locate(o, r[0]).list;
+  const col = o.info[r[0]].col;
+  return lines.map((t) => {
+    const rest = t.slice(prefixLen(t, list.q));
+    const ws = /^[ \t]*/.exec(rest)[0];
+    return dropCols(ws, col, o.tabSize) + rest.slice(ws.length);
+  }).join("\n");
+}
+
+// src/nodesel.ts
+function wholeLines(state) {
+  const r = state.selection.main;
+  if (r.empty || state.selection.ranges.length > 1) return false;
+  const a = state.doc.lineAt(r.from);
+  const b = state.doc.lineAt(r.to);
+  return r.from === a.from && (r.to === b.to || r.to === b.from);
+}
+var derive = (state) => wholeLines(state) ? nodeSelOf(outlineOf(state), posOf(state, state.selection.main.anchor), posOf(state, state.selection.main.head)) : null;
+var nodeField = import_state3.StateField.define({
+  create: derive,
+  update: (value, tr) => tr.selection || tr.docChanged ? derive(tr.state) : value
+});
+var keysOn = () => false;
+function setKeysCheck(fn) {
+  keysOn = fn;
+}
+function nodeSelection(state) {
+  const sel = state.field(nodeField, false) ?? null;
+  if (!sel || state.readOnly) return null;
+  return (sel.kind === "item" ? outlineModeOn() : keysOn()) ? sel : null;
+}
+function keySel(view) {
+  const sel = nodeSelection(view.state);
+  return sel && !stepAside(view, sel.kind === "item") ? sel : null;
+}
+function select(view, sel) {
+  const st = view.state;
+  const span = nodeSpan(outlineOf(st), sel);
+  if (!span) return;
+  const off = (p) => st.doc.line(p.line + 1).from + p.ch;
+  selectStep(view, off(span.anchor), off(span.head), st.doc.line(sel.anchor + 1).from);
+}
+var extend = (dir) => (view) => {
+  const sel = keySel(view);
+  if (!sel) return false;
+  const next = extendSel(outlineOf(view.state), sel, dir);
+  if (next) select(view, next);
+  return true;
+};
+function left(view) {
+  const sel = keySel(view);
+  if (!sel) return false;
+  const st = view.state;
+  const o = outlineOf(st);
+  const folded = foldedLines(st);
+  const effects = [];
+  for (const l of nodeLines(o, sel)) {
+    const line = st.doc.line(l + 1);
+    const r = folded.has(l) ? null : (0, import_language4.foldable)(st, line.from, line.to);
+    if (r) effects.push(import_language4.foldEffect.of(r));
+  }
+  if (effects.length) view.dispatch({ effects });
+  else {
+    const p = parentSel(o, sel);
+    if (p) select(view, p);
+  }
+  return true;
+}
+function right(view) {
+  const sel = keySel(view);
+  if (!sel) return false;
+  const st = view.state;
+  const o = outlineOf(st);
+  const lines = new Set(nodeLines(o, sel));
+  const effects = [];
+  (0, import_language4.foldedRanges)(st).between(0, st.doc.length, (from, to) => {
+    if (lines.has(st.doc.lineAt(from).number - 1)) effects.push(import_language4.unfoldEffect.of({ from, to }));
+  });
+  if (effects.length) view.dispatch({ effects });
+  else {
+    const c = childSel(o, sel);
+    if (c) select(view, c);
+  }
+  return true;
+}
+function clear(view) {
+  const sel = keySel(view);
+  if (!sel) return false;
+  const st = view.state;
+  const L = outlineOf(st).info[sel.anchor];
+  view.dispatch({ selection: { anchor: st.doc.line(sel.anchor + 1).from + L.text }, scrollIntoView: true });
+  return true;
+}
+function remove(view, userEvent = "remove.outliner") {
+  const sel = keySel(view);
+  if (!sel) return false;
+  const o = outlineOf(view.state);
+  const res = removeNodes(o, sel);
+  if (res) applyRows(view, o, res.rows, userEvent, res.cursor);
+  return true;
+}
+function copied(state, sel) {
+  const o = outlineOf(state);
+  const text = nodeText(o, sel);
+  const r = nodeRange(o, sel);
+  if (text === null || !r) return null;
+  return state.selection.main.to > state.doc.line(r[1]).to ? text + "\n" : text;
+}
+var highlight = import_view3.ViewPlugin.fromClass(
+  class {
+    constructor(view) {
+      this.decorations = import_view3.Decoration.none;
+      this.build(view);
+    }
+    update(u) {
+      this.build(u.view);
+    }
+    build(view) {
+      const sel = nodeSelection(view.state);
+      const r = sel && nodeRange(outlineOf(view.state), sel);
+      view.dom.classList.toggle("eo-node-selection", !!r);
+      if (!r) {
+        this.decorations = import_view3.Decoration.none;
+        return;
+      }
+      const doc = view.state.doc;
+      const b = new import_state3.RangeSetBuilder();
+      const deco = import_view3.Decoration.line({ class: "eo-node-selected" });
+      for (const { from, to } of view.visibleRanges) {
+        const a = Math.max(r[0], doc.lineAt(from).number - 1);
+        const z = Math.min(r[1], doc.lineAt(to).number);
+        for (let l = a; l < z; l++) b.add(doc.line(l + 1).from, doc.line(l + 1).from, deco);
+      }
+      this.decorations = b.finish();
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+function nodeSelectionExtension() {
+  return [
+    nodeField,
+    highlight,
+    import_state3.Prec.highest(
+      import_view3.keymap.of([
+        { key: "ArrowUp", run: extend(-1) },
+        { key: "ArrowDown", run: extend(1) },
+        { key: "ArrowLeft", run: left },
+        { key: "ArrowRight", run: right },
+        { key: "Escape", run: clear },
+        { key: "Backspace", run: (v) => remove(v) },
+        { key: "Delete", run: (v) => remove(v) }
+      ])
+    ),
+    import_view3.EditorView.clipboardOutputFilter.of((text, state) => {
+      const sel = nodeSelection(state);
+      return (sel && copied(state, sel)) ?? text;
+    }),
+    // cut removes the nodes like Backspace (CodeMirror's cut would leave an empty line in the list)
+    import_state3.Prec.highest(
+      import_view3.EditorView.domEventHandlers({
+        cut: (e, view) => {
+          const sel = keySel(view);
+          const text = sel && copied(view.state, sel);
+          if (!text || !e.clipboardData) return false;
+          e.preventDefault();
+          e.clipboardData.clearData();
+          e.clipboardData.setData("text/plain", text);
+          return remove(view, "cut.outliner");
+        }
+      })
+    )
+  ];
+}
+
 // src/settings.ts
 var import_obsidian3 = require("obsidian");
 var DEFAULTS = {
@@ -1869,8 +2184,8 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
 };
 
 // src/view.ts
-var import_state3 = require("@codemirror/state");
-var import_view3 = require("@codemirror/view");
+var import_state4 = require("@codemirror/state");
+var import_view4 = require("@codemirror/view");
 var import_obsidian4 = require("obsidian");
 
 // src/drop.ts
@@ -2007,7 +2322,7 @@ function plainEdit(u) {
   return plain;
 }
 function lineDecorations(settings) {
-  return import_view3.ViewPlugin.fromClass(
+  return import_view4.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.decorations = this.build(view);
@@ -2018,9 +2333,9 @@ function lineDecorations(settings) {
       }
       build(view) {
         const s = settings();
-        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view3.Decoration.none;
+        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view4.Decoration.none;
         const o = outlineOf(view.state);
-        const b = new import_state3.RangeSetBuilder();
+        const b = new import_state4.RangeSetBuilder();
         const doc = view.state.doc;
         let last = -1;
         for (const { from, to } of view.visibleRanges) {
@@ -2038,7 +2353,7 @@ function lineDecorations(settings) {
               if (s.levelLabels) cls.push("eo-level-label");
               attrs["data-eo-level"] = String(L.level);
             }
-            if (cls.length) b.add(line.from, line.from, import_view3.Decoration.line({ class: cls.join(" "), attributes: attrs }));
+            if (cls.length) b.add(line.from, line.from, import_view4.Decoration.line({ class: cls.join(" "), attributes: attrs }));
           }
         }
         return b.finish();
@@ -2049,7 +2364,7 @@ function lineDecorations(settings) {
 }
 var GUIDE_STEP = 10;
 function headingGuides() {
-  return (0, import_view3.layer)({
+  return (0, import_view4.layer)({
     above: false,
     class: "eo-guides",
     update: (u) => u.docChanged || u.viewportChanged || u.geometryChanged,
@@ -2085,7 +2400,7 @@ function headingGuides() {
         const y1 = bottom.bottom + view.documentTop - baseTop;
         if (y1 - y0 < 1) continue;
         const x = textLeft - 6 - (deepest - depthOf.get(s)) * step;
-        out.push(new import_view3.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
+        out.push(new import_view4.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
       }
       return out;
     }
@@ -2094,7 +2409,7 @@ function headingGuides() {
 var HEADING_STEP = 24;
 var DRAG_START = 4;
 function dragHandles(logical) {
-  return import_view3.ViewPlugin.fromClass(
+  return import_view4.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.view = view;
@@ -2275,11 +2590,11 @@ function dragHandles(logical) {
         d.target = best;
         d.opt = opt;
         const box = view.dom.getBoundingClientRect();
-        const left = d.base + (d.src.kind === "block" ? 0 : opt.depth * d.step);
+        const left2 = d.base + (d.src.kind === "block" ? 0 : opt.depth * d.step);
         this.indicator.style.display = "";
         this.indicator.style.top = `${d.tops[lo] + view.documentTop - box.top - 1}px`;
-        this.indicator.style.left = `${left - box.left}px`;
-        this.indicator.style.width = `${Math.max(40, d.right - left)}px`;
+        this.indicator.style.left = `${left2 - box.left}px`;
+        this.indicator.style.width = `${Math.max(40, d.right - left2)}px`;
         this.indicator.textContent = d.src.kind === "heading" ? `H${opt.value}` : "";
       }
       end() {
@@ -2324,10 +2639,10 @@ function focusedView() {
     }
   }
   const ed = el?.closest(".cm-editor");
-  return ed ? import_view4.EditorView.findFromDOM(ed) : null;
+  return ed ? import_view5.EditorView.findFromDOM(ed) : null;
 }
 var lastFocused = null;
-var rememberFocus = import_view4.EditorView.domEventHandlers({
+var rememberFocus = import_view5.EditorView.domEventHandlers({
   focus: (_e, view) => {
     lastFocused = view;
   }
@@ -2345,6 +2660,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     this.addSettingTab(new EditorOutlinerTab(this.app, this));
     setSuggestCheck(() => !!this.app.workspace.editorSuggest?.isShowingSuggestion?.());
     setModeCheck(() => this.settings.outlineMode);
+    setKeysCheck(() => this.settings.keys);
     this.buildExtensions();
     this.registerEditorExtension(this.extensions);
     this.addCommands();
@@ -2353,6 +2669,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   onunload() {
     setSuggestCheck(() => false);
     setModeCheck(() => false);
+    setKeysCheck(() => false);
     lastFocused = null;
   }
   /** Outline mode on / off (command, setting, status bar): saved, no editor reconfiguration needed. */
@@ -2360,6 +2677,7 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     this.settings.outlineMode = on;
     await this.saveData(this.settings);
     this.refreshStatus();
+    this.app.workspace.updateOptions();
   }
   /**
    * The status bar item (desktop; mobile has no status bar): "Outline" when outline mode is on, emphasised
@@ -2402,9 +2720,10 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     const logical = () => this.settings.logicalOutdent;
     const op = (kind) => (v) => runOp(v, kind, logical());
     this.extensions.length = 0;
+    this.extensions.push(nodeSelectionExtension());
     this.extensions.push(
-      import_state4.Prec.highest(
-        import_view4.keymap.of([
+      import_state5.Prec.highest(
+        import_view5.keymap.of([
           { key: "Enter", run: (v) => outlineEnter(v, logical()) },
           { key: "Shift-Enter", run: outlineShiftEnter },
           { key: "Shift-Tab", run: outlineEndList },
@@ -2419,8 +2738,8 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
         { key: "Alt-Shift-ArrowDown", run: op("down") }
       ];
       this.extensions.push(
-        import_state4.Prec.highest(
-          import_view4.keymap.of([
+        import_state5.Prec.highest(
+          import_view5.keymap.of([
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
             ...move2,

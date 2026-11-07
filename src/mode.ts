@@ -16,6 +16,7 @@ let modeOn: () => boolean = () => false;
 export function setModeCheck(fn: () => boolean) {
   modeOn = fn;
 }
+export const outlineModeOn = () => modeOn();
 
 /**
  * Whether outline mode is active in this editor: on, one selection range, a usable editor, and the selection
@@ -31,11 +32,11 @@ export function activeIn(view: EditorView): Active | null {
 /**
  * Whether an active-state key leaves the key to Obsidian before looking at the text: outline mode off,
  * several cursors, a read-only or nested editor (a Live Preview table cell), an autocomplete popup open, IME
- * composition, Vim outside insert mode. The pure functions add the text rules (code blocks, items that aren't a clean tree).
+ * composition, Vim outside insert mode (needMode false: whatever the mode, for heading node selection). The pure functions add the text rules (code blocks, items that aren't a clean tree).
  */
-export function stepAside(view: EditorView): boolean {
+export function stepAside(view: EditorView, needMode = true): boolean {
   return (
-    !modeOn() ||
+    (needMode && !modeOn()) ||
     view.composing ||
     suggestOpen() ||
     view.state.selection.ranges.length > 1 ||

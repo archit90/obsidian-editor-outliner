@@ -3,7 +3,7 @@
   "name": "Editor Outliner",
   "version": "0.1.0",
   "minAppVersion": "1.15.0",
-  "description": "Outliner editing for headings, nested lists and body blocks: indent / outdent and move with children, growing selection, an outline mode with Logseq-like Enter, Backspace, Delete and paste in lists, code blocks and Dataview queries inside list items, folding commands, heading guides and drag handles.",
+  "description": "Outliner editing for headings, nested lists and body blocks: indent / outdent and move with children, growing selection that reaches whole items and sections (node selection with tree-like keys), an outline mode with Logseq-like Enter, Backspace, Delete and paste in lists, code blocks and Dataview queries inside list items, folding commands, heading guides and drag handles.",
   "author": "Archit",
   "isDesktopOnly": false
 }
