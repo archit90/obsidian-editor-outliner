@@ -34,7 +34,7 @@ export function itemIndent(o: Outline, w: Owner, ctx: Ctx): string {
 }
 
 /** Where the item indent of line t ends: after the quote prefix and the whitespace covering cc columns. */
-function indentEnd(t: string, q: number, cc: number, tabSize: number): number {
+export function indentEnd(t: string, q: number, cc: number, tabSize: number): number {
   let k = prefixLen(t, q);
   let c = 0;
   while (k < t.length && c < cc && (t[k] === " " || t[k] === "\t")) {

@@ -75,3 +75,16 @@
   white-space: nowrap;
   color: var(--interactive-accent);
 }
+
+/* Outline mode in the status bar (main.ts addStatus): faint when off, normal when on, accent while the
+   cursor is in a list in the focused editor (the active state). */
+.eo-status {
+  color: var(--text-faint);
+}
+.eo-status.is-on {
+  color: var(--text-muted);
+}
+.eo-status.is-active {
+  color: var(--text-accent);
+  font-weight: var(--font-semibold, 600);
+}

@@ -7,9 +7,9 @@ var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
+var __export = (target2, all) => {
   for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
+    __defProp(target2, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -28,8 +28,8 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian5 = require("obsidian");
-var import_state3 = require("@codemirror/state");
-var import_view3 = require("@codemirror/view");
+var import_state4 = require("@codemirror/state");
+var import_view4 = require("@codemirror/view");
 
 // src/editor.ts
 var import_state = require("@codemirror/state");
@@ -620,11 +620,11 @@ function move(o, l0, l1, dir, ctx) {
     }
     if (P.line < 0) return "noop";
     const flat = flatItems(itemsOf(o, ir.list));
-    const target = dir < 0 ? flat.filter((x) => x.depth === P.depth && x.line < P.line).pop() : flat.find((x) => x.depth === P.depth && x.line >= P.end);
-    if (!target) return "noop";
+    const target2 = dir < 0 ? flat.filter((x) => x.depth === P.depth && x.line < P.line).pop() : flat.find((x) => x.depth === P.depth && x.line >= P.end);
+    if (!target2) return "noop";
     let rows2 = rowsOf(o);
-    shift(o, rows2, first.line, last.end, childCol(target, lc) - first.col, lc, ir.list.q);
-    [rows2] = relocate(rows2, first.line, last.end, dir < 0 ? target.end : target.ownEnd);
+    shift(o, rows2, first.line, last.end, childCol(target2, lc) - first.col, lc, ir.list.q);
+    [rows2] = relocate(rows2, first.line, last.end, dir < 0 ? target2.end : target2.ownEnd);
     return finish(o, rows2, ctx.tabSize);
   }
   const br = blockRun(o, l0, l1);
@@ -1222,9 +1222,233 @@ function unfoldAll(view) {
   run(view, unfoldLines(view, 0, doc.lines - 1));
 }
 
+// src/mode.ts
+var import_state2 = require("@codemirror/state");
+var import_view2 = require("@codemirror/view");
+var import_language3 = require("@codemirror/language");
+
+// src/active.ts
+function cursorOwner(o, i) {
+  const w = ownerAt(o, i);
+  if (w || i < o.bodyStart || i >= o.texts.length || !isBlank(o, i, true)) return w;
+  const L = o.info[i];
+  if (L.col === 0) return null;
+  let k = i - 1;
+  while (k >= o.bodyStart && isBlank(o, k, true)) k--;
+  if (k < o.bodyStart) return null;
+  const above = ownerAt(o, k);
+  if (!above || k !== above.item.ownEnd - 1 || L.qd !== above.list.q || L.col < above.item.cc) return null;
+  return above;
+}
+function activeAt(o, l0, l1) {
+  const a = cursorOwner(o, l0);
+  if (!a) return null;
+  const b = l1 === l0 ? a : cursorOwner(o, l1);
+  if (!b || b.list !== a.list) return null;
+  return { list: a.list, from: a, to: b };
+}
+function cleanItem(o, w) {
+  const { item, list } = w;
+  for (let i = item.line + 1; i < item.ownEnd; i++) {
+    const L = o.info[i];
+    if (isBlank(o, i, true) || L.kind === "code" && L.empty) continue;
+    if (L.qd > list.q) {
+      if (list.q === 0 && L.qcol < item.cc) return false;
+      continue;
+    }
+    if (L.qd !== list.q || L.col < item.cc) return false;
+  }
+  return true;
+}
+
+// src/enter.ts
+function target(o, from, to) {
+  if (from.line !== to.line) return null;
+  const w = cursorOwner(o, from.line);
+  if (!w || !cleanItem(o, w)) return null;
+  const L = o.info[from.line];
+  if (L.kind === "code" || L.qd > w.list.q) return null;
+  return w;
+}
+function textStart(o, w, line) {
+  if (line === w.item.line) return o.info[line].text;
+  return indentEnd(o.texts[line], w.list.q, w.item.cc, o.tabSize);
+}
+var MARKER = /^([-*+]|\d{1,9}[.)])([ \t]*)(\[.\][ \t]*)?/;
+function markerOf(o, line) {
+  const L = o.info[line];
+  const m = MARKER.exec(o.texts[line].slice(L.pre + L.ws, L.text));
+  return { bullet: m[1], gap: m[2] || " ", task: !!m[3] };
+}
+var quoteBlank = (o, w) => {
+  const t = o.texts[w.item.line];
+  return t.slice(0, prefixLen(t, w.list.q)).trimEnd();
+};
+var isEmptyText = (s) => s.trim() === "";
+function enter(o, from, to, ctx, folded) {
+  const w = target(o, from, to);
+  if (!w) return null;
+  const { item, list } = w;
+  const q = list.q;
+  const lc = listCtx(o, list, ctx);
+  const line = from.line;
+  const t = o.texts[line];
+  const sc = textStart(o, w, line);
+  const a = Math.max(from.ch, sc);
+  const b = Math.max(to.ch, sc);
+  const ownEnd = Math.max(item.ownEnd, line + 1);
+  const head = [];
+  for (let i = item.line; i < line; i++) head.push({ t: o.texts[i], o: i });
+  const cut = t.slice(0, sc) + t.slice(sc, a).trimEnd();
+  if (line === item.line || cut.length > sc) head.push({ t: cut, o: line });
+  while (head.length > 1 && isEmptyText(head[head.length - 1].t.slice(prefixLen(head[head.length - 1].t, q))))
+    head.pop();
+  const markerText = head[0].t.slice(o.info[item.line].text);
+  const headEmpty = head.length === 1 && isEmptyText(markerText);
+  const tail = [];
+  const rest = t.slice(b).replace(/^[ \t]+/, "");
+  if (rest) tail.push({ t: rest, plain: true });
+  for (let i = line + 1; i < ownEnd; i++) {
+    const L = o.info[i];
+    const blank = L.kind !== "code" && L.empty;
+    if (blank && !tail.length) continue;
+    tail.push({
+      t: blank ? "" : stripItemIndent(o.texts[i], q, item.cc, o.tabSize),
+      plain: L.kind === "text" && L.qd === q
+    });
+  }
+  const rows = rowsOf(o);
+  const sibs = item.parent.children;
+  const last = sibs.indexOf(item) === sibs.length - 1;
+  if (headEmpty && !tail.length) {
+    if (item.depth > 0 && last) {
+      const res = outdent(o, item.line, item.line, ctx);
+      if (!res || res === "noop" || "error" in res) return null;
+      const k = res.rows.findIndex((r) => r.o === item.line);
+      return { rows: res.rows, cursor: { line: k, ch: res.rows[k].t.length } };
+    }
+  } else if (headEmpty) {
+    const m = markerOf(o, item.line);
+    const marker = itemPrefix(o, w, item.col, m.bullet, m.gap, m.task, lc);
+    if (b > a) rows[line] = { t: t.slice(0, a) + t.slice(b), o: line };
+    rows.splice(item.line, 0, { t: marker, o: -1 });
+    const out2 = finish(o, rows, o.tabSize).rows;
+    const r = out2[line + 1];
+    const ch = line === item.line ? sc + (r.t.length - rows[line + 1].t.length) : from.ch;
+    return { rows: out2, cursor: { line: line + 1, ch } };
+  }
+  const kids = item.children.length > 0 && !folded.has(item.line);
+  const tpl = kids ? item.children[0] : item;
+  const tm = markerOf(o, tpl.line);
+  const own = markerOf(o, item.line);
+  const prefix = itemPrefix(o, w, tpl.col, tm.bullet, tm.gap, own.task, lc);
+  const cc = parseLines([prefix + "x"], o.tabSize).info[0].cc;
+  const contIndent = o.texts[item.line].slice(0, prefixLen(o.texts[item.line], q)) + makeWs(cc, lc);
+  const joined = tail[0]?.plain ? tail.shift().t : "";
+  const fresh = [{ t: prefix + joined, o: -1 }];
+  for (const x of tail) fresh.push({ t: x.t === "" ? quoteBlank(o, w) : contIndent + x.t, o: -1 });
+  const end = Math.max(item.end, ownEnd);
+  const middle = rows.slice(ownEnd, end);
+  const body = kids ? [...fresh, ...middle] : [...middle, ...fresh];
+  const next = [...rows.slice(0, item.line), ...head, ...body, ...rows.slice(end)];
+  const at = item.line + head.length + (kids ? 0 : middle.length);
+  const out = finish(o, next, o.tabSize).rows;
+  return { rows: out, cursor: { line: at, ch: out[at].t.length - joined.length } };
+}
+function itemPrefix(o, w, col, bullet, gap, task, lc) {
+  const t = o.texts[w.item.line];
+  return t.slice(0, prefixLen(t, w.list.q)) + makeWs(col, lc) + bullet + gap + (task ? "[ ] " : "");
+}
+function softBreak(o, from, to, ctx) {
+  const w = target(o, from, to);
+  if (!w) return null;
+  const t = o.texts[from.line];
+  const sc = textStart(o, w, from.line);
+  const a = Math.max(from.ch, sc);
+  let b = Math.max(to.ch, sc);
+  while (b < t.length && (t[b] === " " || t[b] === "	")) b++;
+  return { line: from.line, from: a, to: b, insert: "\n" + itemIndent(o, w, ctx) };
+}
+function endList(o, from, to) {
+  const w = target(o, from, to);
+  if (!w || from.line !== w.item.line) return null;
+  const { item } = w;
+  if (item.depth !== 0 || item.children.length || item.ownEnd !== item.line + 1) return null;
+  if (!isEmptyText(o.texts[item.line].slice(o.info[item.line].text))) return null;
+  const rows = rowsOf(o);
+  const blank = quoteBlank(o, w);
+  rows[item.line] = { t: blank, o: item.line };
+  return { rows, cursor: { line: item.line, ch: blank.length } };
+}
+
+// src/mode.ts
+var modeOn = () => false;
+function setModeCheck(fn) {
+  modeOn = fn;
+}
+function activeIn(view) {
+  const st = view.state;
+  if (!modeOn() || st.selection.ranges.length > 1 || !usable(view)) return null;
+  const [l0, l1] = lineSpan(st);
+  return activeAt(outlineOf(st), l0, l1);
+}
+function stepAside(view) {
+  return !modeOn() || view.composing || suggestOpen() || view.state.selection.ranges.length > 1 || !usable(view);
+}
+function foldedLines(state) {
+  const out = /* @__PURE__ */ new Set();
+  (0, import_language3.foldedRanges)(state).between(0, state.doc.length, (from) => {
+    out.add(state.doc.lineAt(from).number - 1);
+  });
+  return out;
+}
+var selected = (state) => {
+  const r = state.selection.main;
+  return { from: posOf(state, r.from), to: posOf(state, r.to) };
+};
+function outlineEnter(view, logical) {
+  if (stepAside(view)) return false;
+  const st = view.state;
+  const o = outlineOf(st);
+  const { from, to } = selected(st);
+  const res = enter(o, from, to, ctxOf(st, logical), foldedLines(st));
+  if (!res) return false;
+  applyRows(view, o, res.rows, "split.outliner", res.cursor);
+  return true;
+}
+function outlineShiftEnter(view) {
+  if (stepAside(view)) return false;
+  const st = view.state;
+  const { from, to } = selected(st);
+  const c = softBreak(outlineOf(st), from, to, ctxOf(st, false));
+  if (!c) return false;
+  const line = st.doc.line(c.line + 1);
+  view.dispatch({
+    changes: { from: line.from + c.from, to: line.from + c.to, insert: c.insert },
+    selection: import_state2.EditorSelection.cursor(line.from + c.from + c.insert.length),
+    scrollIntoView: true,
+    userEvent: "input"
+  });
+  return true;
+}
+function outlineEndList(view) {
+  if (stepAside(view)) return false;
+  const st = view.state;
+  const o = outlineOf(st);
+  const { from, to } = selected(st);
+  const res = endList(o, from, to);
+  if (!res) return false;
+  applyRows(view, o, res.rows, "indent.outliner", res.cursor);
+  return true;
+}
+var watchActive = (onChange) => import_view2.EditorView.updateListener.of((u) => {
+  if (u.selectionSet || u.docChanged || u.focusChanged) onChange();
+});
+
 // src/settings.ts
 var import_obsidian3 = require("obsidian");
 var DEFAULTS = {
+  outlineMode: true,
   logicalOutdent: false,
   keys: true,
   headingGuides: true,
@@ -1247,6 +1471,9 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
   }
   display() {
     this.containerEl.empty();
+    new import_obsidian3.Setting(this.containerEl).setName("Outline mode").setDesc(
+      'Inside a list, keys work like an outliner (Logseq): Enter splits the item at the cursor or, on an empty item, outdents it; Shift+Enter starts a new line in the same item; Shift+Tab on an empty top-level item ends the list. Elsewhere nothing changes. One switch for all notes; the "Toggle outline mode" command (Alt+O) and the status bar item switch it too.'
+    ).addToggle((t) => t.setValue(this.plugin.settings.outlineMode).onChange((v) => this.plugin.setOutlineMode(v)));
     this.toggle(
       "Logical outdenting",
       "Off: an outdented item or heading stays where it is, and the siblings after it become its children. On: it moves to just after its parent, and those siblings stay with the parent.",
@@ -1277,8 +1504,8 @@ var EditorOutlinerTab = class extends import_obsidian3.PluginSettingTab {
 };
 
 // src/view.ts
-var import_state2 = require("@codemirror/state");
-var import_view2 = require("@codemirror/view");
+var import_state3 = require("@codemirror/state");
+var import_view3 = require("@codemirror/view");
 var import_obsidian4 = require("obsidian");
 
 // src/drop.ts
@@ -1415,7 +1642,7 @@ function plainEdit(u) {
   return plain;
 }
 function lineDecorations(settings) {
-  return import_view2.ViewPlugin.fromClass(
+  return import_view3.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.decorations = this.build(view);
@@ -1426,9 +1653,9 @@ function lineDecorations(settings) {
       }
       build(view) {
         const s = settings();
-        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view2.Decoration.none;
+        if (!s.deepHeadings && !s.levelLabels || nested(view)) return import_view3.Decoration.none;
         const o = outlineOf(view.state);
-        const b = new import_state2.RangeSetBuilder();
+        const b = new import_state3.RangeSetBuilder();
         const doc = view.state.doc;
         let last = -1;
         for (const { from, to } of view.visibleRanges) {
@@ -1446,7 +1673,7 @@ function lineDecorations(settings) {
               if (s.levelLabels) cls.push("eo-level-label");
               attrs["data-eo-level"] = String(L.level);
             }
-            if (cls.length) b.add(line.from, line.from, import_view2.Decoration.line({ class: cls.join(" "), attributes: attrs }));
+            if (cls.length) b.add(line.from, line.from, import_view3.Decoration.line({ class: cls.join(" "), attributes: attrs }));
           }
         }
         return b.finish();
@@ -1457,7 +1684,7 @@ function lineDecorations(settings) {
 }
 var GUIDE_STEP = 10;
 function headingGuides() {
-  return (0, import_view2.layer)({
+  return (0, import_view3.layer)({
     above: false,
     class: "eo-guides",
     update: (u) => u.docChanged || u.viewportChanged || u.geometryChanged,
@@ -1493,7 +1720,7 @@ function headingGuides() {
         const y1 = bottom.bottom + view.documentTop - baseTop;
         if (y1 - y0 < 1) continue;
         const x = textLeft - 6 - (deepest - depthOf.get(s)) * step;
-        out.push(new import_view2.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
+        out.push(new import_view3.RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
       }
       return out;
     }
@@ -1502,7 +1729,7 @@ function headingGuides() {
 var HEADING_STEP = 24;
 var DRAG_START = 4;
 function dragHandles(logical) {
-  return import_view2.ViewPlugin.fromClass(
+  return import_view3.ViewPlugin.fromClass(
     class {
       constructor(view) {
         this.view = view;
@@ -1723,11 +1950,19 @@ function scrollParent(el) {
 
 // src/main.ts
 function focusedView() {
-  const el = activeDocument.activeElement?.closest(".cm-editor");
-  return el ? import_view3.EditorView.findFromDOM(el) : null;
+  let el = activeDocument.activeElement;
+  for (let k = 0; el?.tagName === "IFRAME" && k < 4; k++) {
+    try {
+      el = el.contentDocument?.activeElement;
+    } catch {
+      return null;
+    }
+  }
+  const ed = el?.closest(".cm-editor");
+  return ed ? import_view4.EditorView.findFromDOM(ed) : null;
 }
 var lastFocused = null;
-var rememberFocus = import_view3.EditorView.domEventHandlers({
+var rememberFocus = import_view4.EditorView.domEventHandlers({
   focus: (_e, view) => {
     lastFocused = view;
   }
@@ -1737,18 +1972,61 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     super(...arguments);
     this.settings = { ...DEFAULTS };
     this.extensions = [];
+    this.status = null;
+    this.statusQueued = false;
   }
   async onload() {
     this.settings = Object.assign({}, DEFAULTS, await this.loadData());
     this.addSettingTab(new EditorOutlinerTab(this.app, this));
     setSuggestCheck(() => !!this.app.workspace.editorSuggest?.isShowingSuggestion?.());
+    setModeCheck(() => this.settings.outlineMode);
     this.buildExtensions();
     this.registerEditorExtension(this.extensions);
     this.addCommands();
+    this.addStatus();
   }
   onunload() {
     setSuggestCheck(() => false);
+    setModeCheck(() => false);
     lastFocused = null;
+  }
+  /** Outline mode on / off (command, setting, status bar): saved, no editor reconfiguration needed. */
+  async setOutlineMode(on) {
+    this.settings.outlineMode = on;
+    await this.saveData(this.settings);
+    this.refreshStatus();
+  }
+  /**
+   * The status bar item (desktop; mobile has no status bar): "Outline" when outline mode is on, emphasised
+   * while it is active in the focused editor (or the last one focused), faint when off. A click toggles.
+   */
+  addStatus() {
+    const el = this.addStatusBarItem();
+    el.addClass("eo-status", "mod-clickable");
+    el.setText("Outline");
+    this.registerDomEvent(el, "click", () => void this.setOutlineMode(!this.settings.outlineMode));
+    this.status = el;
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshStatus()));
+    this.refreshStatus();
+  }
+  /** Updates the status bar item, at most once per frame (it runs on every selection change). */
+  refreshStatus() {
+    if (!this.status || this.statusQueued) return;
+    this.statusQueued = true;
+    requestAnimationFrame(() => {
+      this.statusQueued = false;
+      const el = this.status;
+      if (!el) return;
+      const on = this.settings.outlineMode;
+      const view = this.targetView();
+      const active = on && !!view && !!activeIn(view);
+      el.toggleClass("is-on", on);
+      el.toggleClass("is-active", active);
+      el.setAttribute(
+        "aria-label",
+        `Outline mode ${on ? active ? "on, active in this list" : "on" : "off"}. Click to turn it ${on ? "off" : "on"}.`
+      );
+    });
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -1759,14 +2037,23 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
     const logical = () => this.settings.logicalOutdent;
     const op = (kind) => (v) => runOp(v, kind, logical());
     this.extensions.length = 0;
+    this.extensions.push(
+      import_state4.Prec.highest(
+        import_view4.keymap.of([
+          { key: "Enter", run: (v) => outlineEnter(v, logical()) },
+          { key: "Shift-Enter", run: outlineShiftEnter },
+          { key: "Shift-Tab", run: outlineEndList }
+        ])
+      )
+    );
     if (this.settings.keys) {
       const move2 = import_obsidian5.Platform.isMacOS ? [] : [
         { key: "Alt-Shift-ArrowUp", run: op("up") },
         { key: "Alt-Shift-ArrowDown", run: op("down") }
       ];
       this.extensions.push(
-        import_state3.Prec.highest(
-          import_view3.keymap.of([
+        import_state4.Prec.highest(
+          import_view4.keymap.of([
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
             ...move2,
@@ -1779,7 +2066,11 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
         )
       );
     }
-    this.extensions.push(rememberFocus, codeClipboard());
+    this.extensions.push(
+      rememberFocus,
+      codeClipboard(),
+      watchActive(() => this.refreshStatus())
+    );
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !import_obsidian5.Platform.isMobile) this.extensions.push(dragHandles(logical));
@@ -1791,6 +2082,16 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
   }
   addCommands() {
     const logical = () => this.settings.logicalOutdent;
+    this.addCommand({
+      id: "toggle-outline-mode",
+      name: "Toggle outline mode",
+      icon: "list-tree",
+      hotkeys: [{ modifiers: ["Alt"], key: "o" }],
+      callback: async () => {
+        await this.setOutlineMode(!this.settings.outlineMode);
+        new import_obsidian5.Notice(`Outline mode ${this.settings.outlineMode ? "on" : "off"}`, 1500);
+      }
+    });
     const cmd = (id, name, icon, run2, opts = {}) => this.addCommand({
       id,
       name,

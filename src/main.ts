@@ -4,9 +4,11 @@
 //   drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
 //   code-indent rules and the insert commands (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
-//   view.ts: heading guides, H7+ styling, drag handles.
-// The keys are a high-precedence CodeMirror keymap (see buildExtensions); the commands have no default hotkeys.
-import { Platform, Plugin } from "obsidian";
+//   view.ts: heading guides, H7+ styling, drag handles. active.ts / enter.ts: outline mode's active state and
+//   its Enter / Shift+Enter / Shift+Tab (pure); mode.ts: their CodeMirror glue.
+// The keys are high-precedence CodeMirror keymaps (see buildExtensions); of the commands only "Toggle outline
+// mode" has a default hotkey (Alt+O).
+import { Notice, Platform, Plugin } from "obsidian";
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import {
@@ -21,14 +23,26 @@ import {
   shrinkSelection,
 } from "./editor";
 import { foldChildren, foldNode, foldToLevel, unfoldAll, unfoldNode, unfoldSubtree } from "./folding";
+import { activeIn, outlineEndList, outlineEnter, outlineShiftEnter, setModeCheck, watchActive } from "./mode";
 import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
 import { dragHandles, headingGuides, lineDecorations } from "./view";
 
-/** The CodeMirror editor that has keyboard focus (in any window), if any. */
+/**
+ * The CodeMirror editor that has keyboard focus (in any window), if any. A Canvas card (file or text card)
+ * is edited in a same-origin iframe: the focused element is then the iframe, and the editor is inside it.
+ */
 function focusedView(): EditorView | null {
-  // no instanceof: a popout window's elements belong to that window's HTMLElement
-  const el = activeDocument.activeElement?.closest(".cm-editor");
-  return el ? EditorView.findFromDOM(el as HTMLElement) : null;
+  // no instanceof: a popout window's (or iframe's) elements belong to that window's HTMLElement
+  let el: Element | null | undefined = activeDocument.activeElement;
+  for (let k = 0; el?.tagName === "IFRAME" && k < 4; k++) {
+    try {
+      el = (el as HTMLIFrameElement).contentDocument?.activeElement;
+    } catch {
+      return null; // a cross-origin frame (a web embed): no editor of ours
+    }
+  }
+  const ed = el?.closest(".cm-editor");
+  return ed ? EditorView.findFromDOM(ed as HTMLElement) : null;
 }
 
 /** The last editor that had focus (commands from the palette run after focus has moved to the palette). */
@@ -42,19 +56,65 @@ const rememberFocus = EditorView.domEventHandlers({
 export default class EditorOutlinerPlugin extends Plugin {
   override settings: Settings = { ...DEFAULTS };
   private extensions: Extension[] = [];
+  private status: HTMLElement | null = null;
+  private statusQueued = false;
 
   override async onload() {
     this.settings = Object.assign({}, DEFAULTS, await this.loadData());
     this.addSettingTab(new EditorOutlinerTab(this.app, this));
     setSuggestCheck(() => !!this.app.workspace.editorSuggest?.isShowingSuggestion?.());
+    setModeCheck(() => this.settings.outlineMode);
     this.buildExtensions();
     this.registerEditorExtension(this.extensions);
     this.addCommands();
+    this.addStatus();
   }
 
   override onunload() {
     setSuggestCheck(() => false);
+    setModeCheck(() => false);
     lastFocused = null;
+  }
+
+  /** Outline mode on / off (command, setting, status bar): saved, no editor reconfiguration needed. */
+  async setOutlineMode(on: boolean) {
+    this.settings.outlineMode = on;
+    await this.saveData(this.settings);
+    this.refreshStatus();
+  }
+
+  /**
+   * The status bar item (desktop; mobile has no status bar): "Outline" when outline mode is on, emphasised
+   * while it is active in the focused editor (or the last one focused), faint when off. A click toggles.
+   */
+  private addStatus() {
+    const el = this.addStatusBarItem();
+    el.addClass("eo-status", "mod-clickable");
+    el.setText("Outline");
+    this.registerDomEvent(el, "click", () => void this.setOutlineMode(!this.settings.outlineMode));
+    this.status = el;
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshStatus()));
+    this.refreshStatus();
+  }
+
+  /** Updates the status bar item, at most once per frame (it runs on every selection change). */
+  private refreshStatus() {
+    if (!this.status || this.statusQueued) return;
+    this.statusQueued = true;
+    requestAnimationFrame(() => {
+      this.statusQueued = false;
+      const el = this.status;
+      if (!el) return;
+      const on = this.settings.outlineMode;
+      const view = this.targetView();
+      const active = on && !!view && !!activeIn(view);
+      el.toggleClass("is-on", on);
+      el.toggleClass("is-active", active);
+      el.setAttribute(
+        "aria-label",
+        `Outline mode ${on ? (active ? "on, active in this list" : "on") : "off"}. Click to turn it ${on ? "off" : "on"}.`,
+      );
+    });
   }
 
   async saveSettings() {
@@ -67,6 +127,17 @@ export default class EditorOutlinerPlugin extends Plugin {
     const logical = () => this.settings.logicalOutdent;
     const op = (kind: OpKind) => (v: EditorView) => runOp(v, kind, logical());
     this.extensions.length = 0;
+    // Outline mode's keys come first: each falls through (false) when outline mode is off or not active
+    // here, and then the outliner keys below (Shift+Tab outdent, Enter in code) or Obsidian's apply
+    this.extensions.push(
+      Prec.highest(
+        keymap.of([
+          { key: "Enter", run: v => outlineEnter(v, logical()) },
+          { key: "Shift-Enter", run: outlineShiftEnter },
+          { key: "Shift-Tab", run: outlineEndList },
+        ]),
+      ),
+    );
     // The keys are a CodeMirror keymap, not Obsidian hotkeys: Obsidian runs editor hotkeys only on
     // workspace.activeEditor, which in a lanes tab can be the lanes view (then nothing happens), and only once
     // while a key is held. Keys here act on the focused editor, repeat, and fall through (false) to
@@ -94,7 +165,11 @@ export default class EditorOutlinerPlugin extends Plugin {
         ),
       );
     }
-    this.extensions.push(rememberFocus, codeClipboard());
+    this.extensions.push(
+      rememberFocus,
+      codeClipboard(),
+      watchActive(() => this.refreshStatus()),
+    );
     this.extensions.push(lineDecorations(() => this.settings));
     if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !Platform.isMobile) this.extensions.push(dragHandles(logical));
@@ -108,6 +183,17 @@ export default class EditorOutlinerPlugin extends Plugin {
 
   private addCommands() {
     const logical = () => this.settings.logicalOutdent;
+    // global, not per editor: available everywhere, also with no editor open
+    this.addCommand({
+      id: "toggle-outline-mode",
+      name: "Toggle outline mode",
+      icon: "list-tree",
+      hotkeys: [{ modifiers: ["Alt"], key: "o" }],
+      callback: async () => {
+        await this.setOutlineMode(!this.settings.outlineMode);
+        new Notice(`Outline mode ${this.settings.outlineMode ? "on" : "off"}`, 1500);
+      },
+    });
     /**
      * A command for a note's own editor (not a table cell's); `applies` says whether it does anything. A plain
      * checkCallback, not editorCheckCallback: that one only runs when Obsidian has an active Markdown editor,

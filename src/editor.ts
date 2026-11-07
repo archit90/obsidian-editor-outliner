@@ -249,7 +249,7 @@ export function insertBlock(view: EditorView, lang: string, check = false): bool
   return true;
 }
 
-const posOf = (state: EditorState, pos: number): Pos => {
+export const posOf = (state: EditorState, pos: number): Pos => {
   const l = state.doc.lineAt(pos);
   return { line: l.number - 1, ch: pos - l.from };
 };
