@@ -1,4 +1,4 @@
-// Expand-selection steps (SPEC.md "Expand / shrink selection"). Pure: lists every range the cursor's
+// Expand-selection steps (the repo's SPEC.md, "Expand / shrink selection"). Pure: lists every range the cursor's
 // position grows through, smallest first; the caller picks the first one that strictly contains the
 // current selection.
 import { Item, Outline, Section, bodyRange, locate, trimEnd } from "./parse";

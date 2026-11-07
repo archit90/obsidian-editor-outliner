@@ -1,4 +1,4 @@
-// Indent / outdent / move on the outline (SPEC.md). Pure: an operation takes the parsed note and the selected
+// Indent / outdent / move on the outline (the repo's SPEC.md, "Editor Outliner"). Pure: an operation takes the parsed note and the selected
 // line span and returns the note's new lines as rows. Each row remembers which old line it came from (o, -1
 // for an inserted line), so the caller can map the cursor and folds to the new text.
 import {

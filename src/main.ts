@@ -1,4 +1,4 @@
-// Editor Outliner: outliner editing for headings, nested lists and body blocks. See SPEC.md.
+// Editor Outliner: outliner editing for headings, nested lists and body blocks. See the repo's SPEC.md, "Editor Outliner".
 //
 // - parse.ts: the outline model (pure). ops.ts: indent / outdent / move (pure). select.ts: expand steps (pure).
 //   drop.ts: drag sources, targets and drops (pure).

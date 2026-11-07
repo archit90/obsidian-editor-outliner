@@ -1,4 +1,4 @@
-// The outline model of a note (see SPEC.md): line kinds, the heading tree, body blocks and list trees.
+// The outline model of a note (see the repo's SPEC.md, "Editor Outliner"): line kinds, the heading tree, body blocks and list trees.
 // Pure: works on the note's lines, no Obsidian or CodeMirror.
 
 export type Kind = "front" | "code" | "heading" | "item" | "blank" | "text" | "hr";
