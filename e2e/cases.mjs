@@ -1661,9 +1661,9 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
   },
   {
     id: "N6",
-    title: "Expand once more: the parent with its subtree",
+    title: "Expand twice more: all the siblings, then the parent with its subtree",
     text: "- parent\n\t- al|pha\n\t\t- child\n\t- beta\n- after",
-    keys: ["Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp"],
+    keys: ["Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp"],
     want: "⟦- parent\n\t- alpha\n\t\t- child\n\t- beta⟧\n- after",
     wantHl: [0, 1, 2, 3],
     src: "SPEC.md §7 Expand / shrink selection",

@@ -34,8 +34,8 @@ Notation:
 | Step-aside | 28 |
 | Edge cases of the note | 15 |
 | Indent / outdent outside outline mode | 28 |
-| Move outside outline mode | 18 |
-| Expand / shrink selection | 22 |
+| Move outside outline mode | 25 |
+| Expand / shrink selection | 25 |
 | Node selection: headings and details | 11 |
 | Folding commands | 14 |
 | Heading guides, level labels and H7+ styling | 13 |
@@ -43,7 +43,7 @@ Notation:
 | Where it works and settings | 13 |
 | Vim mode: the outliner keys | 8 |
 | Item node selection with outline mode off | 17 |
-| **Total** | 591 |
+| **Total** | 601 |
 
 ## Mode states and the status bar
 
@@ -4974,7 +4974,7 @@ Node-selected (highlighted) lines: 1, 2.
 
 Source: SPEC.md §7 Expand / shrink selection
 
-### N6. Expand once more: the parent with its subtree
+### N6. Expand twice more: all the siblings, then the parent with its subtree
 
 
 Setup:
@@ -4986,7 +4986,7 @@ Setup:
 - after
 ````
 
-Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
 
 Expected: 
 ````
@@ -9494,6 +9494,151 @@ a
 
 Source: SPEC.md §7 → Move up / down
 
+### KM-C1. Ctrl+↓ (Cmd+↓ on macOS) moves the item at the cursor with its children
+
+When: *everywhere*.
+
+Setup:
+````
+- a|
+	- a1
+- b
+````
+
+Keys: Ctrl-ArrowDown
+
+Expected: 
+````
+- b
+- a|
+	- a1
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM-C2. Ctrl+↑ moves a heading section up past its sibling
+
+
+Setup:
+````
+# A
+a
+
+# B|
+b
+````
+
+Keys: Ctrl-ArrowUp
+
+Expected: 
+````
+# B|
+b
+
+# A
+a
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM-C3. Ctrl+↓ moves a body paragraph past the next block
+
+
+Setup:
+````
+# H
+para1|
+
+para2
+````
+
+Keys: Ctrl-ArrowDown
+
+Expected: 
+````
+# H
+para2
+
+para1|
+````
+
+Source: SPEC.md §7 → Move up / down
+
+### KM-C4. Ctrl+↓ with a node selection moves the selected items; the selection follows and stays a node selection
+
+When: *everywhere*.
+
+Setup:
+````
+- a
+- b|
+	- b1
+- c
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Ctrl-ArrowDown
+
+Expected: 
+````
+- a
+- c
+⟦- b
+	- b1⟧
+````
+Node-selected (highlighted) lines: 2, 3.
+
+Source: SPEC.md §7 → Move up / down
+
+### KM-C5. Ctrl+↓ with a text selection over two sibling items moves both whole items
+
+
+Setup:
+````
+- a
+- ⟦b
+- c⟧
+- d
+````
+
+Keys: Ctrl-ArrowDown
+
+Expected: (see checks)
+Text matches `^- a\n- d\n- b\n- c$`.
+
+Source: SPEC.md §7 → Move up / down
+
+### KM-C6. Ctrl+↓ at the last top-level item: nothing
+
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: Ctrl-ArrowDown
+
+Expected: unchanged
+
+Source: SPEC.md §7 → Move up / down
+
+### KM-C7. Ctrl+↑ in frontmatter: Obsidian's key
+
+
+Setup:
+````
+---
+a: 1|
+---
+- x
+````
+
+Keys: Ctrl-ArrowUp
+
+Expected: = Obsidian
+
+Source: SPEC.md §7 → Move up / down
+
 ### KM4. Heading at its last sibling: nothing (no jump into the parent's sibling)
 
 
@@ -10216,6 +10361,84 @@ Expected:
 ````
 
 Consistency: a list's whole-list step also inside a callout.
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-S1. Expand: item, then all its siblings, then the parent
+
+When: *everywhere*.
+
+Setup:
+````
+- p
+	- a
+	- b|
+	- c
+- q
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+- p
+⟦	- a
+	- b
+	- c⟧
+- q
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-S2. Expand past the siblings reaches the parent; Shrink goes back step by step to the cursor
+
+
+Setup:
+````
+- p
+	- a
+	- b|
+	- c
+- q
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown, Alt-ArrowDown
+
+Expected: 
+````
+- p
+	- a
+	- b|
+	- c
+- q
+````
+
+Source: SPEC.md §7 → Expand / shrink selection
+
+### XS-S3. Expand: a heading section, then all its sibling sections, then the parent section
+
+
+Setup:
+````
+# A
+## B
+b
+## C|
+c
+# D
+````
+
+Keys: Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp, Alt-ArrowUp
+
+Expected: 
+````
+# A
+⟦## B
+b
+## C
+c⟧
+# D
+````
 
 Source: SPEC.md §7 → Expand / shrink selection
 

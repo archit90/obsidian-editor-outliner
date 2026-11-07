@@ -423,6 +423,33 @@ describe("deep test fixes", () => {
     expect(drop(o, sourceAt(o, 3)!, 1, { value: 0, depth: 0 }, sp)!.map(r => r.t)).toEqual(["# H", "p2", "", "p1"]);
   });
 
+  it("Expand: all siblings (with subtrees) come before the parent item", () => {
+    const t = lines("- p", "  - a", "  - b", "    - b1", "  - c", "- q");
+    const c = chain(t, 2, 4);
+    const i = (s: string) => c.indexOf(s);
+    expect(i("  - b\n    - b1")).toBeGreaterThan(-1);
+    expect(i("  - a\n  - b\n    - b1\n  - c")).toBeGreaterThan(i("  - b\n    - b1"));
+    expect(i("- p\n  - a\n  - b\n    - b1\n  - c")).toBeGreaterThan(i("  - a\n  - b\n    - b1\n  - c"));
+    // top-level items: their siblings are the whole list
+    expect(c).toContain(t);
+  });
+
+  it("Expand: all sibling sections come before the parent section", () => {
+    const t = lines("# A", "## B", "b", "## C", "c", "# D");
+    const c = chain(t, 4, 0);
+    const i = (s: string) => c.indexOf(s);
+    expect(i("## B\nb\n## C\nc")).toBeGreaterThan(i("## C\nc"));
+    expect(i("# A\n## B\nb\n## C\nc")).toBeGreaterThan(i("## B\nb\n## C\nc"));
+    expect(c).toContain(t); // the top-level sections A and D
+  });
+
+  it("Expand: a single child has no separate siblings step", () => {
+    const t = lines("- p", "  - a", "- q");
+    const c = chain(t, 1, 4);
+    expect(c.filter(x => x === "  - a").length).toBe(1);
+    expect(c.indexOf("- p\n  - a")).toBeGreaterThan(c.indexOf("  - a"));
+  });
+
   it("DG6: a body that starts with a blank line keeps it", () => {
     const o = buildOutline(["# H", "", "p1", "", "p2"]);
     expect(drop(o, sourceAt(o, 4)!, 2, { value: 0, depth: 0 }, sp)!.map(r => r.t)).toEqual(["# H", "", "p2", "", "p1"]);

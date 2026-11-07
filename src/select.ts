@@ -1,4 +1,5 @@
-// Expand-selection steps (the repo's SPEC.md, "Expand / shrink selection"). Pure: lists every range the cursor's
+// Expand-selection steps (the repo's SPEC.md, "Expand / shrink selection"): text steps, then each node, the node
+// with its subtree and all its siblings before its parent. Pure: lists every range the cursor's
 // position grows through, smallest first; the caller picks the first one that strictly contains the
 // current selection.
 import { Block, Item, Outline, Section, bodyRange, innerBlocks, locate, prefixLen, trimEnd } from "./parse";
@@ -97,6 +98,9 @@ export function steps(o: Outline, line: number, ch: number): Span[] {
           out.push(lines(it.line, it.ownEnd));
         }
         out.push(lines(it.line, it.end));
+        // then all its siblings (with their subtrees), before the parent
+        const sib = it.parent?.children ?? [];
+        if (sib.length > 1) out.push(lines(sib[0]!.line, sib[sib.length - 1]!.end));
       }
     }
     // a fenced code block of the body (or of a callout): its code lines, then the block with its fences, as
@@ -127,6 +131,9 @@ export function steps(o: Outline, line: number, ch: number): Span[] {
     }
     if (s === loc.section) out.push(own(s));
     out.push(whole(s));
+    // then all its sibling sections, before the parent section (top level: every top-level section)
+    const sib = s.parent?.children ?? [];
+    if (sib.length > 1) out.push(lines(sib[0]!.line, trimEnd(o, sib[0]!.line, sib[sib.length - 1]!.end)));
   }
   return out;
 }

@@ -244,6 +244,10 @@ export default class EditorOutlinerPlugin extends Plugin {
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
             ...move,
+            // Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through to
+            // Obsidian's document start / end)
+            { key: "Mod-ArrowUp", run: op("up") },
+            { key: "Mod-ArrowDown", run: op("down") },
             { key: "Alt-PageUp", run: op("up") },
             { key: "Alt-PageDown", run: op("down") },
             { key: "Alt-ArrowUp", run: expandSelection },

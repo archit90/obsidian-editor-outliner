@@ -1125,6 +1125,8 @@ function steps(o, line, ch) {
           out.push(lines(it.line, it.ownEnd));
         }
         out.push(lines(it.line, it.end));
+        const sib = it.parent?.children ?? [];
+        if (sib.length > 1) out.push(lines(sib[0].line, sib[sib.length - 1].end));
       }
     }
     if (!loc.item) {
@@ -1152,6 +1154,8 @@ function steps(o, line, ch) {
     }
     if (s === loc.section) out.push(own(s));
     out.push(whole(s));
+    const sib = s.parent?.children ?? [];
+    if (sib.length > 1) out.push(lines(sib[0].line, trimEnd(o, sib[0].line, sib[sib.length - 1].end)));
   }
   return out;
 }
@@ -3047,6 +3051,10 @@ var EditorOutlinerPlugin = class extends import_obsidian5.Plugin {
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
             ...move2,
+            // Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through to
+            // Obsidian's document start / end)
+            { key: "Mod-ArrowUp", run: op("up") },
+            { key: "Mod-ArrowDown", run: op("down") },
             { key: "Alt-PageUp", run: op("up") },
             { key: "Alt-PageDown", run: op("down") },
             { key: "Alt-ArrowUp", run: expandSelection },

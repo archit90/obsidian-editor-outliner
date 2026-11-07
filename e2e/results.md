@@ -1,6 +1,6 @@
 # Editor Outliner e2e results
 
-Run 2026-11-07T10:07:47.362Z: 2224 checks, 2224 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
+Run 2026-11-07T18:35:43.413Z: 2272 checks, 2272 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
 
 | Group | Pass | Fail | Error | Decide |
 |---|---|---|---|---|
@@ -26,8 +26,8 @@ Run 2026-11-07T10:07:47.362Z: 2224 checks, 2224 pass, 0 fail, 0 error, 0 needing
 | Step-aside | 53 | 0 | 0 | 0 |
 | Edge cases of the note | 54 | 0 | 0 | 0 |
 | Indent / outdent outside outline mode | 154 | 0 | 0 | 0 |
-| Move outside outline mode | 102 | 0 | 0 | 0 |
-| Expand / shrink selection | 56 | 0 | 0 | 0 |
+| Move outside outline mode | 139 | 0 | 0 | 0 |
+| Expand / shrink selection | 67 | 0 | 0 | 0 |
 | Node selection: headings and details | 33 | 0 | 0 | 0 |
 | Folding commands | 38 | 0 | 0 | 0 |
 | Heading guides, level labels and H7+ styling | 36 | 0 | 0 | 0 |
