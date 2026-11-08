@@ -12,7 +12,7 @@ import { connect } from "./cdp.mjs";
 /** @typedef {import("./cdp.mjs").CdpJson} CdpJson */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ID = "obsidian-editor-outliner";
+const ID = "editor-outliner";
 const args = process.argv.slice(2);
 const LINES = Number(args[args.indexOf("--lines") + 1] || 0) || 20000;
 /** @param {number} ms */
@@ -44,7 +44,7 @@ const DOCS = `const docs = () => [document, ...[...document.querySelectorAll("if
 const OPEN = `
   const note = "# A\\n- a\\n\\t- b\\n## B\\nx";
   for (const p of ["_test/x-tab.md", "_test/x-pop.md"]) { const f = app.vault.getAbstractFileByPath(p); if (f) await app.vault.modify(f, note); else await app.vault.create(p, note); }
-  const lp = app.plugins.plugins["obsidian-editor-lanes"];
+  const lp = app.plugins.plugins["editor-multiple-lanes"];
   if (lp && !/x-tab/.test(lp.settings.routeExceptions)) { lp.settings.routeExceptions = (lp.settings.routeExceptions ? lp.settings.routeExceptions + "\\n" : "") + "_test/x-tab.md\\n_test/x-perf.md"; await lp.settingsChanged("routing"); }
   const tab = app.workspace.getLeaf("tab"); await tab.openFile(app.vault.getAbstractFileByPath("_test/x-tab.md")); await sleep(800);
   const host = tab.view; const el = host.containerEl.querySelector(".cm-content"); const r = el.getBoundingClientRect();

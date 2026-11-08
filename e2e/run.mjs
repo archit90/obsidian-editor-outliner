@@ -27,7 +27,7 @@ import { cases, groups } from "./cases.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN = path.dirname(HERE);
-const PLUGIN_ID = "obsidian-editor-outliner";
+const PLUGIN_ID = "editor-outliner";
 
 /**
  * @typedef {import("./cases.mjs").GroupedCase} GroupedCase
@@ -276,7 +276,12 @@ const PAGE = String.raw`
             const lanes = app.workspace.getLeavesOfType("editor-lanes")[0];
             if (lanes) app.workspace.setActiveLeaf(lanes, { focus: true });
             await app.workspace.getLeaf(false).openFile(f);
-          } else await app.workspace.getLeaf("tab").openFile(f);
+          } else {
+            // with no tab left in the main area (a case closed the last one), getLeaf("tab") has no tab group
+            let leaf;
+            try { leaf = app.workspace.getLeaf("tab"); } catch { leaf = app.workspace.getLeaf(false); }
+            await leaf.openFile(f);
+          }
           await sleep(600);
           v = app.workspace.getLeavesOfType("markdown").map(l => l.view).find(x => x.file?.path === p && inLane(x) === (surface === "lanes") && x.containerEl.isConnected);
           if (!v) throw new Error("couldn't open " + p + " as " + surface);
@@ -771,7 +776,7 @@ async function main() {
     }
     // a normal tab needs an Editor Lanes routing exception
     await c.ev(
-      `(async()=>{const lp=app.plugins.plugins["obsidian-editor-lanes"]; if (lp && !/e2e-tab/.test(lp.settings.routeExceptions)) { lp.settings.routeExceptions = (lp.settings.routeExceptions ? lp.settings.routeExceptions + "\\n" : "") + "_test/e2e-tab.md"; await lp.settingsChanged("routing"); } return 1})()`,
+      `(async()=>{const lp=app.plugins.plugins["editor-multiple-lanes"]; if (lp && !/e2e-tab/.test(lp.settings.routeExceptions)) { lp.settings.routeExceptions = (lp.settings.routeExceptions ? lp.settings.routeExceptions + "\\n" : "") + "_test/e2e-tab.md"; await lp.settingsChanged("routing"); } return 1})()`,
     );
     await c
       .send("Browser.grantPermissions", { permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] })
@@ -779,12 +784,22 @@ async function main() {
     await c.ev(PAGE);
     await c.ev(`window.__e2e.closePopovers()`);
     const sel = cases.filter(cs => !filter || filter.test(cs.id) || filter.test(cs.group) || filter.test(cs.title));
+    // Editor Outliner doesn't need Editor Lanes: without it, the cases that default to a lanes card run in a
+    // normal tab, and the ones written for lanes only are skipped
+    const hasLanes = await c.ev(`!!app.plugins.plugins["editor-multiple-lanes"]`);
+    const defaultSurfaces = hasLanes ? ["lanes"] : ["tab"];
+    if (!hasLanes) {
+      const only = sel.filter(cs => Array.isArray(cs.surfaces) && cs.surfaces.every(s => s === "lanes"));
+      console.log(
+        `Editor Lanes not enabled: lanes surface skipped (${only.length} lanes-only cases), default cases run in a tab`,
+      );
+    }
     const runs = [];
-    for (const s of surfaces)
+    for (const s of surfaces.filter(s => hasLanes || s !== "lanes"))
       for (const v of s.startsWith("canvas") || s === "popover" ? ["lp"] : views) runs.push([s, v]);
     for (const [surface, view] of runs) {
       const mine = sel.filter(cs => {
-        const sf = cs.surfaces === "all" ? SURFACES : cs.surfaces || ["lanes"];
+        const sf = cs.surfaces === "all" ? SURFACES : cs.surfaces || defaultSurfaces;
         const vw = cs.views || VIEWS;
         return sf.includes(surface) && (surface.startsWith("canvas") || surface === "popover" || vw.includes(view));
       });

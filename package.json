@@ -8,5 +8,8 @@
     "dev": "node ../esbuild.shared.mjs watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --root .. editor-outliner"
+  },
+  "dependencies": {
+    "monkey-around": "^3.0.0"
   }
 }

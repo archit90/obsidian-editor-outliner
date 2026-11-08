@@ -1,6 +1,6 @@
 # Editor Outliner e2e results
 
-Run 2026-11-07T21:32:59.470Z: 2221 checks, 2221 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
+Run 2026-11-08T15:43:22.920Z: 2214 checks, 2214 pass, 0 fail, 0 error, 0 needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).
 
 | Group | Pass | Fail | Error | Decide |
 |---|---|---|---|---|
@@ -33,7 +33,7 @@ Run 2026-11-07T21:32:59.470Z: 2221 checks, 2221 pass, 0 fail, 0 error, 0 needing
 | Drag handles (real mouse drags) | 90 | 0 | 0 | 0 |
 | Where it works and settings | 18 | 0 | 0 | 0 |
 | Vim mode: the outliner keys | 17 | 0 | 0 | 0 |
-| Item node selection: more cases | 146 | 0 | 0 | 0 |
+| Item node selection: more cases | 139 | 0 | 0 | 0 |
 
 Console during the run: 2 uncaught exception(s) / console.error call(s) (0 mentioning editor-outliner):
 

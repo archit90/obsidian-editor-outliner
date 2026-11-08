@@ -32,7 +32,7 @@ import { deep } from "./cases-deep.mjs";
 const L = (...l) => l.join("\n");
 const OM = "SPEC.md §7 Outline mode";
 const R = "SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)";
-const ID = "obsidian-editor-outliner";
+const ID = "editor-outliner";
 
 /** @type {{ id: string, title: string, note?: string }[]} */
 export const groups = [];

@@ -2,7 +2,7 @@
 
 Everything the outline-mode suite (`e2e/CASES.md`, groups M … X) doesn't cover: indent / outdent and move outside
 outline mode, which hierarchy a command acts on, Expand / Shrink, node selection on headings, folding, heading guides,
-level labels, H7+ styling, drag handles with real mouse drags, Vim mode, where it works (normal tab, Editor Lanes
+level labels, H7+ styling, drag handles with real mouse drags, Vim mode, where it works (normal tab, Editor Multiple Lanes
 card, Canvas text and file card, page preview popover, popout window, Source / Live Preview / Reading view, mobile
 emulation), settings, keys and hotkey conflicts, IME, several cursors, undo, unloading, console errors, long notes and
 typing (`TYPING`).
@@ -10,12 +10,17 @@ typing (`TYPING`).
 **Final full run: 2026-11-07 (outline mode always on, Enter leaves a list, code blocks in items)** in an isolated Obsidian 1.15.0 (test vault 948 copy, sandbox 4), real key and mouse input
 over the DevTools protocol. Result: `run.mjs` 2221 checks: 2221 pass, 0 fail, 0 error, 0 decide; `extra.mjs` 8 / 8 pass (X1–X4, X6–X9; X10, X11 need --mobile); visual checks pass; TYPING passes.
 
+**Without the other custom plugins (2026-11-08):** with the other three disabled (saved, then a restart) the
+cases that default to a lanes card run in a normal tab: 2018 checks, all PASS after a harness fix (SA8 closed
+the last tab; opening a tab now falls back when there's no tab group); `extra.mjs` 8 / 8. With all four on:
+2214 checks PASS, `extra.mjs` 8 / 8.
+
 How the cases run:
 
 - **Key cases** (groups below, ids KI, KM, XS, NS, FC, G, DG, VM, WH, NO) are data in `e2e/cases-deep.mjs`, run by
   `e2e/run.mjs` together with the outline-mode cases (`CASES.md` lists both, generated from them). Notation as in
   `CASES.md`: `|` cursor, `⟦ … ⟧` selection, `↵` a line break and `⇥` a tab in these tables, L*n* a 0-based line.
-  "lanes" means an Editor Lanes card in Live Preview and Source mode (the runner's default); "everywhere" adds a normal
+  "lanes" means an Editor Multiple Lanes card in Live Preview and Source mode (the runner's default); "everywhere" adds a normal
   tab (both views), a Canvas text card, a Canvas file card and a page preview popover (Live Preview). "= Obsidian"
   means the same keys with outline mode and the Outliner keys off. After a one-key change in outline mode (and where a
   case says `undo`), one Ctrl+Z must restore the setup text. Every run also checks that Obsidian's renumbering never
@@ -53,7 +58,7 @@ before it passed.
 | 3   | H7+ in Reading view stays unstyled                                                                                                         | No change                                                                                                                                                                                                                                                                                                                                                               | —                                                                                |
 | 4   | Mobile: the editor toolbar's indent / outdent buttons indent / outdent the list item or heading with its subtree; elsewhere Obsidian's own | `main.ts` `routeToolbarIndent`: on mobile, `monkey-around` wraps the `editorCallback` of Obsidian's `editor:indent-list` / `editor:unindent-list` (what the toolbar buttons run) with the plugin's indent / outdent (`runOp`), falling back to Obsidian's callback where the outline doesn't apply (body text, code blocks, table cells); the patch comes off on unload | X11 (real taps under `app.emulateMobile(true)`)                                  |
 
-Harness fixes (not plugin bugs): the runner picked a detached Editor Lanes leaf for `_test/e2e.md` (see the report);
+Harness fixes (not plugin bugs): the runner picked a detached Editor Multiple Lanes leaf for `_test/e2e.md` (see the report);
 it now takes the connected one, and closes a page preview popover left from the popover surface.
 
 ## Indent / outdent outside outline mode (KI)

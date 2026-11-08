@@ -3690,7 +3690,7 @@ Setup:
 	- c
 ````
 
-Keys: command obsidian-editor-outliner:insert-code-block
+Keys: command editor-outliner:insert-code-block
 
 Expected: 
 ````
@@ -3712,7 +3712,7 @@ Setup:
 	- a|
 ````
 
-Keys: command obsidian-editor-outliner:insert-dataview
+Keys: command editor-outliner:insert-dataview
 
 Expected: 
 ````
@@ -3735,7 +3735,7 @@ Setup:
 	- c
 ````
 
-Keys: command obsidian-editor-outliner:insert-code-block
+Keys: command editor-outliner:insert-code-block
 
 Expected: 
 ````
@@ -3758,7 +3758,7 @@ Setup:
 2. b
 ````
 
-Keys: command obsidian-editor-outliner:insert-code-block
+Keys: command editor-outliner:insert-code-block
 
 Expected: 
 ````
@@ -3782,7 +3782,7 @@ Setup:
 > - a|
 ````
 
-Keys: command obsidian-editor-outliner:insert-code-block
+Keys: command editor-outliner:insert-code-block
 
 Expected: 
 ````
@@ -6565,7 +6565,7 @@ Setup:
 	- c
 ````
 
-Keys: command obsidian-editor-outliner:fold
+Keys: command editor-outliner:fold
 
 Expected: (see checks)
 Folded lines after: 0.
@@ -7671,7 +7671,7 @@ Setup:
 - a|
 ````
 
-Keys: command obsidian-editor-outliner:insert-code-block, Ctrl-z
+Keys: command editor-outliner:insert-code-block, Ctrl-z
 
 Expected: 
 ````
@@ -8808,7 +8808,7 @@ Setup:
 ## B|
 ````
 
-Keys: command obsidian-editor-outliner:indent
+Keys: command editor-outliner:indent
 
 Expected: 
 ````
@@ -8828,7 +8828,7 @@ Setup:
 	- b|
 ````
 
-Keys: command obsidian-editor-outliner:outdent
+Keys: command editor-outliner:outdent
 
 Expected: 
 ````
@@ -8849,7 +8849,7 @@ Setup:
 	- c
 ````
 
-Keys: command obsidian-editor-outliner:indent
+Keys: command editor-outliner:indent
 
 Expected: 
 ````
@@ -9434,7 +9434,7 @@ para1|
 para2
 ````
 
-Keys: command obsidian-editor-outliner:move-down
+Keys: command editor-outliner:move-down
 
 Expected: 
 ````
@@ -10197,7 +10197,7 @@ Setup:
 hello wor|ld
 ````
 
-Keys: command obsidian-editor-outliner:expand-selection-down, command obsidian-editor-outliner:expand-selection-down, command obsidian-editor-outliner:shrink-selection-down
+Keys: command editor-outliner:expand-selection-down, command editor-outliner:expand-selection-down, command editor-outliner:shrink-selection-down
 
 Expected: 
 ````
@@ -10541,7 +10541,7 @@ a|
 b
 ````
 
-Keys: command obsidian-editor-outliner:fold
+Keys: command editor-outliner:fold
 
 Expected: (see checks)
 Folded lines after: 0.
@@ -10560,7 +10560,7 @@ a
 b
 ````
 
-Keys: command obsidian-editor-outliner:unfold
+Keys: command editor-outliner:unfold
 
 Expected: (see checks)
 Folded lines after: none.
@@ -10580,7 +10580,7 @@ b
 c
 ````
 
-Keys: command obsidian-editor-outliner:fold-children
+Keys: command editor-outliner:fold-children
 
 Expected: (see checks)
 Folded lines after: 2, 4.
@@ -10601,7 +10601,7 @@ b
 c
 ````
 
-Keys: command obsidian-editor-outliner:unfold-subtree
+Keys: command editor-outliner:unfold-subtree
 
 Expected: (see checks)
 Folded lines after: none.
@@ -10623,7 +10623,7 @@ x
 c
 ````
 
-Keys: command obsidian-editor-outliner:fold-to-level-2
+Keys: command editor-outliner:fold-to-level-2
 
 Expected: (see checks)
 Folded lines after: 2, 6.
@@ -10643,7 +10643,7 @@ b
 c
 ````
 
-Keys: command obsidian-editor-outliner:fold-to-level-1
+Keys: command editor-outliner:fold-to-level-1
 
 Expected: (see checks)
 Folded lines after: 0, 4.
@@ -10664,7 +10664,7 @@ a
 c
 ````
 
-Keys: command obsidian-editor-outliner:unfold-all
+Keys: command editor-outliner:unfold-all
 
 Expected: (see checks)
 Folded lines after: none.
@@ -10682,7 +10682,7 @@ Setup:
 - d
 ````
 
-Keys: command obsidian-editor-outliner:fold
+Keys: command editor-outliner:fold
 
 Expected: (see checks)
 Folded lines after: 1.
@@ -10701,7 +10701,7 @@ Setup:
 		- e
 ````
 
-Keys: command obsidian-editor-outliner:fold-children
+Keys: command editor-outliner:fold-children
 
 Expected: (see checks)
 Folded lines after: 1, 3.
@@ -10717,7 +10717,7 @@ Setup:
 x
 ````
 
-Keys: command obsidian-editor-outliner:fold
+Keys: command editor-outliner:fold
 
 Expected: (see checks)
 Folded lines after: none.
@@ -10735,7 +10735,7 @@ Setup:
 x
 ````
 
-Keys: command obsidian-editor-outliner:fold
+Keys: command editor-outliner:fold
 
 Expected: (see checks)
 Folded lines after: none.
@@ -10754,7 +10754,7 @@ pa|ra
 x
 ````
 
-Keys: command obsidian-editor-outliner:fold
+Keys: command editor-outliner:fold
 
 Expected: (see checks)
 Folded lines after: none.
@@ -10773,7 +10773,7 @@ Setup:
 - b
 ````
 
-Keys: command obsidian-editor-outliner:fold-children
+Keys: command editor-outliner:fold-children
 
 Expected: (see checks)
 Folded lines after: none.

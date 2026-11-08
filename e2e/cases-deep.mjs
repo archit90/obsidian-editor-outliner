@@ -3,7 +3,7 @@
 // drag handles, settings and where it works. Added to cases.mjs's groups by cases.mjs (deep(group)); the same
 // case format (see cases.mjs's header). Ids are unique across both files.
 // @ts-check (the case types are cases.mjs's)
-const ID = "obsidian-editor-outliner";
+const ID = "editor-outliner";
 const S7 = "SPEC.md §7";
 // clears notices left by earlier cases; a case's check then reads the newest one
 const CLEAR_NOTICES = "for (const n of document.querySelectorAll('.notice')) n.remove();";
