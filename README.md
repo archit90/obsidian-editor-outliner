@@ -20,7 +20,7 @@ lists.
   out under the item in Live Preview.
 - **Folding commands, heading guides** (vertical lines per section), **heading level labels** (a faint H2
   after each heading), **headings beyond H6** (7+ `#`), and **drag handles** to move nodes (desktop).
-- Works in tabs, [Editor Multiple Lanes](https://github.com/{{OWNER}}/obsidian-editor-multiple-lanes) cards (optional), Canvas cards, popout windows and page previews; on mobile the toolbar's
+- Works in tabs, [Editor Multiple Lanes](https://github.com/archit90/obsidian-editor-multiple-lanes) cards (optional), Canvas cards, popout windows and page previews; on mobile the toolbar's
   indent buttons indent with children.
 
 Every action is also a command, so you can bind your own hotkeys.
@@ -33,7 +33,7 @@ beyond H6 (on) · Heading level labels (on).
 ## Install with BRAT
 
 1. Install **BRAT** (Obsidian42 - BRAT) from Community plugins.
-2. BRAT → **Add beta plugin** → `{{REPO}}` → Add plugin.
+2. BRAT → **Add beta plugin** → `archit90/obsidian-editor-outliner` → Add plugin.
 3. Enable **Editor Outliner** in Community plugins.
 
 ## Notes
@@ -45,9 +45,16 @@ new Obsidian version may need an update. With Obsidian's Vim mode, the outline-m
 
 ```sh
 npm install
-npm run build   # main.js
-npm test        # unit tests
+npm run build                    # main.js
+npm test                         # unit tests
+npm run check                    # format, lint, typecheck, unit tests, build, smoke load: before every commit
+npm run deploy -- <vault> …      # build and copy into vaults that have the plugin installed (--install adds it)
 ```
+
+Releasing: `npm version patch` (or `minor` / `major`) bumps `package.json`, `manifest.json` and `versions.json` and
+tags the commit with the version; `git push --follow-tags` then runs the release workflow, which checks, builds and
+publishes the GitHub release BRAT installs from. End-to-end tests: see `TEST-CASES.md` and `SPEC.md`
+(Development).
 
 ## Licence
 

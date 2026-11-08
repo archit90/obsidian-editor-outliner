@@ -5,7 +5,7 @@
 //   type(text)          insert text as typing (Input.insertText)
 //   send(method, params) any raw CDP method; on(method, fn) its events
 // connect(port, pick) takes the first page target pick(target) accepts (a popout window: its url has "popout")
-// CLI: CDP_PORT=9224 node cdp.mjs '<js expression>'
+// CLI: node e2e/cdp.mjs '<js expression>' (CDP_PORT, default 9314: this plugin's sandbox 4, e2e/sandbox.sh)
 //
 // Typing: checked with // @ts-check and JSDoc. The one `any` is the DevTools protocol's own JSON (CdpJson): its
 // shape differs per method and per event, and callers read the fields of the method they called.
@@ -19,7 +19,7 @@
 /** @typedef {{ type: string, url: string, title: string, webSocketDebuggerUrl: string }} CdpTarget */
 /** @typedef {{ shift?: boolean, ctrl?: boolean, alt?: boolean, meta?: boolean }} Mods */
 
-const PORT = process.env.CDP_PORT || 9224;
+const PORT = process.env.CDP_PORT || 9314;
 
 /**
  * @param {string | number} port
