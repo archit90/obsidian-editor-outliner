@@ -18,6 +18,10 @@ console errors, long notes and typing (`TYPING`).
   skipping; `--surfaces lanes` runs just the card surface. Dataview the same way (`blacksmithgu/obsidian-dataview`).
 - One case or group: `node e2e/run.mjs --filter '^(KI|KM)[0-9]'`; the catalogue: `npm run e2e:catalogue`.
 
+**Together with Lanes, 2026-11-08 (after the fixes):** `--surfaces lanes`: 252/252 checks (`e2e/results-together.md`).
+MB2's one-Ctrl+Z check in a lanes card fails about once in 10–25 runs (the same focused editor, the Ctrl+Z changes
+nothing; cause not found): the runner then runs the case once more and records FLAKY if that passes.
+
 **Final runs: 2026-11-08**, Obsidian 1.15.0 in a sandbox, real key and mouse input over the DevTools protocol:
 
 - **Alone** (a fresh vault, only this plugin): `run.mjs` 2218 checks: 2043 pass, 0 fail, 0 error, 175 skipped

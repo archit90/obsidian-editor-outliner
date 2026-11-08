@@ -1,6 +1,6 @@
 {
   "name": "obsidian-editor-outliner",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Outliner editing for headings, lists and body blocks: indent, outdent and move with children, expand selection up to whole items and sections, and a Logseq-like outline mode for lists (Enter, Backspace, Delete, paste). List items can hold paragraphs and code blocks. Folding commands, heading guides and drag handles. Works in tabs, Editor Multiple Lanes cards and Canvas cards.",
   "license": "MIT",
   "author": "Archit Gupta",
@@ -26,6 +26,7 @@
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:e2e && npm test && npm run build && npm run smoke",
     "deploy": "npm run build && node scripts/deploy.mjs",
     "version": "node scripts/version-bump.mjs && git add manifest.json versions.json",
+    "release": "npm version patch",
     "typecheck:e2e": "tsc -p e2e",
     "e2e": "node e2e/run.mjs && node e2e/extra.mjs",
     "e2e:cases": "node e2e/run.mjs",

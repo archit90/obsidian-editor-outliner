@@ -898,9 +898,15 @@ async function main() {
           const undo =
             cs.undo ?? (actions === 1 && st.text !== setupText && cs.want !== "@off" && cs.want !== "@obsidian");
           if (undo && r.status === "PASS") {
+            // the editor has focus (after a command from the palette it comes back a moment later, in a lanes card
+            // too); then the text is read until the undo has landed (up to 1 s), not after a fixed pause
+            await c.ev(`(() => { window.__e2e.cm?.focus(); return 1 })()`);
             await c.key("z", { ctrl: true });
-            await sleep(80);
-            const u = await c.ev(`window.__e2e.state()`);
+            let u = await c.ev(`window.__e2e.state()`);
+            for (let i = 0; i < 20 && u.text !== setupText; i++) {
+              await sleep(50);
+              u = await c.ev(`window.__e2e.state()`);
+            }
             ur = {
               id: cs.id + "~undo",
               group: cs.group,
@@ -913,6 +919,24 @@ async function main() {
             if (u.text !== setupText) {
               ur.status = "FAIL";
               ur.problems.push({ what: "text after one Ctrl+Z", want: setupText, got: u.text });
+              const why = await c.ev(
+                `(() => { const S = window.__e2e, v = S.views[S.surface]; return JSON.stringify({ editorReplaced: !!v?.editor?.cm && v.editor.cm !== S.cm, cmConnected: S.cm.dom.isConnected, focused: S.cm.hasFocus, active: document.activeElement?.className?.slice?.(0, 60) }); })()`,
+              );
+              ur.problems.push({ what: "editor at the undo", want: "", got: why });
+              // seen about once in 10–25 runs, only in a lanes card (MB2): the same editor, focused, but one Ctrl+Z
+              // changed nothing. Cause not found yet: run the case once more, and record it as FLAKY if that passes
+              await runOnce(c, cs, true, {});
+              await c.ev(`(() => { window.__e2e.cm?.focus(); return 1 })()`);
+              await c.key("z", { ctrl: true });
+              let again = await c.ev(`window.__e2e.state()`);
+              for (let i = 0; i < 20 && again.text !== setupText; i++) {
+                await sleep(50);
+                again = await c.ev(`window.__e2e.state()`);
+              }
+              if (again.text === setupText) {
+                ur.status = "FLAKY";
+                ur.problems.push({ what: "retried", want: "", got: "the case run again: one Ctrl+Z undid it" });
+              }
             }
           }
         } catch (e) {
@@ -934,7 +958,8 @@ async function main() {
         if (r.status !== "PASS" || verbose) report(r, tag);
         if (ur) {
           results.push(ur);
-          if (ur.status === "FAIL" || verbose) report(ur, cs.id + "~undo" + ` [${surface}/${view}]`);
+          if (ur.status === "FAIL" || ur.status === "FLAKY" || verbose)
+            report(ur, cs.id + "~undo" + ` [${surface}/${view}]`);
         }
       }
     }
@@ -969,12 +994,12 @@ function report(r, tag) {
  */
 function writeResults(results, consoleErrors, env) {
   const count = (/** @type {string} */ s) => results.filter(r => r.status === s).length;
-  const [pass, fail, err, skip] = ["PASS", "FAIL", "ERROR", "SKIP"].map(count);
+  const [pass, fail, err, skip, flaky] = ["PASS", "FAIL", "ERROR", "SKIP", "FLAKY"].map(count);
   const out = [];
   out.push("# Editor Outliner e2e results");
   out.push("");
   out.push(
-    `Run ${new Date().toISOString()}: ${results.length} checks, ${pass} pass, ${fail} fail, ${err} error, ${skip} skipped ` +
+    `Run ${new Date().toISOString()}: ${results.length} checks, ${pass} pass, ${flaky} flaky (passed on a retry), ${fail} fail, ${err} error, ${skip} skipped ` +
       "(a skipped check needs a plugin that isn't enabled).",
   );
   out.push("");
@@ -1037,7 +1062,7 @@ function writeResults(results, consoleErrors, env) {
   }
   fs.writeFileSync(path.join(HERE, "results.md"), out.join("\n"));
   console.log(
-    `\n${results.length} checks: ${pass} pass, ${fail} fail, ${err} error, ${skip} skipped. Wrote e2e/results.md`,
+    `\n${results.length} checks: ${pass} pass, ${flaky} flaky, ${fail} fail, ${err} error, ${skip} skipped. Wrote e2e/results.md`,
   );
   return bad.length;
 }
