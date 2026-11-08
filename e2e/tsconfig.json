@@ -1,5 +1,5 @@
 {
-  "//": "Type-checks the plain-JS e2e runners (// @ts-check + JSDoc): npx tsc -p editor-outliner/e2e",
+  "//": "Type-checks the plain-JS e2e runners (// @ts-check + JSDoc): npm run typecheck:e2e (tsc -p e2e)",
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,

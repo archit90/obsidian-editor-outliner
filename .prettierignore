@@ -1,9 +1,11 @@
 node_modules/
 main.js
 package-lock.json
-.sandbox/
+.sandbox*/
 e2e/CASES.md
 e2e/*results*.md
 e2e/results*.json
 e2e/restart.*.json
 e2e/*.log
+# hand-test notes: their Markdown is the test (tabs, markers, spacing)
+e2e/fixtures/

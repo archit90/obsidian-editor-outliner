@@ -1,11 +1,10 @@
-// Expand / shrink selection (the repo's SPEC.md, "Expand / shrink selection"). Pure. First the text steps at the
+// Expand / shrink selection (SPEC.md → Expand / shrink selection). Pure. First the text steps at the
 // cursor (word, link, sentence, line, the item's paragraph and own lines, ...), the same either way; then whole
 // nodes: Expand up / down adds the next sibling that way, at the edge selects the parent, then the parent's
 // siblings, and so on up to the note's top level. Shrink up / down retraces that edge back to the start.
 import { Block, Item, Outline, Section, blocksOf, innerBlocks, itemsOf, locate, prefixLen, trimEnd } from "./parse";
 import { Pos, partAt } from "./content";
 
-export type { Pos };
 export interface Span {
   from: Pos;
   to: Pos;

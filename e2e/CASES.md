@@ -1,14 +1,15 @@
 # Editor Outliner: end-to-end cases
 
-Generated from `cases.mjs` (outline mode, groups M … X) and `cases-deep.mjs` (everything else, groups KI … WH; `TEST-CASES.md` is their catalogue with statuses) by `node e2e/run.mjs --catalogue`; edit the cases there. `run.mjs` runs them in a real Obsidian (see its header). Results of the last run: `results.md`.
+Generated from `cases.mjs` (outline mode, groups E … X) and `cases-deep.mjs` (everything else, groups KI … L; `TEST-CASES.md` is their catalogue with statuses) by `npm run e2e:catalogue`; edit the cases there. `run.mjs` runs them in a real Obsidian (see its header). Results of the last run: `results.md`.
 
 Notation:
 - `|` is the cursor; `⟦` … `⟧` a selection from its anchor `⟦` to its head `⟧` (brackets would clash with task boxes and links). A case with a table writes the cursor as `‸`. Several `|` are several cursors.
 - Keys are CodeMirror-style names sent as real key events (`Shift-Tab`, `Alt-Shift-ArrowUp`, `Ctrl-z`); paste / copy / cut are ClipboardEvents with a DataTransfer on the editor's content, unless the keys say `Ctrl-v` / `Ctrl-c`.
 - Expected `= Obsidian` means: the same text and selection as the same keys with outline mode off (the key steps aside). `unchanged` means the setup text and selection stay.
-- Unless a case says otherwise: outline mode on, Live Preview and Source mode, in an Editor Lanes card, Obsidian set to indent with tabs (tab size 4). Cases marked *everywhere* also run in a normal tab and in Canvas text and file cards.
+- Unless a case says otherwise: outline mode on, Live Preview and Source mode, in a normal tab, Obsidian set to indent with tabs (tab size 4). Cases marked *everywhere* also run in an Editor Multiple Lanes card (when that plugin is enabled), in Canvas text and file cards and in a page preview popover (Live Preview).
 - After every case whose text changed (outline mode on, one key), one `Ctrl-z` must restore the setup text (the `~undo` result).
-- Source: the SPEC.md line (section 7) or the Logseq rule (editor.cljs / paste.cljs) the expectation comes from.
+- Needs: another plugin the case (or its surface) requires; without it the case is skipped.
+- Source: the SPEC.md section or the Logseq rule (editor.cljs / paste.cljs) the expectation comes from.
 
 | Group | Cases |
 |---|---|
@@ -33,16 +34,19 @@ Notation:
 | Step-aside | 22 |
 | Edge cases of the note | 15 |
 | Indent / outdent outside outline mode | 28 |
-| Move outside outline mode | 25 |
+| Move outside outline mode | 26 |
 | Expand / shrink selection | 35 |
 | Node selection: headings and details | 11 |
 | Folding commands | 14 |
 | Heading guides, level labels and H7+ styling | 13 |
+| Inline code and block delimiters | 1 |
 | Drag handles (real mouse drags) | 15 |
-| Where it works and settings | 9 |
+| Where it works and settings | 10 |
 | Vim mode: the outliner keys | 8 |
 | Item node selection: more cases | 16 |
-| **Total** | 579 |
+| Working with other plugins | 3 |
+| Editor Multiple Lanes cards | 6 |
+| **Total** | 591 |
 
 ## Enter
 
@@ -65,7 +69,7 @@ Expected:
 - three
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E2. Spaces around the split go
 
@@ -83,7 +87,7 @@ Expected:
 - |two
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E3. At the end: an empty next sibling
 
@@ -103,7 +107,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E4. A selection within the line is replaced
 
@@ -121,7 +125,7 @@ Expected:
 - |ef
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E5. At the start of a non-empty item: an empty item above, the cursor stays
 
@@ -143,7 +147,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E6. In the marker counts as the start
 
@@ -161,7 +165,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E7. Unfolded children: the new item is the first child
 
@@ -185,7 +189,7 @@ Expected:
 - e
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (unfolded children); Logseq: has children and not collapsed → first child
+Source: SPEC.md → Outline mode → Enter (unfolded children); Logseq: has children and not collapsed → first child
 
 ### E8. The first child takes the children's bullet (numbered)
 
@@ -207,7 +211,7 @@ Expected:
 	3. y
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E9. The first child takes the children's bullet (*)
 
@@ -227,7 +231,7 @@ Expected:
 	* x
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E10. Bullet character * kept
 
@@ -245,7 +249,7 @@ Expected:
 * |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E11. Bullet + and its wide gap kept
 
@@ -263,7 +267,7 @@ Expected:
 +   |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E12. Nested tab-indented item: sibling at its indent
 
@@ -285,7 +289,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E13. Space-indented list keeps spaces in an editor set to tabs
 
@@ -307,7 +311,7 @@ Expected:
         - c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E14. At the start of an item with children: empty item above
 
@@ -327,7 +331,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E15. Trailing spaces before the cursor go
 
@@ -345,7 +349,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E16. Unicode text and an emoji
 
@@ -363,7 +367,7 @@ Expected:
 - |語 🎉
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E17. Very deep nesting (8 levels)
 
@@ -395,7 +399,7 @@ Expected:
 							- |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
+Source: SPEC.md → Outline mode → Enter; Logseq editor.cljs keydown-new-block / insert-new-block!
 
 ### E18. Item only a marker, the whole note: Enter ends the list
 
@@ -412,7 +416,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the last empty top-level item ends the list)
+Source: SPEC.md → Outline mode → Enter (the last empty top-level item ends the list)
 
 ### E19. At the end of a note: Enter on a nested empty item outdents it, the next Enter leaves the list
 
@@ -432,7 +436,7 @@ Expected:
 x|
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the last empty top-level item ends the list)
+Source: SPEC.md → Outline mode → Enter (the last empty top-level item ends the list)
 
 ## Enter on an empty item
 
@@ -458,7 +462,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE2. Deeper nested last child: one level out
 
@@ -479,7 +483,7 @@ Expected:
 	- |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE3. Nested empty task outdents, keeps its box
 
@@ -498,7 +502,7 @@ Expected:
 - [ ] |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE4. Logical outdenting: a last child lands the same
 
@@ -520,7 +524,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE5. Nested with a sibling after: another empty item
 
@@ -542,7 +546,7 @@ Expected:
 	- b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE6. Top-level with a sibling after: another empty item
 
@@ -562,7 +566,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE7. Last top-level item, empty: Enter ends the list (a blank line, then a paragraph line)
 
@@ -582,7 +586,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE8. Empty item with unfolded children: an empty first child
 
@@ -604,7 +608,7 @@ Expected:
 - d
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE9. Empty nested last child with children outdents with them
 
@@ -625,7 +629,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE10. Renumbers after an outdent
 
@@ -648,7 +652,7 @@ Expected:
 3. b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE11. Empty task, last top-level: Enter ends the list like any last empty item
 
@@ -665,7 +669,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ### EE12. Empty nested item in a callout outdents
 
@@ -684,7 +688,7 @@ Expected:
 > - |
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
+Source: SPEC.md → Outline mode → Enter (Empty item); Logseq: keydown-new-block on a blank block (outdent / new block)
 
 ## Enter with continuation paragraphs and code
 
@@ -708,7 +712,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB2. Moved lines re-indent to a first child's content column
 
@@ -730,7 +734,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB3. At the end of the marker line: the next paragraph line becomes the text
 
@@ -751,7 +755,7 @@ Expected:
   more
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB4. Leading blank lines go
 
@@ -773,7 +777,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB5. Split in a continuation line
 
@@ -795,7 +799,7 @@ Expected:
   more
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB6. At the start of a continuation line: it and the rest move
 
@@ -814,7 +818,7 @@ Expected:
 - |cont
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB7. In the item indent of a continuation line counts as its start
 
@@ -833,7 +837,7 @@ Expected:
 - |cont
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB8. A later paragraph moves, its blank line dropped
 
@@ -855,7 +859,7 @@ Expected:
   more
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB9. A code block after the cursor moves, its whitespace byte for byte
 
@@ -885,7 +889,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB10. Code moving into a first child gains the child's indent
 
@@ -911,7 +915,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB11. A code block before the cursor stays
 
@@ -937,7 +941,7 @@ Expected:
 - |ter
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB12. In a code block in an item: the code Enter (item indent kept)
 
@@ -961,7 +965,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items → Code-indent rules → Enter
+Source: SPEC.md → Multi-block items → Code-indent rules → Enter
 
 ### EB13. On an opening fence line: the code Enter
 
@@ -983,7 +987,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items → Code-indent rules → Enter
+Source: SPEC.md → Multi-block items → Code-indent rules → Enter
 
 ### EB14. A whitespace line left by Shift+Enter goes from the first part
 
@@ -1004,7 +1008,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB15. Task: continuation re-indents to the content column after the bullet
 
@@ -1026,7 +1030,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (the item's own lines below the cursor move)
+Source: SPEC.md → Outline mode → Enter (the item's own lines below the cursor move)
 
 ### EB16. $$ math in an item: Enter steps aside
 
@@ -1043,7 +1047,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (Enter steps aside on a code, $$ or %% line)
+Source: SPEC.md → Outline mode (Enter steps aside on a code, $$ or %% line)
 
 ### EB17. %% comment in an item: Enter steps aside
 
@@ -1060,7 +1064,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (Enter steps aside on a code, $$ or %% line)
+Source: SPEC.md → Outline mode (Enter steps aside on a code, $$ or %% line)
 
 ## Shift+Enter
 
@@ -1083,7 +1087,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE2. Ordered item: content column after the number
 
@@ -1101,7 +1105,7 @@ Expected:
    |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE3. Nested tab-indented item
 
@@ -1121,7 +1125,7 @@ Expected:
 	  |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE4. On an empty continuation line: a paragraph break
 
@@ -1141,7 +1145,7 @@ Expected:
   |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE5. In a continuation line
 
@@ -1161,7 +1165,7 @@ Expected:
   |c
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE6. Typing after it stays in the item
 
@@ -1181,7 +1185,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE7. Shift+Enter then Enter: the whitespace line goes, a new item
 
@@ -1199,7 +1203,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE8. Task: content column after the bullet
 
@@ -1217,7 +1221,7 @@ Expected:
   |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE9. Whitespace after the cursor goes
 
@@ -1235,7 +1239,7 @@ Expected:
   |b
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE10. Space-indented nested item
 
@@ -1255,7 +1259,7 @@ Expected:
       |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE11. In a code block in an item: steps aside
 
@@ -1272,7 +1276,7 @@ Keys: Shift-Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE12. Outside lists: Obsidian's
 
@@ -1286,7 +1290,7 @@ Keys: Shift-Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ### SE13. With children: the new line goes before them (own lines)
 
@@ -1306,7 +1310,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Enter; Logseq: soft line break in the same block
+Source: SPEC.md → Outline mode → Shift+Enter; Logseq: soft line break in the same block
 
 ## Shift+Tab ending a list
 
@@ -1329,7 +1333,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST2. Empty task
 
@@ -1349,7 +1353,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST3. In the middle: blank lines around it, the items after stay a list (numbered as Obsidian does)
 
@@ -1374,7 +1378,7 @@ Expected:
 
 Obsidian numbers a list on across blank lines, and the plugin numbers as Obsidian does.
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST4. First item: a blank line before the items after it
 
@@ -1394,7 +1398,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST5. Bullets in the middle
 
@@ -1417,7 +1421,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST6. Nested empty item: the outdent, not the end
 
@@ -1436,7 +1440,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST7. Non-empty top-level item: nothing (a list stays a list)
 
@@ -1451,7 +1455,7 @@ Keys: Shift-Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent → A list always stays a list
+Source: SPEC.md → Indent / outdent → A list always stays a list
 
 ### ST8. Empty top-level item with children: nothing
 
@@ -1466,7 +1470,7 @@ Keys: Shift-Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST9. Typing after ending the list writes a paragraph outside it
 
@@ -1486,7 +1490,7 @@ Expected:
 x|
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST10. Enter after ending the list is Obsidian's
 
@@ -1507,7 +1511,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST13. Loose list (a blank line already there): no second blank line
 
@@ -1528,7 +1532,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST14. Typing after ending a list in the middle: a paragraph, the rest still a list
 
@@ -1551,7 +1555,7 @@ x|
 - c
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST15. Blank line already below: none added
 
@@ -1575,7 +1579,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode → Shift+Tab on an empty top-level item ends the list
+Source: SPEC.md → Outline mode → Shift+Tab on an empty top-level item ends the list
 
 ### ST11. Blank line between items: Shift+Tab never reaches Obsidian's outdent
 
@@ -1592,7 +1596,7 @@ Keys: Shift-Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent → A list always stays a list
+Source: SPEC.md → Indent / outdent → A list always stays a list
 
 ## Backspace
 
@@ -1613,7 +1617,7 @@ Expected:
 - one|two
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B2. From the start of the marker
 
@@ -1631,7 +1635,7 @@ Expected:
 - one|two
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B3. From inside a child's indent: merges into the parent
 
@@ -1649,7 +1653,7 @@ Expected:
 - one|two
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B4. First child merges into its parent
 
@@ -1669,7 +1673,7 @@ Expected:
 	- d
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B5. Into the last visible descendant of the previous sibling
 
@@ -1691,7 +1695,7 @@ Expected:
 		- c|d
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B6. Its children become the target's, after its own
 
@@ -1715,7 +1719,7 @@ Expected:
 		- e
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B7. Merging into the parent: the children go where the item was
 
@@ -1737,7 +1741,7 @@ Expected:
 	- d
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B8. The children keep their structure
 
@@ -1759,7 +1763,7 @@ Expected:
 		- d
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B9. Continuation paragraphs and code re-indent to the target, code bytes kept
 
@@ -1787,7 +1791,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B10. A blank previous item is deleted instead
 
@@ -1809,7 +1813,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B11. A blank previous item goes with its blank lines
 
@@ -1832,7 +1836,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B12. An empty parent isn't deleted: the child merges into it
 
@@ -1850,7 +1854,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B13. Blank lines between the two go
 
@@ -1869,7 +1873,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B14. First item with text: nothing
 
@@ -1886,7 +1890,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B15. First item, empty, no children: Obsidian's Backspace
 
@@ -1901,7 +1905,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B16. First item, empty, with children: nothing
 
@@ -1916,7 +1920,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B17. Right after a task's checkbox: the checkbox goes
 
@@ -1935,7 +1939,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B18. Checkbox, then a second Backspace merges
 
@@ -1953,7 +1957,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B19. Cursor before the checkbox: merges, the checkbox goes
 
@@ -1971,7 +1975,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B20. Target ends with a code block: the text goes on a new line
 
@@ -1996,7 +2000,7 @@ Expected:
   |b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B21. Target ends with a quote: the text goes on a new line
 
@@ -2017,7 +2021,7 @@ Expected:
   |b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B22. Inside the text: Obsidian's
 
@@ -2032,7 +2036,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B23. With a selection: Obsidian's
 
@@ -2047,7 +2051,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B24. First item of a second list (after a paragraph): nothing
 
@@ -2065,7 +2069,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B25. First item right under a heading: nothing
 
@@ -2080,7 +2084,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B26. First item after frontmatter: nothing
 
@@ -2097,7 +2101,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B27. Unicode: merges at the join
 
@@ -2115,7 +2119,7 @@ Expected:
 - 日本|🎉x
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ### B28. Merged item's continuation follows the target's own lines
 
@@ -2137,7 +2141,7 @@ Expected:
   bmore
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
+Source: SPEC.md → Outline mode → Backspace; Logseq editor.cljs keydown-backspace-handler / delete-block!
 
 ## Backspace: the invisible item indent
 
@@ -2157,7 +2161,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI2. Anywhere in its indent
 
@@ -2175,7 +2179,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI3. Joins a continuation line above
 
@@ -2195,7 +2199,7 @@ Expected:
   x|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI4. An empty line above (a paragraph break) just goes
 
@@ -2215,7 +2219,7 @@ Expected:
   |b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI5. Code line: joins without the item indent, the code's own kept
 
@@ -2239,7 +2243,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI6. Code line's own indentation is text: Obsidian's
 
@@ -2257,7 +2261,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI7. First code line: nothing (would glue code to the fence)
 
@@ -2274,7 +2278,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI8. Closing fence line: nothing
 
@@ -2291,7 +2295,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI9. Opening fence line: nothing
 
@@ -2308,7 +2312,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI10. Continuation right under a code block: nothing
 
@@ -2326,7 +2330,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI11. Code line after an empty code line: joins it
 
@@ -2350,7 +2354,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI12. Past the indent: Obsidian's
 
@@ -2365,7 +2369,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI13. Whitespace-only line after the item: joins it
 
@@ -2383,7 +2387,7 @@ Expected:
 - a|
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI14. $$ line in an item: Obsidian's
 
@@ -2400,7 +2404,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI15. Quote line in the item: steps aside
 
@@ -2415,7 +2419,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI16. Continuation right under a quote: nothing
 
@@ -2431,7 +2435,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ### BI17. Tab-indented item's continuation
 
@@ -2451,7 +2455,7 @@ Expected:
 	- a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Backspace (The item indent is invisible)
+Source: SPEC.md → Outline mode → Backspace (The item indent is invisible)
 
 ## Delete
 
@@ -2472,7 +2476,7 @@ Expected:
 - one|two
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D2. Children showing: the first child merges in
 
@@ -2494,7 +2498,7 @@ Expected:
 	- d
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D3. The next item's children come under this item
 
@@ -2514,7 +2518,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D4. Last child pulls in the parent's next sibling and its children
 
@@ -2536,7 +2540,7 @@ Expected:
 		- d
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D5. Last item of the list: nothing
 
@@ -2553,7 +2557,7 @@ Keys: Delete
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D6. Last item at the end of the note: nothing
 
@@ -2568,7 +2572,7 @@ Keys: Delete
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D7. From the end of the last own line
 
@@ -2590,7 +2594,7 @@ Expected:
   cont
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D8. Elsewhere in the text: Obsidian's
 
@@ -2605,7 +2609,7 @@ Keys: Delete
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D9. End of the marker line with a continuation below: joins it without its indent
 
@@ -2625,7 +2629,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D10. End of a continuation line: joins the next
 
@@ -2645,7 +2649,7 @@ Expected:
   x|b
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D11. An empty line below just goes
 
@@ -2665,7 +2669,7 @@ Expected:
   b
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D12. Code line: joins the next, its own indent kept
 
@@ -2689,7 +2693,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D13. Last code line before the fence: nothing
 
@@ -2707,7 +2711,7 @@ Keys: Delete
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D14. Marker line before a fence: nothing
 
@@ -2724,7 +2728,7 @@ Keys: Delete
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D15. Whitespace-only line after the item: nothing
 
@@ -2740,7 +2744,7 @@ Keys: Delete
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D16. With a selection: Obsidian's
 
@@ -2755,7 +2759,7 @@ Keys: Delete
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D17. Blank lines between the items go
 
@@ -2774,7 +2778,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D18. The next item's checkbox goes
 
@@ -2792,7 +2796,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ### D19. Unicode
 
@@ -2810,7 +2814,7 @@ Expected:
 - 日本|🎉
 ````
 
-Source: SPEC.md §7 Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
+Source: SPEC.md → Outline mode → Delete; Logseq editor.cljs keydown-delete-handler / delete-and-update
 
 ## Paste
 
@@ -2835,7 +2839,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P2. Next siblings after the subtree, wherever the cursor is
 
@@ -2856,7 +2860,7 @@ Expected:
 - d
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P3. Cursor at the start: still after the item
 
@@ -2874,7 +2878,7 @@ Expected:
 - x|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P4. Unfolded children: the pasted items become the first children
 
@@ -2895,7 +2899,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P5. Empty item with children, one block: replaced, it keeps the children
 
@@ -2914,7 +2918,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P6. Empty item with children, two blocks: they become its first children
 
@@ -2935,7 +2939,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P7. The pasted tree re-indents to the target
 
@@ -2957,7 +2961,7 @@ Expected:
 			- z|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P8. Code in pasted items byte for byte beyond the item indent
 
@@ -2981,7 +2985,7 @@ Expected:
 	  ```|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P9. Top-level items take the target's bullet; checkboxes kept; children keep theirs
 
@@ -3001,7 +3005,7 @@ Expected:
 	+ z|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P10. Into an ordered list: numbered and renumbered
 
@@ -3022,7 +3026,7 @@ Expected:
 4. b
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P11. A pasted numbered list becomes items with the bullet target's marker
 
@@ -3041,7 +3045,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P11b. A pasted 1) list into a numbered list: the target's numbers
 
@@ -3062,7 +3066,7 @@ Expected:
 4. b
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P11c. A pasted numbered list replaces an empty item
 
@@ -3083,7 +3087,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P12. Paragraphs separated by blank lines become items
 
@@ -3103,7 +3107,7 @@ Expected:
 - three|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P13. A heading becomes an item with its #, a paragraph under it joins it
 
@@ -3122,7 +3126,7 @@ Expected:
 - x|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P14. A selection in the line goes first
 
@@ -3141,7 +3145,7 @@ Expected:
 - d
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P15. Into a callout list
 
@@ -3160,7 +3164,7 @@ Expected:
 > 	- y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P16. Into a lazy (unclean) item: Obsidian's
 
@@ -3175,7 +3179,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P17. Selection across lines: Obsidian's
 
@@ -3190,7 +3194,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P18. Outside lists: Obsidian's
 
@@ -3204,7 +3208,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P19. A code block alone goes into the item, after the cursor's line
 
@@ -3226,7 +3230,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P20. Code alone keeps its indentation relative to its fence
 
@@ -3247,7 +3251,7 @@ Expected:
   ```|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P21. Code alone with blank lines around it
 
@@ -3267,7 +3271,7 @@ Expected:
   ```|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P22. Code alone on a fence line: after the code block
 
@@ -3293,7 +3297,7 @@ Expected:
   ```|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P23. One line of plain text: Obsidian's
 
@@ -3307,7 +3311,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P24. Multi-line plain text: later lines get the item indent, common indent removed
 
@@ -3328,7 +3332,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P25. Plain text replaces a selection in a continuation line
 
@@ -3348,7 +3352,7 @@ Expected:
   two|z
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P26. Plain text with a trailing newline: the cursor on an indented line
 
@@ -3367,7 +3371,7 @@ Expected:
 	  |
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P27. HTML list (browser copy) is converted and becomes items
 
@@ -3386,7 +3390,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P28. HTML with Auto convert HTML off: the plain text, multi-line rule
 
@@ -3405,7 +3409,7 @@ Expected:
   y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P29. HTML with an image: Obsidian's
 
@@ -3419,7 +3423,7 @@ Keys: paste (text/plain + text/html)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P30. Text/markdown wins over plain text
 
@@ -3438,7 +3442,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P31. Obsidian's own copy (HTML marked <!-- obsidian -->): its plain text
 
@@ -3457,7 +3461,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P32. A URL list: Obsidian's
 
@@ -3471,7 +3475,7 @@ Keys: paste (text/plain + text/uri-list)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P33. CRLF line ends paste like LF
 
@@ -3490,7 +3494,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P34. On a $$ line: Obsidian's
 
@@ -3507,7 +3511,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P35. On a fence line, not a code block alone: Obsidian's
 
@@ -3524,7 +3528,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P36. The whitespace line Shift+Enter left goes
 
@@ -3543,7 +3547,7 @@ Expected:
 - x|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P37. Real Ctrl+V from the system clipboard
 
@@ -3563,7 +3567,7 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P38. A table pasted (one block, no blank line): multi-line text in the item
 
@@ -3582,7 +3586,7 @@ Expected:
   | c |‸
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P39. In a heading: Obsidian's
 
@@ -3597,7 +3601,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P40. Folded target: the items go after its subtree, the fold stays
 
@@ -3621,7 +3625,7 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P41. Multi-line plain text into an empty note: Obsidian's
 
@@ -3635,7 +3639,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P42. Pasted tasks keep their state
 
@@ -3654,7 +3658,7 @@ Expected:
 - [ ] open|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ### P43. A paragraph and a code block: separate items (code below an empty text line)
 
@@ -3676,7 +3680,7 @@ Expected:
   ```|
 ````
 
-Source: SPEC.md §7 Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
+Source: SPEC.md → Outline mode → Paste; Logseq paste.cljs paste-text-or-blocks-aux / editor.cljs paste-blocks
 
 ## Multi-block items and code-indent rules
 
@@ -3701,10 +3705,11 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB2. Insert Dataview query in a nested item
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -3723,10 +3728,11 @@ Expected:
 	  ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB3. Insert from a continuation line
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -3747,10 +3753,11 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB4. Insert in an ordered item: numbered as Obsidian does
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -3771,10 +3778,11 @@ Expected:
 
 Obsidian's numbering reads the empty line of a code block in an item as the end of the list, so the next item starts again at 1 (also when the block is typed by hand); the plugin numbers as Obsidian does.
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### MB5. Insert in a callout item
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -3793,7 +3801,7 @@ Expected:
 >   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB6. Insert isn't offered outside an item's own lines
 
@@ -3808,7 +3816,7 @@ Keys:
 Expected: (see checks)
 The command's check says it doesn't apply.
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB7. Enter in code keeps the item indent plus the code's own indent
 
@@ -3834,7 +3842,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB8. Enter in code in a tab-indented item
 
@@ -3858,7 +3866,7 @@ Expected:
 	  ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB9. Enter in code drops whitespace right after the cursor
 
@@ -3882,7 +3890,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB10. Enter in code in a callout item keeps > and the indent
 
@@ -3906,7 +3914,7 @@ Expected:
 >   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB12. Enter on a code line below the item indent: the item indent
 
@@ -3930,7 +3938,7 @@ x
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB13. Copy code lines: the item indent goes
 
@@ -3953,7 +3961,7 @@ let a;
   b();
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB14. Copy the whole block with fences
 
@@ -3978,7 +3986,7 @@ let a;
 ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB15. Copy part of one code line: unchanged
 
@@ -3999,7 +4007,7 @@ Clipboard text:
 let
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB16. Cut code lines: same clipboard, the lines go
 
@@ -4028,7 +4036,7 @@ let a;
   b();
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB17. Copy from past the indent: the first line as is
 
@@ -4051,7 +4059,7 @@ t a;
   b
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB18. Copy keeps the code's own tabs and spaces
 
@@ -4074,7 +4082,7 @@ Clipboard text:
  	y
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB19. Copy in a callout: > and the indent go
 
@@ -4097,7 +4105,7 @@ x
   y
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB21. Real Ctrl+C of code lines
 
@@ -4120,7 +4128,7 @@ let a;
   b();
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB22. Paste into code: later lines get the item indent, an empty line none
 
@@ -4146,7 +4154,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB23. Paste ending in a newline into code
 
@@ -4171,7 +4179,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB24. Paste at column 0 inside the indent: the last line gets none
 
@@ -4198,7 +4206,7 @@ x
 
 Source mode: in Live Preview the item indent of a code line is hidden and the cursor never rests in it (MB38).
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB26. Paste one line into code: Obsidian's
 
@@ -4215,7 +4223,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB27. Paste HTML into code: the plain text, no conversion
 
@@ -4239,7 +4247,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB28. Paste a list into code: still the code rule
 
@@ -4263,7 +4271,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB29. Paste into code in a callout item
 
@@ -4288,7 +4296,7 @@ Expected:
 >   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB30. Tab on an item with code: the code's own whitespace kept
 
@@ -4317,7 +4325,7 @@ Expected:
 	  ```
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace
+Source: SPEC.md → Indent / outdent → Whitespace
 
 ### MB31. Shift+Tab back: byte for byte as before
 
@@ -4346,7 +4354,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace
+Source: SPEC.md → Indent / outdent → Whitespace
 
 ### MB32. Move up with code: untouched
 
@@ -4371,7 +4379,7 @@ Expected:
 - one
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB33. Tab inside a code block in an item: Obsidian's
 
@@ -4388,7 +4396,7 @@ Keys: Tab
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Keys (Tab falls through inside code blocks)
+Source: SPEC.md → Keys (Tab falls through inside code blocks)
 
 ### MB34. Shift+Tab in code that would leave the item: nothing
 
@@ -4405,7 +4413,7 @@ Keys: Shift-Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent (Obsidian's Shift+Tab only while the line stays inside the item)
+Source: SPEC.md → Indent / outdent (Obsidian's Shift+Tab only while the line stays inside the item)
 
 ### MB35. Shift+Tab in code that stays in the item: Obsidian's
 
@@ -4422,7 +4430,7 @@ Keys: Shift-Tab
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Indent / outdent
+Source: SPEC.md → Indent / outdent
 
 ### MB36. Live Preview: a code block in an item sits under the item's text (its item indent hidden)
 
@@ -4442,7 +4450,7 @@ Keys:
 Expected: (see checks)
 Every line of the block starts where the item's text does.
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB37. Source mode: the code block in an item is shown as written
 
@@ -4461,7 +4469,7 @@ Keys:
 Expected: (see checks)
 No code line is moved or has its indent hidden.
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB38. Live Preview, outline mode off: Home twice then typing keeps the item indent (the cursor never rests in it)
 
@@ -4485,7 +4493,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB39. Live Preview: Backspace at a code line's start joins it to the line above
 
@@ -4510,7 +4518,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ### MB40. Live Preview: ← at a code line's start goes to the end of the line above
 
@@ -4536,7 +4544,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 Multi-block items
+Source: SPEC.md → Multi-block items
 
 ## Node selection
 
@@ -4557,7 +4565,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N3. The item's own lines without its children: no node selection
 
@@ -4575,7 +4583,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: none.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N4. Selection reaching past the list: none
 
@@ -4593,7 +4601,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: none.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N5. Expand down reaches the node (word → line → item with subtree)
 
@@ -4617,7 +4625,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### N6. Expand up from the first child: at the edge, the parent with its subtree
 
@@ -4643,7 +4651,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1, 2, 3.
 
-Source: SPEC.md §7 Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### N7. Alt+↓ on a selected item adds the next sibling
 
@@ -4668,7 +4676,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N8. Alt+↓ past the last sibling: the parent, the whole list
 
@@ -4689,7 +4697,7 @@ Expected:
 - c⟧
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N9. Alt+Shift+↓ on a hand-made run: the bottom edge back toward the anchor
 
@@ -4713,7 +4721,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N7b. Plain ↓ with a node selection just moves the cursor (no extending)
 
@@ -4734,7 +4742,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N10. Alt+↑ adds the sibling above
 
@@ -4756,7 +4764,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N11. Alt+↑ at the first sibling: the parent, the whole list
 
@@ -4775,7 +4783,7 @@ Expected:
 - b⟦
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N12. Alt+↓ over a sibling with a subtree, nested
 
@@ -4800,7 +4808,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N13. Alt+Shift+↓ undoes an Alt+↓ step
 
@@ -4821,7 +4829,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N14. ← folds the selected node
 
@@ -4845,7 +4853,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N15. ← on a leaf: selects the parent
 
@@ -4866,7 +4874,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N16. ← on a top-level leaf: nothing
 
@@ -4881,7 +4889,7 @@ Keys: ArrowLeft
 
 Expected: unchanged
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N17. ← on a folded node: selects the parent
 
@@ -4906,7 +4914,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N18. → unfolds a folded node
 
@@ -4931,7 +4939,7 @@ Expected:
 ````
 Folded lines after: none.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N19. → selects the first child
 
@@ -4952,7 +4960,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N20. → without children: nothing
 
@@ -4967,7 +4975,7 @@ Keys: ArrowRight
 
 Expected: unchanged
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N21. Escape is Obsidian's: it clears the selection, the cursor at its head
 
@@ -4993,7 +5001,7 @@ Expected:
 
 In a Canvas card Escape leaves the card (N47); in a hover popover it closes it, as Obsidian does.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N22. Backspace removes the nodes with their subtrees
 
@@ -5015,7 +5023,7 @@ Expected:
 - |three
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N23. Delete removes them too
 
@@ -5036,7 +5044,7 @@ Expected:
 - |three
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N24. Removing the last sibling: the cursor to the end of the line above
 
@@ -5054,7 +5062,7 @@ Expected:
 - a|
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N25. Removing the first of an ordered list renumbers
 
@@ -5074,7 +5082,7 @@ Expected:
 2. third
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N26. The blank line after the list stays when the last item goes
 
@@ -5096,7 +5104,7 @@ Expected:
 para
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N27. A whole list between paragraphs takes one blank line with it
 
@@ -5120,7 +5128,7 @@ p|
 q
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N28. Blank lines before the next sibling go with the node
 
@@ -5141,7 +5149,7 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N29. Everything
 
@@ -5159,7 +5167,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N30. Copy at column 0
 
@@ -5180,7 +5188,7 @@ Clipboard text:
 	- nested
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N31. Copy keeps relative indent and code bytes
 
@@ -5211,7 +5219,7 @@ Clipboard text:
 - d
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N32. Copy in a callout drops the > prefix
 
@@ -5232,7 +5240,7 @@ Clipboard text:
     - b
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N33. Copy of a selection that took the line break
 
@@ -5253,7 +5261,7 @@ Clipboard text:
 
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N34. Real Ctrl+C at column 0
 
@@ -5274,7 +5282,7 @@ Clipboard text:
 	- nested
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N35. Cut: the column-0 text, the nodes removed like Backspace
 
@@ -5300,7 +5308,7 @@ Clipboard text:
 	- c
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N36. Tab on a node selection: indents, still node-selected
 
@@ -5322,7 +5330,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N37. Shift+Tab on a node selection
 
@@ -5344,7 +5352,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N38. Ctrl+↑ on a node selection: moves, still selected
 
@@ -5366,7 +5374,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N39. Typing replaces the selection (Obsidian's)
 
@@ -5387,7 +5395,7 @@ x|
 - c
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N40. Heading section: node selection with the Outliner keys
 
@@ -5412,7 +5420,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: 4, 5, 6.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N41. Heading: Alt+↓ adds the next section
 
@@ -5449,7 +5457,7 @@ text
 end⟧
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N42. Heading ← folds the section
 
@@ -5470,7 +5478,7 @@ Keys: ArrowLeft
 Expected: (see checks)
 Folded lines after: 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N43. Heading Backspace removes the section and the blank lines before the next
 
@@ -5498,7 +5506,7 @@ Expected:
 # D
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N44. Heading Escape: cleared, the cursor at the head
 
@@ -5525,7 +5533,7 @@ x|
 ## C
 ````
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N45. Several cursors: the keys step aside
 
@@ -5541,7 +5549,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N47. Canvas: Escape with a node selection leaves the card, as with any selection
 
@@ -5559,7 +5567,7 @@ Keys: Escape
 Expected: (see checks)
 The card is no longer being edited.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N48. Node selection in a list under a heading: item nodes
 
@@ -5576,7 +5584,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 Node selection
+Source: SPEC.md → Node selection
 
 ### N49. Expand up from a whole list: its section
 
@@ -5598,7 +5606,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1, 2.
 
-Source: SPEC.md §7 Expand / shrink selection (whole list → section heading + body)
+Source: SPEC.md → Expand / shrink selection (whole list → section heading + body)
 
 ## Move / indent / outdent with nested children
 
@@ -5630,7 +5638,7 @@ Expected:
 - e
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV2. Move down an item with children
 
@@ -5659,7 +5667,7 @@ Expected:
 - e
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV3. Indent an item with children
 
@@ -5687,7 +5695,7 @@ Expected:
 - d
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV4. First child up: the last child of the parent's previous sibling
 
@@ -5712,7 +5720,7 @@ Expected:
 	- b2
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV5. Last child down: the first child of the parent's next sibling
 
@@ -5735,7 +5743,7 @@ Expected:
 	- b1
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV6. First child up, the previous sibling has no children
 
@@ -5756,7 +5764,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV7. First child of the first item up: nothing
 
@@ -5772,7 +5780,7 @@ Keys: Ctrl-ArrowUp
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV8. Last child of the last item down: nothing
 
@@ -5788,7 +5796,7 @@ Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV9. Grandchild, parent is a first child: up does nothing (no jump further away)
 
@@ -5806,7 +5814,7 @@ Keys: Ctrl-ArrowUp
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV10. Grandchild, parent is a last child: down does nothing
 
@@ -5824,7 +5832,7 @@ Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV11. Nested: 3rd of 5 up
 
@@ -5853,7 +5861,7 @@ Expected:
 	- 5
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV12. Outdent in place: the following siblings become its children
 
@@ -5882,7 +5890,7 @@ Expected:
 	- 5
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV13. Logical outdenting: after the parent's subtree
 
@@ -5906,7 +5914,7 @@ Expected:
 - 2|
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV14. Move down past a sibling with children
 
@@ -5929,7 +5937,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV15. Indent matches the existing children's indent
 
@@ -5950,7 +5958,7 @@ Expected:
     - |b
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV16. Indent the first item: nothing
 
@@ -5965,7 +5973,7 @@ Keys: Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV17. Outdent a top-level item: nothing
 
@@ -5980,7 +5988,7 @@ Keys: Shift-Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV18. Alt+PageUp isn't a move key: Obsidian's
 
@@ -5995,7 +6003,7 @@ Keys: Alt-PageUp
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV19. Move keeps a fold inside the moved node
 
@@ -6020,7 +6028,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Folding (folds inside moved nodes survive)
+Source: SPEC.md → Folding (folds inside moved nodes survive)
 
 ### MV20. Indent keeps a fold
 
@@ -6043,7 +6051,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV21. Move up across a blank line keeps it
 
@@ -6064,7 +6072,7 @@ Expected:
 - a
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV22. Indent renumbers: a one-item list starts at 1
 
@@ -6085,7 +6093,7 @@ Expected:
 2. c
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV23. Indent in a space-indented list keeps spaces
 
@@ -6106,7 +6114,7 @@ Expected:
     - |b
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV24. Several cursors: Tab is Obsidian's
 
@@ -6122,7 +6130,7 @@ Keys: Tab
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV25. Move heading sections
 
@@ -6151,7 +6159,7 @@ y
 x
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV26. Move a body block
 
@@ -6176,7 +6184,7 @@ pa|ra2
 para1
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV27. Tab in a paragraph: Obsidian's
 
@@ -6190,7 +6198,7 @@ Keys: Tab
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV28. Move in a callout
 
@@ -6209,7 +6217,7 @@ Expected:
 > - a
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV29. Outdent from deep nesting (10 levels)
 
@@ -6244,7 +6252,7 @@ Expected:
 								- |10
 ````
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV30. Top-level items stop at the list's edge
 
@@ -6261,7 +6269,7 @@ Keys: Ctrl-ArrowUp
 
 Expected: unchanged
 
-Source: SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
+Source: SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent
 
 ### MV31. Shift+Tab with an autocomplete popup open in a list: eaten, no Obsidian outdent
 
@@ -6277,7 +6285,7 @@ Keys: type "[[", wait 400 ms, Shift-Tab
 Expected: (see checks)
 Text matches `^- p\n\t- a\[\[`.
 
-Source: SPEC.md §7 Indent / outdent → A list always stays a list
+Source: SPEC.md → Indent / outdent → A list always stays a list
 
 ## Folding interplay
 
@@ -6305,7 +6313,7 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F2. Enter on a folded nested item
 
@@ -6331,7 +6339,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F3. Enter at the start of a folded item: an empty item above, the fold moves along
 
@@ -6353,7 +6361,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F4. Empty nested last child with folded children outdents with them, folded
 
@@ -6376,7 +6384,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F5. Empty top-level item with folded children: another empty item after the subtree
 
@@ -6400,7 +6408,7 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F6. Backspace merges into a folded previous item, which stays folded
 
@@ -6424,7 +6432,7 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F7. Folded previous item with own lines below its marker: nothing
 
@@ -6443,7 +6451,7 @@ Keys: Backspace
 Expected: unchanged
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F8. Delete on a folded item: nothing
 
@@ -6460,7 +6468,7 @@ Keys: Delete
 Expected: unchanged
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F9. Delete pulls in a folded next item and its children
 
@@ -6481,7 +6489,7 @@ Expected:
 	- b1
 ````
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F10. Enter on another item keeps an unrelated fold
 
@@ -6505,7 +6513,7 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F11. Backspace below a folded item keeps the fold
 
@@ -6529,7 +6537,7 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F12. Paste of several items after a folded sibling keeps the fold
 
@@ -6554,10 +6562,11 @@ Expected:
 ````
 Folded lines after: 0.
 
-Source: SPEC.md §7 Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
+Source: SPEC.md → Outline mode (every key keeps folds) / Enter, Backspace, Delete, Paste on folded items
 
 ### F13. Fold command folds the item at the cursor
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -6570,7 +6579,7 @@ Keys: command editor-outliner:fold
 Expected: (see checks)
 Folded lines after: 0.
 
-Source: SPEC.md §7 Folding
+Source: SPEC.md → Folding
 
 ### F14. Ctrl+Z after Enter on a folded item restores the text
 
@@ -6592,7 +6601,7 @@ Expected:
 - e
 ````
 
-Source: SPEC.md §7 Keys (undo restores the text, not folds)
+Source: SPEC.md → Keys (undo restores the text, not folds)
 
 ## Ordered lists and tasks
 
@@ -6612,7 +6621,7 @@ Expected:
 - [ ] |more
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O2. A task with children: the first child is a task with the children's bullet
 
@@ -6632,7 +6641,7 @@ Expected:
 	* x
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O3. An empty item above a task is an open task
 
@@ -6650,7 +6659,7 @@ Expected:
 - [x] |done
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O4. Ordered: renumbered after a new item
 
@@ -6672,7 +6681,7 @@ Expected:
 4. c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O5. Ordered: empty item above, renumbered
 
@@ -6692,7 +6701,7 @@ Expected:
 3. |b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O6. 1) style
 
@@ -6712,7 +6721,7 @@ Expected:
 5) b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O7. Renumbering past 9 keeps the cursor on the text
 
@@ -6746,7 +6755,7 @@ Expected:
 10. |x8
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O8. Backspace merge renumbers
 
@@ -6766,7 +6775,7 @@ Expected:
 2. c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O9. Delete merge renumbers
 
@@ -6786,7 +6795,7 @@ Expected:
 2. c
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O10. Task with a done box: Backspace after the box removes it
 
@@ -6805,7 +6814,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O11. 1. and 1) items count as one list (as in Obsidian)
 
@@ -6827,7 +6836,7 @@ Expected:
 4) c
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O12. Ordered children: Backspace merge renumbers the children
 
@@ -6851,7 +6860,7 @@ Expected:
 
 b merges into the item just above (x), so b's children become x's children.
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O13. Ordered list starting at 5
 
@@ -6871,7 +6880,7 @@ Expected:
 7. b
 ````
 
-Source: SPEC.md §7 Outline mode → Enter (Marker), renumbering
+Source: SPEC.md → Outline mode → Enter (Marker), renumbering
 
 ### O14. Move up in a numbered list renumbers
 
@@ -6890,7 +6899,7 @@ Expected:
 2. a
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O15. Outdent a numbered child: numbered into the parent list
 
@@ -6911,7 +6920,7 @@ Expected:
 3. b
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O16. Node delete in the middle of a numbered list
 
@@ -6931,7 +6940,7 @@ Expected:
 2. |c
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O17. Enter past 9: the marker grows, the cursor stays on the text
 
@@ -6953,7 +6962,7 @@ Expected:
 11. c
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O18. Merge renumbers a list that starts at 3
 
@@ -6973,7 +6982,7 @@ Expected:
 4. c
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ### O19. Shift+Enter in a numbered item: nothing renumbered
 
@@ -6993,7 +7002,7 @@ Expected:
 2. b
 ````
 
-Source: SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)
+Source: SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)
 
 ## Callouts and quotes
 
@@ -7017,7 +7026,7 @@ Expected:
 >   cont
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q2. Enter at the end of a marker line before a callout paragraph
 
@@ -7037,7 +7046,7 @@ Expected:
 > - |second
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q3. Shift+Enter in a callout
 
@@ -7055,7 +7064,7 @@ Expected:
 >   |
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q4. Ending a list in a callout keeps the >
 
@@ -7077,7 +7086,7 @@ Expected:
 >|
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q5. Backspace in a callout keeps the prefix
 
@@ -7097,7 +7106,7 @@ Expected:
 >   more
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q6. Delete in a callout
 
@@ -7115,7 +7124,7 @@ Expected:
 > - a|b
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q7. A plain quote's list
 
@@ -7133,7 +7142,7 @@ Expected:
 > - |
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q8. Nested quote's list
 
@@ -7151,7 +7160,7 @@ Expected:
 > > - |
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q9. Enter on a quote line inside an item: steps aside
 
@@ -7166,7 +7175,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q10. Lists separated by a paragraph in a callout are separate: no merge across
 
@@ -7184,7 +7193,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ### Q11. Callout nested item Enter at end: sibling
 
@@ -7206,7 +7215,7 @@ Expected:
 >   - |
 ````
 
-Source: SPEC.md §7 Outline mode (lists in callouts keep the > prefix)
+Source: SPEC.md → Outline mode (lists in callouts keep the > prefix)
 
 ## Tab- vs space-indented lists
 
@@ -7228,7 +7237,7 @@ Expected:
       |
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W2. Space list: Backspace re-indents children with spaces
 
@@ -7250,7 +7259,7 @@ Expected:
         - d
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W3. Space list: pasted children take the list's spaces
 
@@ -7271,7 +7280,7 @@ Expected:
         - y|
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W4. Editor set to spaces: a new first child uses the children's indent
 
@@ -7292,7 +7301,7 @@ Expected:
     - c
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W5. Editor set to spaces: a tab list keeps tabs on indent
 
@@ -7314,7 +7323,7 @@ Expected:
 	- |b
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W6. Editor set to spaces: paste children into a flat list get spaces
 
@@ -7334,7 +7343,7 @@ Expected:
     - y|
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W7. Two-space list: Enter keeps two spaces
 
@@ -7354,7 +7363,7 @@ Expected:
   - |
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W8. Two-space list: Tab matches the existing indent
 
@@ -7375,7 +7384,7 @@ Expected:
   - |b
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ### W9. Space list: empty nested last child outdents
 
@@ -7396,7 +7405,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)
+Source: SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)
 
 ## Loose lists (blank lines between items)
 
@@ -7420,7 +7429,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
+Source: SPEC.md → Outline mode (blank lines between items are idle; merges drop them)
 
 ### L2. Enter at the end of the last item of a loose list
 
@@ -7442,7 +7451,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
+Source: SPEC.md → Outline mode (blank lines between items are idle; merges drop them)
 
 ### L3. Move keeps the blank lines
 
@@ -7467,7 +7476,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
+Source: SPEC.md → Outline mode (blank lines between items are idle; merges drop them)
 
 ### L4. Status on the blank line between loose items: idle
 
@@ -7483,7 +7492,7 @@ Keys:
 
 Expected: (see checks)
 
-Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
+Source: SPEC.md → Outline mode (blank lines between items are idle; merges drop them)
 
 ### L5. Enter on the blank line between loose items: Obsidian's
 
@@ -7499,7 +7508,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
+Source: SPEC.md → Outline mode (blank lines between items are idle; merges drop them)
 
 ### L6. Delete across a blank line merges
 
@@ -7519,7 +7528,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode (blank lines between items are idle; merges drop them)
+Source: SPEC.md → Outline mode (blank lines between items are idle; merges drop them)
 
 ## Undo
 
@@ -7540,7 +7549,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U2. Redo after undo
 
@@ -7560,7 +7569,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U3. Undo a merge with children
 
@@ -7583,7 +7592,7 @@ Expected:
 	- d
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U4. Undo a list paste
 
@@ -7600,7 +7609,7 @@ Expected:
 - a
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U5. Undo a node removal
 
@@ -7623,7 +7632,7 @@ Expected:
 - three
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U6. Undo ending a list
 
@@ -7642,7 +7651,7 @@ Expected:
 - 
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U7. Undo an Enter outdent of an empty item
 
@@ -7661,10 +7670,11 @@ Expected:
 	- 
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U8. Undo insert code block
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -7678,7 +7688,7 @@ Expected:
 - a
 ````
 
-Source: SPEC.md §7 Outline mode (every key is one undo step)
+Source: SPEC.md → Outline mode (every key is one undo step)
 
 ### U9. Typing right after an Enter joins its undo step (as for Obsidian's own Enter)
 
@@ -7697,7 +7707,7 @@ Expected:
 
 CodeMirror joins typing within 0.5 s to the adjacent change in its history, so one Ctrl+Z undoes the Enter and the typed text together, as with Obsidian's own Enter. Kept by the user's decision.
 
-Source: SPEC.md §7 Outline mode (undo steps)
+Source: SPEC.md → Outline mode (undo steps)
 
 ## Step-aside
 
@@ -7714,7 +7724,7 @@ Keys: type "[[", wait 400 ms, Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA2. Autocomplete popup open: Shift+Enter is Obsidian's
 
@@ -7729,7 +7739,7 @@ Keys: type "[[", wait 400 ms, Shift-Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA3. Several cursors: Enter is Obsidian's
 
@@ -7744,7 +7754,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA4. Several cursors: Backspace is Obsidian's
 
@@ -7761,7 +7771,7 @@ Keys: Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA5. Several cursors: Delete is Obsidian's
 
@@ -7778,7 +7788,7 @@ Keys: Delete
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA6. Several cursors: paste is Obsidian's
 
@@ -7793,7 +7803,7 @@ Keys: paste (text/plain)
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA7. Several cursors: Shift+Tab on empty items isn't the list end
 
@@ -7810,7 +7820,7 @@ Keys: Shift-Tab
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA8. Read-only editor: nothing changes
 
@@ -7829,7 +7839,7 @@ The editor is read-only (harness check).
 
 Obsidian's own Enter (list continuation) ignores the read-only facet and still splits; the plugin must step aside, so the result equals outline mode off.
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA9. Live Preview table cell: Enter is Obsidian's
 
@@ -7850,7 +7860,7 @@ Keys: wait 500 ms, {"click":"const w = cm.dom.querySelector('td .table-cell-wrap
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA10. IME composition: Enter steps aside
 
@@ -7865,7 +7875,7 @@ Keys: IME composition "か", Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA11. IME composition: Backspace steps aside
 
@@ -7880,7 +7890,7 @@ Keys: IME composition "か", Backspace
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA18. Idle in a paragraph: Enter is Obsidian's
 
@@ -7894,7 +7904,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA19. Idle on the blank line after a list: Enter is Obsidian's
 
@@ -7909,7 +7919,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA20. Heading line: Enter is Obsidian's
 
@@ -7924,7 +7934,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA21. Selection over several lines in a list: Enter is Obsidian's
 
@@ -7939,7 +7949,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA22. An unclean item (lazy continuation): Enter is Obsidian's
 
@@ -7954,7 +7964,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA23. Empty note: Enter is Obsidian's
 
@@ -7968,7 +7978,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA24. Empty note: Backspace
 
@@ -7982,7 +7992,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA25. Vim normal mode: Backspace is vim's (moves left), no merge
 
@@ -8002,7 +8012,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA26. Vim insert mode: Backspace merges
 
@@ -8021,7 +8031,7 @@ Expected:
 - a|b
 ````
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA27. Vim normal mode: Enter is vim's (no split)
 
@@ -8041,7 +8051,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ### SA28. Changes don't open autocomplete: Enter after [[x]] doesn't pop a suggest
 
@@ -8060,7 +8070,7 @@ Expected:
 ````
 No suggest popup is open.
 
-Source: SPEC.md §7 Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
+Source: SPEC.md → Outline mode (each key steps aside: popup, IME, several cursors, read-only, nested editor, Vim, off)
 
 ## Edge cases of the note
 
@@ -8086,7 +8096,7 @@ para
 
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X2. List at the very start of the note
 
@@ -8108,7 +8118,7 @@ Expected:
 para
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X3. Frontmatter before the list
 
@@ -8132,7 +8142,7 @@ title: x
 - |
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X4. List directly under a heading
 
@@ -8154,7 +8164,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X5. Paste blocks into the first item after frontmatter
 
@@ -8178,7 +8188,7 @@ a: 1
 - y|
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X6. Delete at the end of the last item before a heading: nothing
 
@@ -8194,7 +8204,7 @@ Keys: Delete
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X7. Backspace at the start of the first item at the start of the note: nothing
 
@@ -8209,7 +8219,7 @@ Keys: Backspace
 
 Expected: unchanged
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X8. Shift+Tab ending the only item of the note
 
@@ -8226,7 +8236,7 @@ Expected:
 |
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X9. Item with a link and inline code: split keeps them whole
 
@@ -8244,7 +8254,7 @@ Expected:
 - |de`
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X10. Very long item: split in the middle
 
@@ -8262,7 +8272,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X11. Emoji at the split (surrogate pair kept whole)
 
@@ -8280,7 +8290,7 @@ Expected:
 - |b
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X12. Right-to-left text
 
@@ -8298,7 +8308,7 @@ Expected:
 - |עולם
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X13. A list after a code block (not in an item)
 
@@ -8322,7 +8332,7 @@ Expected:
 - |
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X14. A dash in a code block outside lists: Enter is Obsidian's
 
@@ -8338,7 +8348,7 @@ Keys: Enter
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ### X15. Setext underline under a list item's paragraph isn't a heading
 
@@ -8362,7 +8372,7 @@ para
 ---
 ````
 
-Source: SPEC.md §7 Outline mode
+Source: SPEC.md → Outline mode
 
 ## Indent / outdent outside outline mode
 
@@ -8388,7 +8398,7 @@ Expected:
 - d
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI2. Shift+Tab outdents in place, the following siblings become its children
 
@@ -8410,7 +8420,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI3. Logical outdenting: after the parent's subtree, the siblings stay
 
@@ -8434,7 +8444,7 @@ Expected:
 - d
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI4. Shift+Tab on a top-level item: nothing (a list stays a list)
 
@@ -8449,7 +8459,7 @@ Keys: Shift-Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI5. Tab on the first item: nothing
 
@@ -8464,7 +8474,7 @@ Keys: Tab
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI6. Heading Tab demotes the section, sub-headings too
 
@@ -8490,7 +8500,7 @@ body
 ## D
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI7. Heading Shift+Tab promotes in place: the following siblings become its sub-sections
 
@@ -8516,7 +8526,7 @@ c
 ### D
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI8. Heading Shift+Tab, logical outdenting: after the parent's section
 
@@ -8546,7 +8556,7 @@ c
 ## E
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI9. H1 can't be promoted: a notice, nothing changes
 
@@ -8562,7 +8572,7 @@ Keys: Shift-Tab
 Expected: unchanged
 A notice says an H1 can't be outdented.
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI10. H6 demoted to H7: a notice that Obsidian shows it as text
 
@@ -8580,7 +8590,7 @@ Expected:
 ````
 A notice says the heading is now deeper than H6.
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI11. H7 promoted back to H6: no notice
 
@@ -8598,7 +8608,7 @@ Expected:
 ````
 No notice.
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI12. Tab in a body paragraph: Obsidian's
 
@@ -8613,7 +8623,7 @@ Keys: Tab
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI13. Shift+Tab in a body paragraph: Obsidian's
 
@@ -8628,7 +8638,7 @@ Keys: Shift-Tab
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI14. Tab in a code block in an item: Obsidian's
 
@@ -8645,7 +8655,7 @@ Keys: Tab
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI15. Selection over a heading and the list above it: headings (the section covering both)
 
@@ -8668,7 +8678,7 @@ Expected:
 b
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI16. Several items selected indent together
 
@@ -8689,7 +8699,7 @@ Expected:
 	- c⟧
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI17. A selection from a child to its parent's next sibling acts on the parent's siblings
 
@@ -8712,7 +8722,7 @@ Expected:
 	- c⟧
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI18. An ordered list renumbers after an indent
 
@@ -8733,7 +8743,7 @@ Expected:
 2. c
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI19. Indent in a callout keeps the > prefix
 
@@ -8752,7 +8762,7 @@ Expected:
 > 	- b|
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI20. Editor set to spaces: a new child level is 4 spaces
 
@@ -8772,7 +8782,7 @@ Expected:
     - b|
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI21. Editor set to spaces, tab-indented list: tabs stay
 
@@ -8796,7 +8806,7 @@ Expected:
 	- d|
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI22. Indent command from the palette on a heading
 
@@ -8816,7 +8826,7 @@ Expected:
 ### B|
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI23. Outdent command from the palette on a nested item
 
@@ -8836,11 +8846,11 @@ Expected:
 - b|
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI24. Outliner keys off: Tab in a list is Obsidian's, the command still indents with the subtree
 
-When: settings {"keys":false}.
+When: in tab, lanes; settings {"keys":false}.
 
 Setup:
 ````
@@ -8858,7 +8868,7 @@ Expected:
 		- c
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI25. Several cursors on headings: Tab is Obsidian's
 
@@ -8873,7 +8883,7 @@ Keys: Tab
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI26. Selection over several lines with its head in an item's code block: the items indent
 
@@ -8898,7 +8908,7 @@ Expected:
 	  ```
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI27. Two Tabs in quick succession: two undo steps
 
@@ -8919,7 +8929,7 @@ Expected:
 	- c|
 ````
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ### KI28. Tab with the [[ autocomplete open in a list: Obsidian's (the popup)
 
@@ -8937,7 +8947,7 @@ Text matches `^- a\n- b\[\[`.
 
 Tab with a suggestion open is Obsidian's: it may accept the suggestion; the list item must not be indented.
 
-Source: SPEC.md §7 → Indent / outdent; Which hierarchy a command acts on
+Source: SPEC.md → Indent / outdent; Which hierarchy a command acts on
 
 ## Move outside outline mode
 
@@ -8961,7 +8971,7 @@ Expected:
 	- a1
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM2. A last child moves down into the parent's next sibling, as its first child
 
@@ -8984,7 +8994,7 @@ Expected:
 	- y
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM3. Heading section moves down past its sibling, sub-sections included
 
@@ -9011,7 +9021,7 @@ a
 ### A1
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C1. Ctrl+↓ (Cmd+↓ on macOS) moves the item at the cursor with its children
 
@@ -9033,7 +9043,7 @@ Expected:
 	- a1
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C2. Ctrl+↑ moves a heading section up past its sibling
 
@@ -9058,7 +9068,7 @@ b
 a
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C3. Ctrl+↓ moves a body paragraph past the next block
 
@@ -9081,7 +9091,7 @@ para2
 para1|
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C4. Ctrl+↓ with a node selection moves the selected items; the selection follows and stays a node selection
 
@@ -9106,7 +9116,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 2, 3.
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C5. Ctrl+↓ with a text selection over two sibling items moves both whole items
 
@@ -9124,7 +9134,7 @@ Keys: Ctrl-ArrowDown
 Expected: (see checks)
 Text matches `^- a\n- d\n- b\n- c$`.
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C6. Ctrl+↓ at the last top-level item: nothing
 
@@ -9139,7 +9149,7 @@ Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM-C7. Ctrl+↑ in frontmatter: Obsidian's key
 
@@ -9156,7 +9166,7 @@ Keys: Ctrl-ArrowUp
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM4. Heading at its last sibling: nothing (no jump into the parent's sibling)
 
@@ -9173,7 +9183,7 @@ Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM5. Heading moves up past its sibling
 
@@ -9198,7 +9208,7 @@ b
 a
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM6. Body paragraph swaps with the next block
 
@@ -9222,7 +9232,7 @@ para2
 para1|
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM7. Body block at the end of its body: nothing (never past a sub-heading)
 
@@ -9239,7 +9249,7 @@ Keys: Ctrl-ArrowDown
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM8. Paragraph swaps with a whole list below it
 
@@ -9268,7 +9278,7 @@ para|
 end
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM9. Code block in the body moves as one block
 
@@ -9295,7 +9305,7 @@ co|de
 x
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM10. Table moves as one block
 
@@ -9325,7 +9335,7 @@ para
 
 Source mode: in Live Preview the cursor would be in the table cell's own editor (a nested editor).
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM11. Text before the first heading: blocks swap there
 
@@ -9350,7 +9360,7 @@ p1|
 # H
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM12. Alt+PageDown isn't a move key: Obsidian's
 
@@ -9365,7 +9375,7 @@ Keys: Alt-PageDown
 
 Expected: = Obsidian
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM13. Move keeps a folded sub-section folded
 
@@ -9391,7 +9401,7 @@ x
 ````
 Folded lines after: 3.
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM14. An item with a continuation paragraph and code moves whole
 
@@ -9420,7 +9430,7 @@ Expected:
   ```
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM15. Move down command from the palette
 
@@ -9444,7 +9454,7 @@ para2
 para1|
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM16. Several cursors: the move keys are Obsidian's
 
@@ -9459,7 +9469,7 @@ Keys: Ctrl-ArrowDown
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM17. Move a heading: one Ctrl+Z restores
 
@@ -9478,7 +9488,7 @@ Expected:
 # B
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
 
 ### KM18. Move in a space-indented list keeps the spaces
 
@@ -9499,7 +9509,35 @@ Expected:
     - x
 ````
 
-Source: SPEC.md §7 → Move up / down
+Source: SPEC.md → Move up / down
+
+### KM19. A %% in inline code opens no comment: moving the section above it moves only that section
+
+
+Setup:
+````
+# A
+x
+# B|
+- Use `%%` here
+# C
+y
+````
+
+Keys: Ctrl-ArrowUp
+
+Expected: 
+````
+# B|
+- Use `%%` here
+
+# A
+x
+# C
+y
+````
+
+Source: SPEC.md → Outline model (delimiters inside inline code open no block)
 
 ## Expand / shrink selection
 
@@ -9519,7 +9557,7 @@ Expected:
 hello ⟦world⟧ here
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS2. Wiki link: inside, then whole
 
@@ -9536,7 +9574,7 @@ Expected:
 see ⟦[[Note a]]⟧ x
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS3. Bold: inside, then whole
 
@@ -9553,7 +9591,7 @@ Expected:
 a ⟦**bold it**⟧ b
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS4. Markdown link: its text, then the whole link
 
@@ -9570,7 +9608,7 @@ Expected:
 a ⟦[link text](http://x.y)⟧ b
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS5. Inline code, highlight, strike, math
 
@@ -9587,7 +9625,7 @@ Expected:
 ⟦`code x`⟧ ==m y== ~~s z~~ $a b$
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS6. Sentence
 
@@ -9604,7 +9642,7 @@ Expected:
 One two. ⟦Three four.⟧ Five.
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS7. Line text without the marker, then the whole line
 
@@ -9623,7 +9661,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS8. Item: the paragraph (marker line and continuation lines), then its own lines
 
@@ -9650,7 +9688,7 @@ Expected:
 	- kid
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS9. Item: own lines, then with its subtree
 
@@ -9675,7 +9713,7 @@ Expected:
 	- kid⟧
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS10. Code block in an item: the code lines, then the block with its fences
 
@@ -9700,7 +9738,7 @@ Expected:
   ```⟧
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS11. Code block in a body: the code lines, then the block with its fences
 
@@ -9727,7 +9765,7 @@ yy⟧
 
 Consistency with a code block in an item (the spec's chain names the code-lines step for fenced code blocks).
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS12. Paragraph under headings: the paragraph, its section, the parent section, then the note's top level without frontmatter
 
@@ -9765,7 +9803,7 @@ c
 ## D⟦
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS13. A paragraph, then (at the edge) its section with the subsections
 
@@ -9792,7 +9830,7 @@ c⟦
 ## D
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS14. Shrink goes back step by step
 
@@ -9811,7 +9849,7 @@ Expected:
 - one ⟦two⟧
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS15. Shrink back to the cursor
 
@@ -9830,7 +9868,7 @@ Expected:
 - one tw|o
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS16. Another selection change forgets the steps: Shrink does nothing
 
@@ -9847,7 +9885,7 @@ Expected:
 - ⟦one two thre⟧e
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS17. List in a callout: the item, then at the list's edge the whole list
 
@@ -9874,7 +9912,7 @@ Expected:
 
 Consistency: a list's whole-list step also inside a callout.
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-S1. Expand up: the item, the sibling above, then at the edge the parent
 
@@ -9900,7 +9938,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-S2. Expand past the siblings reaches the parent; Shrink goes back step by step to the cursor
 
@@ -9925,7 +9963,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-S3. Expand up: a heading section, then the section above
 
@@ -9952,7 +9990,7 @@ c⟦
 # D
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-S4. Alt+↓ grows the bottom edge, Alt+↑ the top; Alt+Shift+↑ takes the top edge back
 
@@ -9978,7 +10016,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-S5. Alt+Shift+↓ with nothing to shrink, or with several cursors: nothing (never Obsidian's copy line)
 
@@ -9994,7 +10032,7 @@ Keys: Alt-Shift-ArrowDown, Alt-Shift-ArrowUp
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-S6. Alt+Shift+↑ with no Expand before it: nothing
 
@@ -10009,7 +10047,7 @@ Keys: Alt-Shift-ArrowUp
 
 Expected: unchanged
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D1. Alt+↓ through a whole list: the list then counts as one block, so its next sibling comes in
 
@@ -10037,7 +10075,7 @@ para
 end⟧
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D2. Alt+↑ stops at the note's top level
 
@@ -10056,7 +10094,7 @@ Expected:
 - b⟦
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D3. At the edge the parent, then the parent's siblings
 
@@ -10079,7 +10117,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1, 2.
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D4. Alt+Shift+↑ past a parent step goes back to the run below
 
@@ -10100,7 +10138,7 @@ Expected:
 - q
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D5. Shrink retraces to the cursor, then does nothing
 
@@ -10117,7 +10155,7 @@ Expected:
 - one tw|o
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D6. Under a heading its blocks and subsections are siblings; at the edge the section
 
@@ -10140,7 +10178,7 @@ x
 b⟧
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS-D7. A top-level section: Alt+↑ at the first one stops
 
@@ -10163,7 +10201,7 @@ a⟦
 b
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS18. Expand reaches the item, a node selection (highlighted)
 
@@ -10186,7 +10224,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1.
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS19. Expand / Shrink selection down commands from the palette
 
@@ -10204,7 +10242,7 @@ Expected:
 hello ⟦world⟧
 ````
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS20. Several cursors: Alt+↑ is Obsidian's (the cursors stay)
 
@@ -10219,7 +10257,7 @@ Keys: Alt-ArrowUp
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS21. Frontmatter: word, line, then nothing more
 
@@ -10245,7 +10283,7 @@ Expected:
 
 Source mode: Live Preview shows frontmatter as the properties editor.
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ### XS22. Paragraph in a callout: the paragraph, then at its edge the callout
 
@@ -10275,7 +10313,7 @@ Expected:
 
 Source mode: in Live Preview a callout is a widget unless the cursor is in it.
 
-Source: SPEC.md §7 → Expand / shrink selection
+Source: SPEC.md → Expand / shrink selection
 
 ## Node selection: headings and details
 
@@ -10303,7 +10341,7 @@ b⟧
 ````
 Node-selected (highlighted) lines: 2, 3.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS2. Heading ← on a folded section selects the parent
 
@@ -10327,7 +10365,7 @@ b
 ## C⟧
 ````
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS3. Heading node selection made backwards is anchored at the last section: Alt+Shift+↑ takes the first off
 
@@ -10353,7 +10391,7 @@ c⟦
 ````
 Node-selected (highlighted) lines: 3, 4.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS4. Heading copy: the sections as they are
 
@@ -10377,7 +10415,7 @@ b
 ### C
 ````
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS5. Outliner keys off: no heading node selection
 
@@ -10396,7 +10434,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: none.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS6. Heading Tab on a node selection: demoted, still selected
 
@@ -10420,7 +10458,7 @@ b⟧
 ````
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS7. Heading Ctrl+↓ on a node selection: moved, still selected
 
@@ -10445,7 +10483,7 @@ b⟧
 ````
 Node-selected (highlighted) lines: 3, 4.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS8. Heading Delete removes the section
 
@@ -10467,7 +10505,7 @@ Expected:
 ## |C
 ````
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS9. Item node selection ending at the start of the next line: Alt+↓ carries on from it
 
@@ -10489,7 +10527,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1, 2.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS10. Item node selection in Source mode is highlighted too
 
@@ -10507,7 +10545,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ### NS11. Highlight hides the text selection (class on the editor)
 
@@ -10525,7 +10563,7 @@ Keys:
 Expected: (see checks)
 The editor has the eo-node-selection class.
 
-Source: SPEC.md §7 → Node selection
+Source: SPEC.md → Node selection
 
 ## Folding commands
 
@@ -10546,7 +10584,7 @@ Keys: command editor-outliner:fold
 Expected: (see checks)
 Folded lines after: 0.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC2. Unfold it
 
@@ -10565,10 +10603,11 @@ Keys: command editor-outliner:unfold
 Expected: (see checks)
 Folded lines after: none.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC3. Fold children of a heading: its sub-sections
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10585,11 +10624,11 @@ Keys: command editor-outliner:fold-children
 Expected: (see checks)
 Folded lines after: 2, 4.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC4. Unfold a heading and everything under it
 
-When: folded lines (0-based) 2, 4.
+When: in tab, lanes; folded lines (0-based) 2, 4.
 
 Setup:
 ````
@@ -10606,10 +10645,11 @@ Keys: command editor-outliner:unfold-subtree
 Expected: (see checks)
 Folded lines after: none.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC5. Fold headings to level 2
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10628,10 +10668,11 @@ Keys: command editor-outliner:fold-to-level-2
 Expected: (see checks)
 Folded lines after: 2, 6.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC6. Fold headings to level 1
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10648,11 +10689,11 @@ Keys: command editor-outliner:fold-to-level-1
 Expected: (see checks)
 Folded lines after: 0, 4.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC7. Unfold all (an item and a heading folded)
 
-When: folded lines (0-based) 2, 4.
+When: in tab, lanes; folded lines (0-based) 2, 4.
 
 Setup:
 ````
@@ -10669,10 +10710,11 @@ Keys: command editor-outliner:unfold-all
 Expected: (see checks)
 Folded lines after: none.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC8. Fold a list item at the cursor (the deepest item)
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10687,10 +10729,11 @@ Keys: command editor-outliner:fold
 Expected: (see checks)
 Folded lines after: 1.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC9. Fold children of an item
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10706,10 +10749,11 @@ Keys: command editor-outliner:fold-children
 Expected: (see checks)
 Folded lines after: 1, 3.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC10. H7 can't fold: a notice
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10723,11 +10767,11 @@ Expected: (see checks)
 Folded lines after: none.
 A notice says nothing can fold here.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC11. Fold heading off in Obsidian's settings: a notice
 
-When: Obsidian config {"foldHeading":false}.
+When: in tab, lanes; Obsidian config {"foldHeading":false}.
 
 Setup:
 ````
@@ -10741,10 +10785,11 @@ Expected: (see checks)
 Folded lines after: none.
 A notice names the Fold heading setting.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC12. Text before the first heading, not in a list: a notice, nothing folds
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10762,10 +10807,11 @@ A notice says nothing can fold here.
 
 Consistency: everywhere else nothing to fold gives the notice.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC13. Fold children: a leaf item has none, a notice
 
+When: in tab, lanes.
 
 Setup:
 ````
@@ -10779,7 +10825,7 @@ Expected: (see checks)
 Folded lines after: none.
 A notice says nothing can fold here.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ### FC14. Fold an item, then Ctrl+↓ moves it folded
 
@@ -10802,7 +10848,7 @@ Expected:
 ````
 Folded lines after: 1.
 
-Source: SPEC.md §7 → Folding
+Source: SPEC.md → Folding
 
 ## Heading guides, level labels and H7+ styling
 
@@ -10829,7 +10875,7 @@ Keys:
 Expected: (see checks)
 5 guides at 3 x positions, 10 px apart.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G2. A guide runs from under its heading to the section's last non-blank line
 
@@ -10850,7 +10896,7 @@ Keys:
 Expected: (see checks)
 The guide's top is the heading line's bottom, its bottom the last non-blank line's bottom.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G3. Guides use Obsidian's indentation-guide colour
 
@@ -10866,7 +10912,7 @@ Keys:
 Expected: (see checks)
 The guide's background is var(--indentation-guide-color).
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G4. Heading guides off: no guides
 
@@ -10883,7 +10929,7 @@ Keys:
 Expected: (see checks)
 No guide.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G5. Level labels in Live Preview: H2 after a heading off the cursor line, none on it
 
@@ -10901,7 +10947,7 @@ Keys:
 Expected: (see checks)
 ::after reads H1 and H2.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G6. No label on the line being edited
 
@@ -10919,7 +10965,7 @@ Keys:
 Expected: (see checks)
 ::after H1 on line 0, none on the cursor's line.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G7. No labels in Source mode
 
@@ -10937,7 +10983,7 @@ Keys:
 Expected: (see checks)
 No ::after content.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G8. H7+ lines: styled as a heading, labelled H7 / H9
 
@@ -10955,7 +11001,7 @@ Keys:
 Expected: (see checks)
 eo-deep-heading on both, labels H7 and H9.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G9. Style headings beyond H6 off: no H7 styling (the label stays)
 
@@ -10972,7 +11018,7 @@ Keys:
 Expected: (see checks)
 No eo-deep-heading class; ::after H7.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G10. Heading level labels off: none
 
@@ -10989,7 +11035,7 @@ Keys:
 Expected: (see checks)
 No ::after content.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G11. Not headings: setext, in a callout, in code, 4-space indented
 
@@ -11016,7 +11062,7 @@ Keys:
 Expected: (see checks)
 No line has the plugin's heading classes.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G12. Typing a # turns a line into a heading: label and guide follow
 
@@ -11033,7 +11079,7 @@ Keys: Home, type "# ", ArrowDown
 Expected: (see checks)
 Line 0 is labelled H1 and has a guide.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
 
 ### G13. The label is not selectable and not part of the text
 
@@ -11050,7 +11096,28 @@ Keys:
 Expected: (see checks)
 user-select none; the line's text is unchanged.
 
-Source: SPEC.md §7 → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+
+## Inline code and block delimiters
+
+### G14. Headings after `%%`, `$$` and `<!--` in inline code still get their labels and guides
+
+When: *everywhere*; Live Preview only.
+
+Setup:
+````
+# A
+Use `%%` and `$$` and `<!--` in code
+## B
+b|
+````
+
+Keys: 
+
+Expected: (see checks)
+The H2 line has its level label; both sections have a guide.
+
+Source: SPEC.md → Outline model
 
 ## Drag handles (real mouse drags)
 
@@ -11074,7 +11141,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG2. Drag an item sideways right: it becomes a child
 
@@ -11096,7 +11163,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG3. Drag an item with children: the subtree moves
 
@@ -11117,7 +11184,7 @@ Expected:
 	- a1
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG4. Drag a heading section down: sub-sections move with it
 
@@ -11144,7 +11211,7 @@ b
 x
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG5. Drag a heading sideways right: one level deeper, sub-headings shift
 
@@ -11169,7 +11236,7 @@ a
 b
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG6. Drag a body block below the next one
 
@@ -11197,7 +11264,7 @@ p1
 p3
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG7. Escape during a drag cancels it
 
@@ -11219,7 +11286,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG8. A click on the handle does nothing
 
@@ -11238,7 +11305,7 @@ Expected:
 - b
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG9. Canvas: a drag doesn't move the card or pan the canvas
 
@@ -11261,7 +11328,7 @@ Expected:
 ````
 The card's position and the canvas's pan and zoom are unchanged.
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG10. Drag an item into another list of the same section
 
@@ -11292,7 +11359,7 @@ para
 - y
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG11. The handle sits left of the text; in a Canvas card left of the fold arrow's room
 
@@ -11309,7 +11376,7 @@ Keys:
 Expected: (see checks)
 The handle is fully inside the editor and at least 10 px left of the text.
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG12. Drag handles off: no handle
 
@@ -11326,7 +11393,7 @@ Keys:
 Expected: (see checks)
 No handle element.
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG13. Drag a nested item sideways left: one level out
 
@@ -11347,7 +11414,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG14. Drag in Source mode
 
@@ -11369,7 +11436,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ### DG15. Drag keeps a fold inside the dragged item
 
@@ -11394,7 +11461,7 @@ Expected:
 ````
 Folded lines after: 2.
 
-Source: SPEC.md §7 → Drag handles
+Source: SPEC.md → Drag handles (desktop)
 
 ## Where it works and settings
 
@@ -11415,7 +11482,7 @@ Expected:
 - |two
 ````
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH2. Popover editor: Tab indents with the subtree
 
@@ -11437,7 +11504,7 @@ Expected:
 		- c
 ````
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH4. Reading view: the outliner commands aren't offered
 
@@ -11454,7 +11521,7 @@ Keys:
 Expected: (see checks)
 None of the editor commands is available in Reading view.
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH7. No Obsidian hotkey sits on a plugin key (Alt+↑/↓, Alt+Shift+↑/↓, Ctrl+↑/↓, Tab)
 
@@ -11469,7 +11536,7 @@ Keys:
 Expected: (see checks)
 No Obsidian or plugin hotkey uses those keys.
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH9. Settings survive a plugin reload
 
@@ -11484,7 +11551,7 @@ Keys:
 Expected: (see checks)
 logicalOutdent is still on after disable / enable.
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH10. Ctrl+Shift+V (paste as plain text) of a list: items, as Ctrl+V
 
@@ -11503,11 +11570,12 @@ Expected:
 - y|
 ````
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH11. A Dataview query in a nested item renders in Live Preview and Reading view
 
 When: in tab; Live Preview only.
+Needs: dataview.
 
 Setup:
 ````
@@ -11525,7 +11593,22 @@ Keys: wait 1500 ms
 Expected: (see checks)
 A rendered Dataview block in Live Preview and in Reading view.
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
+
+### WH14. Every Obsidian internal the plugin relies on is there (none reported missing on load)
+
+
+Setup:
+````
+x|
+````
+
+Keys: 
+
+Expected: (see checks)
+The plugin's missingInternals list is empty (it also warns in the console when one is missing).
+
+Source: SPEC.md → Development → Internals
 
 ### WH12. IME composition: Tab steps aside (Obsidian's)
 
@@ -11540,7 +11623,7 @@ Keys: IME composition "か", Tab
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ### WH13. IME composition: Alt+↑ steps aside
 
@@ -11555,7 +11638,7 @@ Keys: IME composition "か", Alt-ArrowUp
 
 Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
 
-Source: SPEC.md §7 → Where it works; Settings; Keys
+Source: SPEC.md → Where it works; Settings (defaults); Keys
 
 ## Vim mode: the outliner keys
 
@@ -11577,7 +11660,7 @@ Expected:
 ### B
 ````
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM2. Normal mode: Shift+Tab outdents a nested item
 
@@ -11599,7 +11682,7 @@ Expected:
 	- c
 ````
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM3. Normal mode: Ctrl+↓ moves a heading section
 
@@ -11620,7 +11703,7 @@ Expected:
 # A
 ````
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM4. Normal mode: Alt+↑ selects, vim is in visual mode, no node highlight
 
@@ -11639,7 +11722,7 @@ Expected: (see checks)
 Node-selected (highlighted) lines: none.
 vim is in visual mode with a non-empty selection.
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM5. Visual line mode over whole items: no node selection
 
@@ -11658,7 +11741,7 @@ Expected: (see checks)
 Node-selected (highlighted) lines: none.
 vim is in visual mode.
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM6. Insert mode: Expand reaches a node selection, highlighted
 
@@ -11676,7 +11759,7 @@ Keys: wait 200 ms, i, Alt-ArrowUp, Alt-ArrowUp
 Expected: (see checks)
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM7. Insert mode, node selection: Escape is vim's (normal mode)
 
@@ -11695,7 +11778,7 @@ Expected: (see checks)
 Node-selected (highlighted) lines: none.
 vim is out of insert mode.
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ### VM8. Insert mode: Enter splits the item
 
@@ -11714,7 +11797,7 @@ Expected:
 - two
 ````
 
-Source: SPEC.md §7 → Where it works (Obsidian's Vim mode)
+Source: SPEC.md → Where it works (Obsidian's Vim mode)
 
 ## Item node selection: more cases
 
@@ -11735,7 +11818,7 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: 1, 2.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO2. Alt+↓ adds the next sibling
 
@@ -11758,7 +11841,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0, 1.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO3. Alt+Shift+↓ takes the bottom sibling back off
 
@@ -11781,7 +11864,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO4. ← folds the node
 
@@ -11798,7 +11881,7 @@ Keys: ArrowLeft
 Expected: (see checks)
 Folded lines after: 0.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO5. ← on a leaf selects the parent
 
@@ -11820,7 +11903,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO6. → unfolds a folded node
 
@@ -11838,7 +11921,7 @@ Keys: ArrowRight
 Expected: (see checks)
 Folded lines after: none.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO7. → selects the first child
 
@@ -11861,7 +11944,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO8. Backspace removes the nodes, one undo step
 
@@ -11883,7 +11966,7 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO9. Delete removes the nodes
 
@@ -11904,7 +11987,7 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO10. Copy gives the nodes at column 0
 
@@ -11926,7 +12009,7 @@ Clipboard text:
 	- c
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO11. Cut gives them at column 0 and removes them
 
@@ -11951,7 +12034,7 @@ Clipboard text:
 - b
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO12. Escape clears (Obsidian's): the cursor at the head
 
@@ -11973,7 +12056,7 @@ Expected:
 - c
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO13. Tab indents, still node-selected
 
@@ -11994,7 +12077,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 1.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO14. Ctrl+↑ moves, still node-selected
 
@@ -12015,7 +12098,7 @@ Expected:
 ````
 Node-selected (highlighted) lines: 0.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO15. Expand to the item, Alt+↓, Backspace
 
@@ -12035,7 +12118,7 @@ Expected:
 - |c
 ````
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
 
 ### NO16. Outliner keys off: no item node selection
 
@@ -12053,4 +12136,315 @@ Keys:
 Expected: (see checks)
 Node-selected (highlighted) lines: none.
 
-Source: SPEC.md §7 → Node selection (list items, with the Outliner keys on)
+Source: SPEC.md → Node selection (list items, with the Outliner keys on)
+
+## Working with other plugins
+
+### OP1. An editor-paste handler that takes a multi-line paste in a list item: the outliner leaves it alone
+
+When: in tab, canvas-text, popover.
+
+Setup:
+````
+- a|
+````
+
+Keys: paste (text/plain)
+
+Expected: unchanged
+The handler saw the paste once.
+
+Source: SPEC.md → Working with other plugins
+
+### OP2. An editor-paste handler that leaves the paste: it sees it once, and the outliner pastes
+
+When: in tab, canvas-text, popover.
+
+Setup:
+````
+- a|
+````
+
+Keys: paste (text/plain)
+
+Expected: 
+````
+- a
+- x
+- y|
+````
+The handler saw the paste exactly once.
+
+Source: SPEC.md → Working with other plugins
+
+### OP3. A paste the outliner doesn't take (one line) reaches editor-paste handlers through Obsidian, once
+
+
+Setup:
+````
+- a|
+````
+
+Keys: paste (text/plain)
+
+Expected: 
+````
+- aword|
+````
+The handler saw the paste exactly once (from Obsidian's own paste).
+
+Source: SPEC.md → Working with other plugins
+
+## Editor Multiple Lanes cards
+
+### LC1. Two cards: a command run from the palette acts on the card last focused, not the other
+
+When: in lanes; Live Preview only.
+Needs: editor-multiple-lanes.
+
+Setup:
+````
+- a
+- b|
+````
+
+Keys: Ctrl-p, wait 500 ms, type "Indent heading or list item", wait 500 ms, Enter, wait 400 ms
+
+Expected: unchanged
+The second card's item is indented; the first card is unchanged.
+
+Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
+
+### LC2. Dragging an item to the bottom edge of a card's lane scrolls the lane, and the drop lands below
+
+When: in lanes; Live Preview only.
+Needs: editor-multiple-lanes.
+
+Setup:
+````
+|- item 0
+- item 1
+- item 2
+- item 3
+- item 4
+- item 5
+- item 6
+- item 7
+- item 8
+- item 9
+- item 10
+- item 11
+- item 12
+- item 13
+- item 14
+- item 15
+- item 16
+- item 17
+- item 18
+- item 19
+- item 20
+- item 21
+- item 22
+- item 23
+- item 24
+- item 25
+- item 26
+- item 27
+- item 28
+- item 29
+- item 30
+- item 31
+- item 32
+- item 33
+- item 34
+- item 35
+- item 36
+- item 37
+- item 38
+- item 39
+- item 40
+- item 41
+- item 42
+- item 43
+- item 44
+- item 45
+- item 46
+- item 47
+- item 48
+- item 49
+- item 50
+- item 51
+- item 52
+- item 53
+- item 54
+- item 55
+- item 56
+- item 57
+- item 58
+- item 59
+- item 60
+- item 61
+- item 62
+- item 63
+- item 64
+- item 65
+- item 66
+- item 67
+- item 68
+- item 69
+- item 70
+- item 71
+- item 72
+- item 73
+- item 74
+- item 75
+- item 76
+- item 77
+- item 78
+- item 79
+````
+
+Keys: drag line 0 by its handle to the bottom edge of its scroll container, hold 1500 ms
+
+Expected: (see checks)
+The item landed below the lines visible before the drag, and the lane scrolled.
+
+Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
+
+### LC3. Commands are offered with the focus in a card, whatever Obsidian's active editor is
+
+When: in lanes.
+Needs: editor-multiple-lanes.
+
+Setup:
+````
+- a
+- b|
+	- c
+````
+
+Keys: 
+
+Expected: (see checks)
+Every one of those commands says it applies (checkCallback).
+
+Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
+
+### LC4. A card closed and opened again: the new editor gets the keys and the guides
+
+When: in lanes; Live Preview only.
+Needs: editor-multiple-lanes.
+
+Setup:
+````
+# H
+- a
+- b|
+````
+
+Keys: Tab
+
+Expected: 
+````
+# H
+- a
+	- b|
+````
+The reopened card's editor has the heading guide.
+
+Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
+
+### LC5. Ctrl+↓ past the lane's visible bottom: the lane scrolls so the moved item stays in view
+
+When: in lanes; Live Preview only.
+Needs: editor-multiple-lanes.
+
+Setup:
+````
+|- item 0
+- item 1
+- item 2
+- item 3
+- item 4
+- item 5
+- item 6
+- item 7
+- item 8
+- item 9
+- item 10
+- item 11
+- item 12
+- item 13
+- item 14
+- item 15
+- item 16
+- item 17
+- item 18
+- item 19
+- item 20
+- item 21
+- item 22
+- item 23
+- item 24
+- item 25
+- item 26
+- item 27
+- item 28
+- item 29
+- item 30
+- item 31
+- item 32
+- item 33
+- item 34
+- item 35
+- item 36
+- item 37
+- item 38
+- item 39
+- item 40
+- item 41
+- item 42
+- item 43
+- item 44
+- item 45
+- item 46
+- item 47
+- item 48
+- item 49
+- item 50
+- item 51
+- item 52
+- item 53
+- item 54
+- item 55
+- item 56
+- item 57
+- item 58
+- item 59
+````
+
+Keys: Ctrl-ArrowDown, Ctrl-ArrowDown, Ctrl-ArrowDown, Ctrl-ArrowDown, Ctrl-ArrowDown, wait 300 ms
+
+Expected: (see checks)
+The item moved five lines down and the cursor is inside the lane's visible area.
+
+Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
+
+### LC6. A setting change reaches the card at once, and the plugin's classes leave it when disabled
+
+When: in lanes; Live Preview only.
+Needs: editor-multiple-lanes.
+
+Setup:
+````
+# H
+- a|
+	- b
+````
+
+Keys: 
+
+Expected: (see checks)
+Guides go and come back with the setting; after disabling, no eo- class or element is left in the card.
+
+Source: SPEC.md → Where it works; Keys (commands act on the focused editor)

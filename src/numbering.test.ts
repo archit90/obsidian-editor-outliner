@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { renumberLikeObsidian } from "./numbering";
 
@@ -59,5 +60,23 @@ describe("numbering like Obsidian", () => {
       { line: 1, at: 0, delta: 1 },
       { line: 2, at: 0, delta: 1 },
     ]);
+  });
+});
+
+/** A change of the recorded table: the note before and after it, and what Obsidian's renumbering made of it. */
+interface Recorded {
+  name: string;
+  old: string[];
+  next: string[];
+  obsidian: string[];
+}
+const table: { obsidian: string; cases: Recorded[] } = JSON.parse(
+  fs.readFileSync(new URL("./numbering.fixtures.json", import.meta.url), "utf8"),
+);
+
+// Recorded in a real Obsidian by e2e/numbering-capture.mjs (and replayed there on every e2e run, check X12)
+describe(`numbering like Obsidian ${table.obsidian}: the recorded table`, () => {
+  it.each(table.cases)("$name", c => {
+    expect(renumberLikeObsidian(c.old, c.next).lines).toEqual(c.obsidian);
   });
 });

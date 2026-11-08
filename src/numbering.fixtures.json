@@ -1,0 +1,239 @@
+{
+  "obsidian": "1.15.0",
+  "cases": [
+    {
+      "name": "insert an item in the middle",
+      "old": ["1. a", "2. b"],
+      "next": ["1. a", "1. x", "2. b"],
+      "obsidian": ["1. a", "2. x", "3. b"]
+    },
+    {
+      "name": "delete an item in the middle",
+      "old": ["1. a", "2. b", "3. c"],
+      "next": ["1. a", "3. c"],
+      "obsidian": ["1. a", "2. c"]
+    },
+    {
+      "name": "delete the first item",
+      "old": ["1. a", "2. b", "3. c"],
+      "next": ["2. b", "3. c"],
+      "obsidian": ["1. b", "2. c"]
+    },
+    {
+      "name": "insert at the top",
+      "old": ["1. a", "2. b"],
+      "next": ["1. x", "1. a", "2. b"],
+      "obsidian": ["1. x", "2. a", "3. b"]
+    },
+    {
+      "name": "a list keeps its start",
+      "old": ["5. a", "6. b"],
+      "next": ["6. b"],
+      "obsidian": ["5. b"]
+    },
+    {
+      "name": "a changed marker keeps its number",
+      "old": ["- a", "- b"],
+      "next": ["- a", "7. b"],
+      "obsidian": ["- a", "7. b"]
+    },
+    {
+      "name": "1. and 1) are one list",
+      "old": ["1. a", "2. b", "1) c"],
+      "next": ["1. a", "2. bx", "1) c"],
+      "obsidian": ["1. a", "2. bx", "3) c"]
+    },
+    {
+      "name": "a delimiter changed",
+      "old": ["1. a", "2. b"],
+      "next": ["1) a", "2. b"],
+      "obsidian": ["1) a", "2. b"]
+    },
+    {
+      "name": "tab levels",
+      "old": ["1. a", "\t1. x"],
+      "next": ["1. a", "\t1. x", "\t1. y"],
+      "obsidian": ["1. a", "\t1. x", "\t2. y"]
+    },
+    {
+      "name": "4-space levels",
+      "old": ["1. a", "    1. x"],
+      "next": ["1. a", "    1. x", "    1. y"],
+      "obsidian": ["1. a", "    1. x", "    2. y"]
+    },
+    {
+      "name": "3 spaces are the same level",
+      "old": ["1. a", "2. b"],
+      "next": ["1. a", "   1. b"],
+      "obsidian": ["1. a", "   2. b"]
+    },
+    {
+      "name": "indent an item",
+      "old": ["1. a", "2. b", "3. c"],
+      "next": ["1. a", "\t2. b", "3. c"],
+      "obsidian": ["1. a", "\t1. b", "2. c"]
+    },
+    {
+      "name": "outdent an item",
+      "old": ["1. a", "\t1. b", "\t2. c", "2. d"],
+      "next": ["1. a", "2. b", "\t2. c", "2. d"],
+      "obsidian": ["1. a", "2. b", "\t1. c", "3. d"]
+    },
+    {
+      "name": "indent the first item",
+      "old": ["1. a", "2. b"],
+      "next": ["\t1. a", "2. b"],
+      "obsidian": ["\t1. a", "1. b"]
+    },
+    {
+      "name": "move an item up",
+      "old": ["1. a", "2. b", "3. c"],
+      "next": ["2. b", "1. a", "3. c"],
+      "obsidian": ["2. b", "3. a", "4. c"]
+    },
+    {
+      "name": "move an item down",
+      "old": ["1. a", "2. b", "3. c"],
+      "next": ["1. a", "3. c", "2. b"],
+      "obsidian": ["1. a", "2. c", "3. b"]
+    },
+    {
+      "name": "blank lines don't end a list",
+      "old": ["1. a", "2. b", "3. c"],
+      "next": ["1. a", "", "", "", "3. c"],
+      "obsidian": ["1. a", "", "", "", "2. c"]
+    },
+    {
+      "name": "a paragraph after a blank line keeps the next list's start",
+      "old": ["1. a", "", "p", "", "2. c"],
+      "next": ["1. a", "", "p", "", "2. cx"],
+      "obsidian": ["1. a", "", "p", "", "2. cx"]
+    },
+    {
+      "name": "text right under a list",
+      "old": ["1. a", "2. b", "text", "3. c"],
+      "next": ["1. a", "text", "3. c"],
+      "obsidian": ["1. a", "text", "2. c"]
+    },
+    {
+      "name": "a code block with an empty line restarts at 1",
+      "old": ["1. a", "2. b"],
+      "next": ["1. a", "   ```", "   ", "   ```", "2. b"],
+      "obsidian": ["1. a", "   ```", "   ", "   ```", "1. b"]
+    },
+    {
+      "name": "continuation lines",
+      "old": ["1. a", "   more", "2. b"],
+      "next": ["1. a", "   more", "1. x", "2. b"],
+      "obsidian": ["1. a", "   more", "2. x", "3. b"]
+    },
+    {
+      "name": "a bullet at the same level stops the run",
+      "old": ["1. a", "- b", "1. c"],
+      "next": ["1. a", "1. n", "- b", "1. c"],
+      "obsidian": ["1. a", "2. n", "- b", "1. c"]
+    },
+    {
+      "name": "bullets under an ordered item",
+      "old": ["1. a", "\t- x", "2. b"],
+      "next": ["1. a", "\t- x", "\t- y", "2. b"],
+      "obsidian": ["1. a", "\t- x", "\t- y", "2. b"]
+    },
+    {
+      "name": "ordered under a bullet",
+      "old": ["- a", "\t1. x", "\t2. y"],
+      "next": ["- a", "\t1. x", "\t1. n", "\t2. y"],
+      "obsidian": ["- a", "\t1. x", "\t2. n", "\t3. y"]
+    },
+    {
+      "name": "a heading ends a list",
+      "old": ["1. a", "# H", "1. b"],
+      "next": ["1. a", "1. x", "# H", "1. b"],
+      "obsidian": ["1. a", "2. x", "# H", "1. b"]
+    },
+    {
+      "name": "a rule ends a list",
+      "old": ["1. a", "---", "1. b"],
+      "next": ["1. a", "1. x", "---", "1. b"],
+      "obsidian": ["1. a", "2. x", "---", "1. b"]
+    },
+    {
+      "name": "a fence ends a list",
+      "old": ["1. a", "```", "x", "```", "1. b"],
+      "next": ["1. a", "1. y", "```", "x", "```", "1. b"],
+      "obsidian": ["1. a", "2. y", "```", "x", "```", "1. b"]
+    },
+    {
+      "name": "a second list after a heading",
+      "old": ["1. a", "# H", "5. b", "6. c"],
+      "next": ["1. a", "# H", "5. b", "5. x", "6. c"],
+      "obsidian": ["1. a", "# H", "5. b", "6. x", "7. c"]
+    },
+    {
+      "name": "quotes count by depth",
+      "old": ["> 1. a", "> 2. b"],
+      "next": ["> 1. a", "> 1. x", "> 2. b"],
+      "obsidian": ["> 1. a", "> 2. x", "> 3. b"]
+    },
+    {
+      "name": "nested quotes",
+      "old": ["> > 1. a", "> > 2. b"],
+      "next": ["> > 1. a", "> > 1. x", "> > 2. b"],
+      "obsidian": ["> > 1. a", "> > 2. x", "> > 3. b"]
+    },
+    {
+      "name": "a blank quote line inside a quoted list",
+      "old": ["> 1. a", ">", "> 2. b"],
+      "next": ["> 1. a", ">", "> 1. x", "> 2. b"],
+      "obsidian": ["> 1. a", ">", "> 2. x", "> 3. b"]
+    },
+    {
+      "name": "tasks",
+      "old": ["1. [ ] a", "2. [ ] b"],
+      "next": ["1. [ ] a", "1. [ ] x", "2. [ ] b"],
+      "obsidian": ["1. [ ] a", "2. [ ] x", "3. [ ] b"]
+    },
+    {
+      "name": "width changes: 9 to 10",
+      "old": ["9. a", "1. b"],
+      "next": ["9. a", "1. b", "1. c"],
+      "obsidian": ["9. a", "10. b", "11. c"]
+    },
+    {
+      "name": "big numbers",
+      "old": ["99. a", "100. b"],
+      "next": ["99. a", "99. x", "100. b"],
+      "obsidian": ["99. a", "100. x", "101. b"]
+    },
+    {
+      "name": "starting at 0",
+      "old": ["0. a", "1. b"],
+      "next": ["0. a", "0. x", "1. b"],
+      "obsidian": ["0. a", "1. x", "2. b"]
+    },
+    {
+      "name": "an empty item",
+      "old": ["1. a", "2. "],
+      "next": ["1. a", "2. ", "2. "],
+      "obsidian": ["1. a", "2. ", "3. "]
+    },
+    {
+      "name": "a change in the middle of a long list",
+      "old": ["1. a", "2. b", "3. c", "4. d", "5. e"],
+      "next": ["1. a", "2. b", "4. d", "5. e"],
+      "obsidian": ["1. a", "2. b", "3. d", "4. e"]
+    },
+    {
+      "name": "two spaces before a marker",
+      "old": ["1. a", "  2. b"],
+      "next": ["1. a", "  2. b", "  2. c"],
+      "obsidian": ["1. a", "  2. b", "  3. c"]
+    },
+    {
+      "name": "a list ended by a paragraph, then a new one",
+      "old": ["1. a", "2. b", "", "para", "", "3. c"],
+      "next": ["1. a", "", "para", "", "3. c"],
+      "obsidian": ["1. a", "", "para", "", "3. c"]
+    }
+  ]
+}

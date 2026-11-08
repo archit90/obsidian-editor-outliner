@@ -310,7 +310,7 @@ describe("drag and drop", () => {
   });
 });
 
-// Regression tests for the 2026-11-06 review (reviews/2026-11-06-plugins-review.md, EO-xx).
+// Regression tests for the findings of the 2026-11-06 review (their ids: docs/reviews.md).
 describe("review fixes", () => {
   const ind = (o: Outline, a: number, b: number) => indent(o, a, b, sp);
   const tind = (o: Outline, a: number, b: number) => indent(o, a, b, tab);

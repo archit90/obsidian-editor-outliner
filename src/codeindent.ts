@@ -1,4 +1,4 @@
-// Code blocks in list items, in Live Preview (the repo's SPEC.md, "Editor Outliner" → "Multi-block items"):
+// Code blocks in list items, in Live Preview (SPEC.md → Multi-block items):
 // Obsidian indents an item's text lines (a measured padding on the line) but not its fenced code block lines,
 // so the block's background and frame start at the editor's left edge with the item indent drawn inside them
 // as whitespace. This hides each code line's item indent (the whitespace up to the item's content column)
@@ -9,7 +9,7 @@
 import { EditorSelection, EditorState, Extension, Prec, RangeSetBuilder, StateEffect } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { editorLivePreviewField } from "obsidian";
-import { applyRows, ctxOf, outlineOf, posOf } from "./editor";
+import { applyRows, ctxOf, outlineOf, outlineOfDoc, posOf } from "./editor";
 import { codeBlockAt, indentEnd } from "./content";
 import { Outline } from "./parse";
 import { backspace } from "./merge";
@@ -31,20 +31,23 @@ const isLive = (state: EditorState) => state.field(editorLivePreviewField, false
 
 /**
  * An empty cursor that lands in a hidden item indent goes to its end; moving left out of it goes on to the end
- * of the line above.
+ * of the line above. Reads the transaction's new document and selection, not its new state (CodeMirror computes
+ * that only once the filters are done).
  */
 const keepOutOfIndent = EditorState.transactionFilter.of(tr => {
-  if (!tr.selection || !isLive(tr.state)) return tr;
-  const st = tr.state;
+  // a transaction that switches Live Preview on or off: its new state says which (rare)
+  const live = tr.reconfigured || tr.effects.length ? isLive(tr.state) : isLive(tr.startState);
+  if (!tr.selection || !live) return tr;
+  const doc = tr.newDoc;
   // the note is parsed only for a cursor in a line's leading whitespace (typing elsewhere stays cheap)
   let o: Outline | null = null;
   const was = tr.startState.selection.main.head;
   let moved = false;
   const ranges = tr.selection.ranges.map(r => {
     if (!r.empty) return r;
-    const line = st.doc.lineAt(r.head);
+    const line = doc.lineAt(r.head);
     if (r.head - line.from >= leadingWs(line.text)) return r;
-    o ??= outlineOf(st);
+    o ??= outlineOfDoc(doc, tr.startState.tabSize);
     const k = hiddenEnd(o, line.number - 1);
     if (!k || r.head - line.from >= k) return r;
     moved = true;
@@ -73,6 +76,26 @@ function backspaceAtIndent(view: EditorView): boolean {
 
 /** A remeasure changed an item's text offset: rebuild the decorations with it. */
 const remeasured = StateEffect.define<null>();
+
+/**
+ * The measured text offsets of item lines (0-based line → px) after a change: an item line the change didn't touch
+ * keeps its offset at its new line number (its marker and indent are the same), so a change elsewhere doesn't
+ * rebuild the code lines without their offsets first.
+ */
+function keptOffsets(offsets: Map<number, number>, u: ViewUpdate): Map<number, number> {
+  const out = new Map<number, number>();
+  const a = u.startState.doc;
+  for (const [l, px] of offsets) {
+    if (l >= a.lines) continue;
+    const line = a.line(l + 1);
+    let touched = false;
+    u.changes.iterChangedRanges((from, to) => {
+      if (from <= line.to && to >= line.from) touched = true;
+    });
+    if (!touched) out.set(u.state.doc.lineAt(u.changes.mapPos(line.from, 1)).number - 1, px);
+  }
+  return out;
+}
 
 const livePreview = (view: EditorView) => isLive(view.state);
 
@@ -109,14 +132,10 @@ export function itemCodeIndent(): Extension {
         if (typing) {
           this.decorations = this.decorations.map(u.changes);
           this.hidden = this.hidden.map(u.changes);
-          window.clearTimeout(this.timer);
-          const view = u.view;
-          this.timer = window.setTimeout(() => {
-            if (view.dom.isConnected) view.dispatch({ effects: remeasured.of(null) });
-          }, 300);
+          this.later(300);
           return;
         }
-        if (u.docChanged) this.offsets.clear();
+        if (u.docChanged) this.offsets = keptOffsets(this.offsets, u);
         if (
           u.docChanged ||
           u.viewportChanged ||
@@ -182,7 +201,7 @@ export function itemCodeIndent(): Extension {
             }
             return out;
           },
-          write: (out, view) => {
+          write: out => {
             let changed = false;
             for (const [l, px] of out) {
               if (this.offsets.get(l) !== px) {
@@ -190,12 +209,23 @@ export function itemCodeIndent(): Extension {
                 changed = true;
               }
             }
-            if (changed)
-              queueMicrotask(() => {
-                if (view.dom.isConnected) view.dispatch({ effects: remeasured.of(null) });
-              });
+            if (changed) this.later(0);
           },
         });
+      }
+
+      /**
+       * Works the decorations out again ms from now (a remeasured transaction); while an IME composition is open,
+       * after it (a dispatch would disturb it).
+       */
+      later(ms: number) {
+        window.clearTimeout(this.timer);
+        const view = this.view;
+        this.timer = window.setTimeout(() => {
+          if (!view.dom.isConnected) return;
+          if (view.composing) this.later(300);
+          else view.dispatch({ effects: remeasured.of(null) });
+        }, ms);
       }
     },
     { decorations: v => v.decorations },

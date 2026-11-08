@@ -1,4 +1,4 @@
-// The outline model of a note (see the repo's SPEC.md, "Editor Outliner"): line kinds, the heading tree, body blocks and list trees.
+// The outline model of a note (SPEC.md → Outline model): line kinds, the heading tree, body blocks and list trees.
 // Pure: works on the note's lines, no Obsidian or CodeMirror.
 
 export type Kind = "front" | "code" | "heading" | "item" | "blank" | "text" | "hr";
@@ -107,6 +107,42 @@ export function prefixLen(t: string, q: number): number {
 }
 
 const count = (s: string, sub: string) => s.split(sub).length - 1;
+
+/**
+ * t with its inline code spans (a run of backticks up to the next run of the same length) blanked out, keeping its
+ * length, so a `%%`, `$$` or `<!--` inside one doesn't count as a delimiter. An unmatched run stays as it is.
+ */
+export function maskCode(t: string): string {
+  let out = "";
+  let i = 0;
+  for (;;) {
+    const open = t.indexOf("`", i);
+    if (open < 0) break;
+    let j = open;
+    while (j < t.length && t[j] === "`") j++;
+    const n = j - open;
+    let close = -1;
+    for (let k = j; ;) {
+      const s = t.indexOf("`", k);
+      if (s < 0) break;
+      let e = s;
+      while (e < t.length && t[e] === "`") e++;
+      if (e - s === n) {
+        close = s;
+        break;
+      }
+      k = e;
+    }
+    if (close < 0) {
+      out += t.slice(i, j);
+      i = j;
+      continue;
+    }
+    out += t.slice(i, open) + " ".repeat(close + n - open);
+    i = close + n;
+  }
+  return out + t.slice(i);
+}
 
 type FenceKind = "fence" | "math" | "comment" | "html";
 interface Fence {
@@ -224,13 +260,49 @@ export function parseLines(texts: string[], tabSize = 4): { info: LineInfo[]; bo
         L.cc = col + im[1]!.length + (sp >= 1 && sp <= 4 ? sp : 1);
       }
     }
-    // a comment or math block opened mid-line hides the lines after it
-    if (count(c, "%%") % 2 === 1) fence = open("comment", "%", 2, col, qd);
-    else if (count(c, "$$") % 2 === 1) fence = open("math", "$", 2, col, qd);
-    else if (c.lastIndexOf("<!--") > c.lastIndexOf("-->")) fence = open("html", "<", 4, col, qd);
+    // a comment or math block opened mid-line hides the lines after it (not one inside inline code: `%%`)
+    const bare = c.includes("`") ? maskCode(c) : c;
+    if (count(bare, "%%") % 2 === 1) fence = open("comment", "%", 2, col, qd);
+    else if (count(bare, "$$") % 2 === 1) fence = open("math", "$", 2, col, qd);
+    else if (bare.lastIndexOf("<!--") > bare.lastIndexOf("-->")) fence = open("html", "<", 4, col, qd);
     info.push(L);
   }
   return { info, bodyStart };
+}
+
+/**
+ * What parseLines reads on line t to decide headings and where code, math and comment blocks open and close, as a
+ * string: the quote prefix, a frontmatter delimiter, the heading level, fence and delimiter runs at the start, the
+ * delimiters a block closes on, and the parity of block delimiters opened mid-line (outside inline code). An edit
+ * inside one line that keeps its shape leaves every line's heading level and block membership as they were (list
+ * structure and text may still change), so the heading tree stays the same.
+ */
+export function shape(t: string, tabSize = 4): string {
+  const pm = QUOTE.exec(t)![0];
+  const qd = count(pm, ">");
+  const rest = t.slice(pm.length);
+  const wsStr = /^[ \t]*/.exec(rest)![0];
+  const col = columns(wsStr, tabSize);
+  const c = rest.slice(wsStr.length);
+  const ce = c.trimEnd();
+  const run = /^(`+|~+)$/.exec(ce)?.[1] ?? "";
+  const fm = /^(`{3,}|~{3,})(.*)$/.exec(c);
+  const opener = fm ? (fm[1]![0] === "`" && fm[2]!.includes("`") ? "-" : fm[1]!) : "";
+  const hm = qd === 0 && col <= 3 ? HEADING.exec(c) : null;
+  const bare = c.includes("`") ? maskCode(c) : c;
+  const flags = [
+    t.trimEnd() === "---",
+    ce.includes("$$"),
+    ce.includes("%%"),
+    ce.includes("-->"),
+    c.startsWith("$$") && count(c, "$$") % 2 === 1,
+    c.startsWith("%%") && count(c, "%%") % 2 === 1,
+    c.startsWith("<!--") && !c.slice(4).includes("-->"),
+    count(bare, "%%") % 2 === 1,
+    count(bare, "$$") % 2 === 1,
+    bare.lastIndexOf("<!--") > bare.lastIndexOf("-->"),
+  ];
+  return [pm, run, opener, hm ? hm[1]!.length : 0, flags.map(f => (f ? 1 : 0)).join("")].join("|");
 }
 
 export function buildOutline(texts: string[], tabSize = 4): Outline {

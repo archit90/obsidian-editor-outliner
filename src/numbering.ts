@@ -1,5 +1,4 @@
-// Ordered-list numbering exactly as Obsidian does it (the repo's SPEC.md, "Editor Outliner" → "Indent / outdent"
-// → Renumbering). Obsidian 1.15 renumbers ordered lists in a transactionFilter on every editor change (app.js:
+// Ordered-list numbering exactly as Obsidian does it (SPEC.md → Indent / outdent → Renumbering). Obsidian 1.15 renumbers ordered lists in a transactionFilter on every editor change (app.js:
 // skipped only for userEvent "set" / "input.renumber", table cells and IME composition) and merges its edits into
 // the same transaction. The plugin numbers its own changes the same way, so Obsidian finds nothing to change: the
 // result is the same whether or not Obsidian's filter runs, and undo restores a note Obsidian leaves alone.

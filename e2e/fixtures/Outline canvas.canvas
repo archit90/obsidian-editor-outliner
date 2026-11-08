@@ -1,0 +1,23 @@
+{
+	"nodes": [
+		{
+			"id": "t1",
+			"type": "text",
+			"text": "# Top\n\nintro\n\n## Sub\n\n- a\n    - b\n- c\n\n######## Deep\n\ntext\n",
+			"x": 0,
+			"y": 0,
+			"width": 500,
+			"height": 420
+		},
+		{
+			"id": "f1",
+			"type": "file",
+			"file": "_test/manual/Outline canvas card.md",
+			"x": 600,
+			"y": 0,
+			"width": 500,
+			"height": 420
+		}
+	],
+	"edges": []
+}

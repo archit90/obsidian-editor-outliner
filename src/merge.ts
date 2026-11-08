@@ -1,4 +1,4 @@
-// Outline mode's Backspace and Delete (the repo's SPEC.md, "Editor Outliner" → "Outline mode"), after Logseq's
+// Outline mode's Backspace and Delete (SPEC.md → Outline mode), after Logseq's
 // editor.cljs: Backspace at the start of an item merges it into the item above, Delete at the end of an item
 // pulls the next one in, and the item indent of continuation and code lines is invisible to both. Pure: works
 // on the parsed note; the folded items come in as data (their marker lines). Each function returns the new

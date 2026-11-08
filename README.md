@@ -49,12 +49,13 @@ npm run build                    # main.js
 npm test                         # unit tests
 npm run check                    # format, lint, typecheck, unit tests, build, smoke load: before every commit
 npm run deploy -- <vault> …      # build and copy into vaults that have the plugin installed (--install adds it)
+npm run build && e2e/sandbox.sh reset 4 && npm run e2e   # end-to-end tests in a throwaway Obsidian (Linux, Xvfb)
 ```
 
 Releasing: `npm version patch` (or `minor` / `major`) bumps `package.json`, `manifest.json` and `versions.json` and
 tags the commit with the version; `git push --follow-tags` then runs the release workflow, which checks, builds and
-publishes the GitHub release BRAT installs from. End-to-end tests: see `TEST-CASES.md` and `SPEC.md`
-(Development).
+publishes the GitHub release BRAT installs from. End-to-end tests: see `TEST-CASES.md` (how to run them alone and
+together with Editor Multiple Lanes) and `SPEC.md` (Development).
 
 ## Licence
 

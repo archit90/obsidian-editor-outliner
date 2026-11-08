@@ -1,4 +1,4 @@
-// Drag handles (the repo's SPEC.md, "Drag handles"): what a handle drags, where it can be dropped, and the drop itself.
+// Drag handles (SPEC.md → Drag handles (desktop)): what a handle drags, where it can be dropped, and the drop itself.
 // Pure: the view code maps the pointer to a target and an option.
 import {
   Block,

@@ -1,6 +1,6 @@
-// Outline mode (the repo's SPEC.md, "Editor Outliner" → "Outline mode"): CodeMirror glue for the active
-// state and its keys. The mode is one switch for the whole app (a plugin setting); the logic is in active.ts,
-// enter.ts, merge.ts and paste.ts. Every key starts with stepAside, which node selection's keys share.
+// Outline mode (SPEC.md → Outline mode): CodeMirror glue for the active state and its keys. Outline mode is
+// always on; the logic is in active.ts, enter.ts, merge.ts and paste.ts. Every key starts with stepAside, which
+// node selection's keys share.
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
@@ -37,10 +37,11 @@ export function stepAside(view: EditorView, needMode = true): boolean {
 /**
  * Obsidian's Vim mode (@replit/codemirror-vim) outside insert mode (normal, visual): its keys stay vim's, and a
  * visual-mode selection is no node selection. Its state lives on the view's CodeMirror 5 adapter,
- * view.cm.state.vim (app.js). Vim sees a key before our keymaps; this covers the keys it leaves alone.
+ * view.cm.state.vim (app.js; typed in types/codemirror-view.d.ts). Vim sees a key before our keymaps; this
+ * covers the keys it leaves alone.
  */
 export function vimNormal(view: EditorView): boolean {
-  const vim = (view as EditorView & { cm?: { state?: { vim?: { insertMode?: boolean } } } }).cm?.state?.vim;
+  const vim = view.cm?.state?.vim;
   return !!vim && !vim.insertMode;
 }
 
@@ -54,22 +55,31 @@ export function foldedLines(state: EditorState): Set<number> {
 }
 
 /**
- * Runs an active-state key's pure function on the main selection and applies its edit as one change. The
- * function returns null for Obsidian's key, "noop" to eat the key, or the edit (with its userEvent, when it
- * differs from the key's).
+ * Works out an active-state key on the main selection: its pure function returns null for Obsidian's key, "noop"
+ * to eat the key, or the edit (with its userEvent, when it differs from the key's). Returns what applies it as one
+ * change (nothing for "noop"), or null when the key isn't ours.
  */
-function runKey(
+function planKey(
   view: EditorView,
   userEvent: string,
   fn: (o: Outline, from: Pos, to: Pos, st: EditorState) => (Edit & { userEvent?: string }) | "noop" | null,
-): boolean {
-  if (stepAside(view)) return false;
+): (() => void) | null {
+  if (stepAside(view)) return null;
   const st = view.state;
   const o = outlineOf(st);
   const r = st.selection.main;
   const res = fn(o, posOf(st, r.from), posOf(st, r.to), st);
-  if (!res) return false;
-  if (res !== "noop") applyRows(view, o, res.rows, res.userEvent ?? userEvent, res.cursor);
+  if (!res) return null;
+  return () => {
+    if (res !== "noop") applyRows(view, o, res.rows, res.userEvent ?? userEvent, res.cursor);
+  };
+}
+
+/** Runs an active-state key (planKey); false when it isn't ours. */
+function runKey(view: EditorView, userEvent: string, fn: Parameters<typeof planKey>[2]): boolean {
+  const go = planKey(view, userEvent, fn);
+  if (!go) return false;
+  go();
   return true;
 }
 
@@ -105,11 +115,11 @@ export const outlineDelete = (view: EditorView) =>
 
 /**
  * Paste in the active state (paste.ts), given the clipboard text: Markdown blocks become items, a code block
- * alone goes into the item, multi-line text stays in it (a plain insert counts as a paste, input.paste).
- * False: Obsidian's paste applies.
+ * alone goes into the item, multi-line text stays in it (a plain insert counts as a paste, input.paste). Returns
+ * what makes the change, or null: Obsidian's paste applies.
  */
 export const outlinePaste = (view: EditorView, text: string) =>
-  runKey(view, "paste.outliner", (o, from, to, st) => {
+  planKey(view, "paste.outliner", (o, from, to, st) => {
     const res = paste(o, from, to, text, ctxOf(st, false), foldedLines(st));
     return res && { ...res, userEvent: res.plain ? "input.paste" : undefined };
   });

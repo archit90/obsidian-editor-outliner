@@ -1,4 +1,4 @@
-// Folding commands (the repo's SPEC.md, "Folding"). Uses Obsidian's own fold ranges (CodeMirror's foldable(), which
+// Folding commands (SPEC.md → Folding). Uses Obsidian's own fold ranges (CodeMirror's foldable(), which
 // Obsidian's fold service answers for headings and list items), so folds look and persist like native ones.
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";

@@ -1,4 +1,4 @@
-// Multi-block items (the repo's SPEC.md, "Editor Outliner" → "Multi-block items"): an item's own lines hold
+// Multi-block items (SPEC.md → Multi-block items): an item's own lines hold
 // paragraphs and fenced code blocks, indented to the item's content column (cc). Pure: works on the parsed
 // note, no Obsidian or CodeMirror.
 //
@@ -162,6 +162,9 @@ export function partAt(o: Outline, i: number): Part | null {
 }
 
 // ---- commands ----
+
+/** Whether "Insert code block in item" applies on line (it is in an item's own lines), without building its rows. */
+export const canInsertCodeBlock = (o: Outline, line: number) => ownerAt(o, line) !== null;
 
 /**
  * "Insert code block in item": a fenced block (```lang, an empty line, ```) after the item's own lines, before

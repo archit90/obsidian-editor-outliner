@@ -1,4 +1,4 @@
-// Outline mode's Paste (the repo's SPEC.md, "Editor Outliner" → "Outline mode"), after Logseq's paste.cljs:
+// Outline mode's Paste (SPEC.md → Outline mode), after Logseq's paste.cljs:
 // Markdown blocks become items placed by the target item, a code block alone goes into the current item,
 // other multi-line text stays in the item. Pure: works on the parsed note and the clipboard text (the glue
 // picks the text the way Obsidian would, Markdown converted from HTML included). Pasting inside a code block

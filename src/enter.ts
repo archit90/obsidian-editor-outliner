@@ -1,5 +1,5 @@
-// Outline mode's Enter, Shift+Enter and Shift+Tab ending a list (the repo's SPEC.md, "Editor Outliner" →
-// "Outline mode"), after Logseq's editor.cljs: an item is a block, Enter splits it, an empty item outdents
+// Outline mode's Enter, Shift+Enter and Shift+Tab ending a list (SPEC.md → Outline mode), after Logseq's
+// editor.cljs: an item is a block, Enter splits it, an empty item outdents
 // or adds another. Pure: works on the parsed note and returns the new rows (or a text change) and where the
 // cursor goes; null means the key isn't for us (Obsidian's own Enter applies).
 import { Outline, isBlank, parseLines, prefixLen } from "./parse";

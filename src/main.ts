@@ -1,4 +1,4 @@
-// Editor Outliner: outliner editing for headings, nested lists and body blocks. See the repo's SPEC.md, "Editor Outliner".
+// Editor Outliner: outliner editing for headings, nested lists and body blocks. See SPEC.md.
 //
 // - parse.ts: the outline model (pure). ops.ts: indent / outdent / move (pure). select.ts: expand steps (pure).
 //   drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
@@ -7,9 +7,17 @@
 //   view.ts: heading guides, H7+ styling, drag handles. Outline mode: active.ts (the active state), enter.ts
 //   (Enter / Shift+Enter / Shift+Tab), merge.ts (Backspace / Delete), paste.ts (Paste), all pure; mode.ts
 //   their CodeMirror glue. nodes.ts: node selection (pure); nodesel.ts: its field, keys and highlight.
-// The keys are high-precedence CodeMirror keymaps (see buildExtensions); of the commands only "Toggle outline
-// mode" has a default hotkey (Ctrl+Super+O; Ctrl+Cmd+O on macOS).
-import { Command, Editor, MarkdownFileInfo, MarkdownView, Platform, Plugin, htmlToMarkdown } from "obsidian";
+// The keys are high-precedence CodeMirror keymaps (see buildExtensions); no command has a default hotkey.
+import {
+  Command,
+  Editor,
+  MarkdownFileInfo,
+  MarkdownView,
+  Platform,
+  Plugin,
+  editorInfoField,
+  htmlToMarkdown,
+} from "obsidian";
 import { around } from "monkey-around";
 import { Compartment, Extension, Prec } from "@codemirror/state";
 import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
@@ -37,9 +45,10 @@ import {
   setModeCheck,
 } from "./mode";
 import { nodeSelectionExtension, setKeysCheck } from "./nodesel";
-import { DEFAULTS, EditorOutlinerTab, Settings } from "./settings";
+import { DEFAULTS, EditorOutlinerTab, Settings, loadSettings } from "./settings";
 import { dragHandles, headingGuides, lineDecorations } from "./view";
 import { itemCodeIndent } from "./codeindent";
+import { missingInternals } from "./internals";
 
 /**
  * The CodeMirror editor that has keyboard focus (in any window), if any. A Canvas card (file or text card)
@@ -69,8 +78,9 @@ const rememberFocus = EditorView.domEventHandlers({
 
 /**
  * Every editor that has the plugin's extensions, so a settings change or unloading can reconfigure them all.
- * Obsidian's workspace.updateOptions() only reaches Markdown tabs (and Editor Lanes cards): a Canvas card's or a
- * page preview popover's editor would keep the old extensions (drag handles, guides, keys) until it closes.
+ * Obsidian's workspace.updateOptions() only reaches the editors of Markdown views (tabs, and Editor Multiple
+ * Lanes cards, which are Markdown views too): a Canvas card's or a page preview popover's editor would keep the old
+ * extensions (drag handles, guides, keys) until it closes.
  */
 const editors = new Set<{ view: EditorView }>();
 const tracker = ViewPlugin.fromClass(
@@ -80,6 +90,8 @@ const tracker = ViewPlugin.fromClass(
     }
     destroy() {
       editors.delete(this);
+      // a closed editor isn't kept alive as the last focused one
+      if (lastFocused === this.view) lastFocused = null;
     }
   },
 );
@@ -90,12 +102,17 @@ export default class EditorOutlinerPlugin extends Plugin {
   /** Holds the extensions in every editor (see editors). */
   private compartment = new Compartment();
 
+  /** The Obsidian internals not found on load (internals.ts), also logged; empty normally. */
+  missingInternals: string[] = [];
+
   override async onload() {
-    // older versions saved an outlineMode switch; outline mode is always on now, so it is dropped
-    const saved = ((await this.loadData()) ?? {}) as Partial<Settings> & { outlineMode?: boolean };
-    delete saved.outlineMode;
-    this.settings = Object.assign({}, DEFAULTS, saved);
+    this.settings = loadSettings(await this.loadData());
     this.addSettingTab(new EditorOutlinerTab(this.app, this));
+    this.missingInternals = missingInternals({ app: this.app, mobile: Platform.isMobile });
+    if (this.missingInternals.length)
+      console.warn(
+        `Editor Outliner: Obsidian internals not found (a new Obsidian version?): ${this.missingInternals.join("; ")}`,
+      );
     setSuggestCheck(() => !!this.app.workspace.editorSuggest?.isShowingSuggestion?.());
     setModeCheck(() => !this.outlineOffForTests);
     setKeysCheck(() => this.settings.keys);
@@ -140,14 +157,20 @@ export default class EditorOutlinerPlugin extends Plugin {
   }
 
   /**
-   * Test hook for the e2e harness only (not saved, no UI): with it set, the outline-mode keys step aside, so a
-   * case can compare with Obsidian's own keys. Outline mode is otherwise always on.
+   * Test hook for the e2e harness only (not saved, no UI; SPEC.md → Development): with it set, the outline-mode
+   * keys step aside, so a case can compare with Obsidian's own keys. Outline mode is otherwise always on.
    */
   outlineOffForTests = false;
 
-  /** Gives every editor that has the extensions the new ones (none: unloading). */
+  /** Gives every editor that has the extensions the new ones (none: unloading); one that fails doesn't stop the rest. */
   private reconfigure(ext: Extension) {
-    for (const e of [...editors]) e.view.dispatch({ effects: this.compartment.reconfigure(ext) });
+    for (const e of [...editors]) {
+      try {
+        e.view.dispatch({ effects: this.compartment.reconfigure(ext) });
+      } catch (err) {
+        console.error("Editor Outliner: couldn't reconfigure an editor", err);
+      }
+    }
   }
 
   async saveSettings() {
@@ -181,9 +204,9 @@ export default class EditorOutlinerPlugin extends Plugin {
       ),
     );
     // The keys are a CodeMirror keymap, not Obsidian hotkeys: Obsidian runs editor hotkeys only on
-    // workspace.activeEditor, which in a lanes tab can be the lanes view (then nothing happens), and only once
-    // while a key is held. Keys here act on the focused editor, repeat, and fall through (false) to
-    // Obsidian where the outline doesn't apply.
+    // workspace.activeEditor, which isn't always the editor being typed in (a Canvas card, a popover, a view that
+    // hosts editors, such as an Editor Multiple Lanes tab), and only once while a key is held. Keys here act on
+    // the focused editor, repeat, and fall through (false) to Obsidian where the outline doesn't apply.
     if (this.settings.keys) {
       this.extensions.push(
         Prec.highest(
@@ -191,7 +214,7 @@ export default class EditorOutlinerPlugin extends Plugin {
             { key: "Tab", run: op("indent") },
             { key: "Shift-Tab", run: op("outdent") },
             // Move: Mod = Ctrl on Windows/Linux, Cmd on macOS (there, outside the outline Cmd+↑/↓ falls through
-            // to Obsidian's document start / end)
+            // to Obsidian's document start / end; in a note body it moves the block, a decision: SPEC.md → Keys)
             { key: "Mod-ArrowUp", run: op("up") },
             { key: "Mod-ArrowDown", run: op("down") },
             // Expand up / down: Alt+↑ / Alt+↓; Shrink up / down: Alt+Shift+↑ / Alt+Shift+↓, retracing that edge.
@@ -207,10 +230,13 @@ export default class EditorOutlinerPlugin extends Plugin {
     }
     this.extensions.push(
       rememberFocus,
-      codeClipboard((v, data) => {
-        const text = this.clipText(data);
-        return text !== null && outlinePaste(v, text);
-      }),
+      codeClipboard(
+        (v, data) => {
+          const text = this.clipText(data);
+          return text === null ? null : outlinePaste(v, text);
+        },
+        (v, e) => this.offerPaste(v, e),
+      ),
     );
     this.extensions.push(lineDecorations(() => this.settings));
     this.extensions.push(itemCodeIndent());
@@ -231,11 +257,23 @@ export default class EditorOutlinerPlugin extends Plugin {
     const md = data.getData("text/markdown");
     if (md) return md;
     if (html) {
-      if (!this.app.vault.getConfig("autoConvertHtml")) return plain || null;
+      // Obsidian's default is on (an Obsidian without vault.getConfig: internals.ts says so on load)
+      if (this.app.vault.getConfig && !this.app.vault.getConfig("autoConvertHtml")) return plain || null;
       if (/<(img|audio|video)\b/i.test(html)) return null;
       return htmlToMarkdown(html);
     }
     return plain || null;
+  }
+
+  /**
+   * A paste the plugin would take goes to the other plugins' "editor-paste" handlers first, as Obsidian's own paste
+   * does (they check evt.defaultPrevented and call preventDefault when they handle it). True when one took it.
+   */
+  private offerPaste(view: EditorView, e: ClipboardEvent): boolean {
+    const info = view.state.field(editorInfoField, false);
+    if (!info?.editor) return false;
+    this.app.workspace.trigger("editor-paste", e, info.editor, info);
+    return e.defaultPrevented;
   }
 
   /** The editor a command acts on: the focused one, else the last one focused, else Obsidian's active one. */
@@ -247,9 +285,10 @@ export default class EditorOutlinerPlugin extends Plugin {
   private addCommands() {
     const logical = this.logical;
     /**
-     * A command for a note's own editor (not a table cell's); `applies` says whether it does anything. A plain
-     * checkCallback, not editorCheckCallback: that one only runs when Obsidian has an active Markdown editor,
-     * which a lanes tab doesn't always have.
+     * A command for a note's own editor (not a table cell's); `applies` says whether it does anything, cheaply (the
+     * palette asks every command). A plain checkCallback, not editorCheckCallback: that one only runs when
+     * Obsidian has an active Markdown editor, which a Canvas card or a view hosting editors (an Editor Multiple
+     * Lanes tab) doesn't always give.
      */
     const cmd = (
       id: string,

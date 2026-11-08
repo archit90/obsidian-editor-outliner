@@ -7,31 +7,33 @@
 //             {click: js returning [x, y]}, {wait: ms}, {writeClip: text} / {readClip: true} (the real clipboard)
 //   want      the note after, with markers (no markers: only the text is compared); "@off": the same as with
 //             outline mode off (the key steps aside to Obsidian); "@same": the setup text and selection
-//   options   mode "off" · surfaces "all" | [...] (default lanes) · views ["lp"] / ["source"] · fold [lines] ·
-//             wantFolds [lines] · wantHl [lines] · wantClip · wantStatus off|on|active · wantMode · wantEditing ·
-//             wantRe · settings {...} · config {...} · setupEval / check (js) · undo false · note · src
+//   options   surfaces "all" | [...] (default ["tab"]; "all" and "lanes" add an Editor Multiple Lanes card, skipped
+//             without that plugin) · needs [plugin ids, core:<id>] · views ["lp"] / ["source"] · fold [lines] ·
+//             wantFolds [lines] · wantHl [lines] · wantClip · wantEditing · wantRe · settings {...} · config {...} ·
+//             setupEval / check (js) · surfaceSetup / surfaceTeardown (js) · undo false · note · src
 // @ts-check (JSDoc types below: a case is a Case, its keys Keys)
 import { deep } from "./cases-deep.mjs";
 
 /**
- * @typedef {{ line: number, to?: number, ch?: number, dx?: number, dy?: number, escape?: boolean, noMove?: boolean, shot?: string }} Drag
+ * @typedef {{ line: number, to?: number, ch?: number, dx?: number, dy?: number, escape?: boolean, noMove?: boolean, shot?: string,
+ *   edge?: "bottom", hold?: number }} Drag
  * @typedef {string | { type?: string, paste?: Record<string, string>, copy?: boolean, cut?: boolean, cmd?: string,
  *   ime?: string, eval?: string, label?: string, click?: string, wait?: number, writeClip?: string, readClip?: boolean,
  *   drag?: Drag }} Key
  * @typedef {{ id: string, title: string, text: string, keys: Key | Key[], want?: string, wantRe?: string,
- *   cur?: string, mode?: "off", surfaces?: "all" | string[], views?: string[], fold?: number[], wantFolds?: number[],
- *   wantHl?: number[], wantClip?: string, wantStatus?: "off" | "on" | "active", wantMode?: boolean,
- *   wantEditing?: boolean, settings?: Record<string, boolean>, config?: Record<string, unknown>, setupEval?: string,
- *   check?: string, checkLabel?: string, undo?: boolean, note?: string, src?: string, needsDecision?: string,
- *   surfaceSetup?: string, surfaceTeardown?: string, clip?: Record<string, string> }} Case
+ *   cur?: string, surfaces?: "all" | string[], needs?: string[], views?: string[], fold?: number[],
+ *   wantFolds?: number[], wantHl?: number[], wantClip?: string, wantEditing?: boolean,
+ *   settings?: Record<string, boolean>, config?: Record<string, unknown>, setupEval?: string, check?: string,
+ *   checkLabel?: string, undo?: boolean, note?: string, src?: string, surfaceSetup?: string,
+ *   surfaceTeardown?: string, clip?: Record<string, string> }} Case
  * @typedef {Case & { group: string, keys: Key[], src: string }} GroupedCase
  * @typedef {(id: string, title: string, src: string, list: Case[], note?: string) => void} Group
  */
 
 /** @param {string[]} l */
 const L = (...l) => l.join("\n");
-const OM = "SPEC.md §7 Outline mode";
-const R = "SPEC.md §7 Indent / outdent → Renumbering (numbered as Obsidian does)";
+const OM = "SPEC.md → Outline mode";
+const R = "SPEC.md → Indent / outdent → Renumbering (numbered as Obsidian does)";
 const ID = "editor-outliner";
 
 /** @type {{ id: string, title: string, note?: string }[]} */
@@ -347,7 +349,7 @@ group(
       text: "- a\n  ```\n  x|\n  ```",
       keys: "Enter",
       want: "- a\n  ```\n  x\n  |\n  ```",
-      src: "SPEC.md §7 Multi-block items → Code-indent rules → Enter",
+      src: "SPEC.md → Multi-block items → Code-indent rules → Enter",
     },
     {
       id: "EB13",
@@ -355,7 +357,7 @@ group(
       text: "- a\n  ```|\n  ```",
       keys: "Enter",
       want: "- a\n  ```\n  |\n  ```",
-      src: "SPEC.md §7 Multi-block items → Code-indent rules → Enter",
+      src: "SPEC.md → Multi-block items → Code-indent rules → Enter",
     },
     {
       id: "EB14",
@@ -502,7 +504,7 @@ group("endlist", "Shift+Tab ending a list", OM + " → Shift+Tab on an empty top
     text: "- a\n- b|",
     keys: "Shift-Tab",
     want: "@same",
-    src: "SPEC.md §7 Indent / outdent → A list always stays a list",
+    src: "SPEC.md → Indent / outdent → A list always stays a list",
   },
   {
     id: "ST8",
@@ -555,7 +557,7 @@ group("endlist", "Shift+Tab ending a list", OM + " → Shift+Tab on an empty top
     text: "- p\n\t- a\n|\n\t- b",
     keys: "Shift-Tab",
     want: "@same",
-    src: "SPEC.md §7 Indent / outdent → A list always stays a list",
+    src: "SPEC.md → Indent / outdent → A list always stays a list",
   },
 ]);
 
@@ -1223,7 +1225,7 @@ group("paste", "Paste", OM + " → Paste; Logseq paste.cljs paste-text-or-blocks
   },
 ]);
 
-group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Multi-block items", [
+group("multiblock", "Multi-block items and code-indent rules", "SPEC.md → Multi-block items", [
   {
     id: "MB1",
     title: "Insert code block in item: after the item's own lines, before children",
@@ -1234,6 +1236,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
   },
   {
     id: "MB2",
+    surfaces: ["tab", "lanes"],
     title: "Insert Dataview query in a nested item",
     text: "- p\n\t- a|",
     keys: { cmd: `${ID}:insert-dataview` },
@@ -1241,6 +1244,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
   },
   {
     id: "MB3",
+    surfaces: ["tab", "lanes"],
     title: "Insert from a continuation line",
     text: "- a\n  co|nt\n\t- c",
     keys: { cmd: `${ID}:insert-code-block` },
@@ -1248,6 +1252,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
   },
   {
     id: "MB4",
+    surfaces: ["tab", "lanes"],
     title: "Insert in an ordered item: numbered as Obsidian does",
     text: "1. a|\n2. b",
     keys: { cmd: `${ID}:insert-code-block` },
@@ -1257,6 +1262,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
   },
   {
     id: "MB5",
+    surfaces: ["tab", "lanes"],
     title: "Insert in a callout item",
     text: "> [!note]\n> - a|",
     keys: { cmd: `${ID}:insert-code-block` },
@@ -1419,7 +1425,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     text: "- one\n- tw|o\n  ```\n  plain\n  \ttabbed\n   \t  mixed\n  ```",
     keys: "Tab",
     want: "- one\n\t- tw|o\n\t  ```\n\t  plain\n\t  \ttabbed\n\t   \t  mixed\n\t  ```",
-    src: "SPEC.md §7 Indent / outdent → Whitespace",
+    src: "SPEC.md → Indent / outdent → Whitespace",
   },
   {
     id: "MB31",
@@ -1427,7 +1433,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     text: "- one\n\t- tw|o\n\t  ```\n\t  plain\n\t  \ttabbed\n\t   \t  mixed\n\t  ```",
     keys: "Shift-Tab",
     want: "- one\n- tw|o\n  ```\n  plain\n  \ttabbed\n   \t  mixed\n  ```",
-    src: "SPEC.md §7 Indent / outdent → Whitespace",
+    src: "SPEC.md → Indent / outdent → Whitespace",
   },
   {
     id: "MB32",
@@ -1442,7 +1448,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     text: "- a\n  ```\n  x|\n  ```",
     keys: "Tab",
     want: "@off",
-    src: "SPEC.md §7 Keys (Tab falls through inside code blocks)",
+    src: "SPEC.md → Keys (Tab falls through inside code blocks)",
   },
   {
     id: "MB34",
@@ -1450,7 +1456,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     text: "- a\n  ```\n  \t|x\n  ```",
     keys: "Shift-Tab",
     want: "@same",
-    src: "SPEC.md §7 Indent / outdent (Obsidian's Shift+Tab only while the line stays inside the item)",
+    src: "SPEC.md → Indent / outdent (Obsidian's Shift+Tab only while the line stays inside the item)",
   },
   {
     id: "MB35",
@@ -1458,7 +1464,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     text: "- a\n  ```\n          |x\n  ```",
     keys: "Shift-Tab",
     want: "@off",
-    src: "SPEC.md §7 Indent / outdent",
+    src: "SPEC.md → Indent / outdent",
   },
   {
     id: "MB36",
@@ -1470,7 +1476,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     check:
       "await new Promise(r => setTimeout(r, 400)); const ls = [...cm.dom.querySelectorAll('.cm-line.eo-item-code')]; if (ls.length < 3) return 'code lines: ' + ls.length; const at = cm.coordsAtPos(cm.state.doc.line(2).from + 3); const bad = ls.map(l => Math.round(l.getBoundingClientRect().left - at.left)).filter(d => Math.abs(d) > 1); return bad.length === 0 || bad;",
     checkLabel: "Every line of the block starts where the item's text does.",
-    src: "SPEC.md §7 Multi-block items",
+    src: "SPEC.md → Multi-block items",
   },
   {
     id: "MB37",
@@ -1480,7 +1486,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     views: ["source"],
     check: "return cm.dom.querySelectorAll('.cm-line.eo-item-code').length === 0",
     checkLabel: "No code line is moved or has its indent hidden.",
-    src: "SPEC.md §7 Multi-block items",
+    src: "SPEC.md → Multi-block items",
   },
   {
     id: "MB38",
@@ -1490,7 +1496,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     keys: ["Home", "Home", "Z"],
     want: "- a\n  ```\n  Z|xx\n  ```",
     views: ["lp"],
-    src: "SPEC.md §7 Multi-block items",
+    src: "SPEC.md → Multi-block items",
   },
   {
     id: "MB39",
@@ -1499,7 +1505,7 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     keys: "Backspace",
     want: "- a\n  ```\n  xx|yy\n  ```",
     views: ["lp"],
-    src: "SPEC.md §7 Multi-block items",
+    src: "SPEC.md → Multi-block items",
   },
   {
     id: "MB40",
@@ -1508,11 +1514,11 @@ group("multiblock", "Multi-block items and code-indent rules", "SPEC.md §7 Mult
     keys: "ArrowLeft",
     want: "- a\n  ```\n  xx|\n  yy\n  ```",
     views: ["lp"],
-    src: "SPEC.md §7 Multi-block items",
+    src: "SPEC.md → Multi-block items",
   },
 ]);
 
-group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
+group("nodesel", "Node selection", "SPEC.md → Node selection", [
   {
     id: "N1",
     title: "Whole item lines selected by hand: a node selection, highlighted",
@@ -1536,7 +1542,7 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
     keys: ["Alt-ArrowDown", "Alt-ArrowDown", "Alt-ArrowDown"],
     want: "- parent\n⟦\t- alpha\n\t\t- child⟧\n\t- beta",
     wantHl: [1, 2],
-    src: "SPEC.md §7 Expand / shrink selection",
+    src: "SPEC.md → Expand / shrink selection",
   },
   {
     id: "N6",
@@ -1545,7 +1551,7 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
     keys: ["Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp"],
     want: "⟧- parent\n\t- alpha\n\t\t- child\n\t- beta⟦\n- after",
     wantHl: [0, 1, 2, 3],
-    src: "SPEC.md §7 Expand / shrink selection",
+    src: "SPEC.md → Expand / shrink selection",
   },
   {
     id: "N7",
@@ -1577,7 +1583,7 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
     text: "- a\n⟦- b⟧\n- c",
     keys: "ArrowDown",
     want: "- a\n- b|\n- c",
-    src: "SPEC.md §7 Node selection",
+    src: "SPEC.md → Node selection",
   },
   {
     id: "N10",
@@ -1850,14 +1856,14 @@ group("nodesel", "Node selection", "SPEC.md §7 Node selection", [
     keys: ["Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp", "Alt-ArrowUp"],
     want: "⟧# A\n- x\n- y⟦",
     wantHl: [0, 1, 2],
-    src: "SPEC.md §7 Expand / shrink selection (whole list → section heading + body)",
+    src: "SPEC.md → Expand / shrink selection (whole list → section heading + body)",
   },
 ]);
 
 group(
   "move",
   "Move / indent / outdent with nested children",
-  "SPEC.md §7 Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent",
+  "SPEC.md → Indent / outdent, Move up / down; Logseq move-up-down / indent-outdent",
   [
     {
       id: "MV1",
@@ -1984,7 +1990,7 @@ group(
       keys: "Ctrl-ArrowUp",
       want: "- a\n- |c\n\t- c1\n- b",
       wantFolds: [1],
-      src: "SPEC.md §7 Folding (folds inside moved nodes survive)",
+      src: "SPEC.md → Folding (folds inside moved nodes survive)",
     },
     {
       id: "MV20",
@@ -2054,7 +2060,7 @@ group(
       keys: [{ type: "[[" }, { wait: 400 }, "Shift-Tab"],
       wantRe: "^- p\\n\\t- a\\[\\[",
       undo: false,
-      src: "SPEC.md §7 Indent / outdent → A list always stays a list",
+      src: "SPEC.md → Indent / outdent → A list always stays a list",
     },
   ],
 );
@@ -2170,11 +2176,12 @@ group("fold", "Folding interplay", OM + " (every key keeps folds) / Enter, Backs
   },
   {
     id: "F13",
+    surfaces: ["tab", "lanes"],
     title: "Fold command folds the item at the cursor",
     text: "- a|\n\t- c",
     keys: { cmd: `${ID}:fold` },
     wantFolds: [0],
-    src: "SPEC.md §7 Folding",
+    src: "SPEC.md → Folding",
   },
   {
     id: "F14",
@@ -2184,7 +2191,7 @@ group("fold", "Folding interplay", OM + " (every key keeps folds) / Enter, Backs
     keys: ["Enter", "Ctrl-z"],
     want: "- ab\n\t- c\n- e",
     undo: false,
-    src: "SPEC.md §7 Keys (undo restores the text, not folds)",
+    src: "SPEC.md → Keys (undo restores the text, not folds)",
   },
 ]);
 
@@ -2367,7 +2374,7 @@ group("callout", "Callouts and quotes", OM + " (lists in callouts keep the > pre
 group(
   "indentstyle",
   "Tab- vs space-indented lists",
-  "SPEC.md §7 Indent / outdent → Whitespace (a list keeps its own style)",
+  "SPEC.md → Indent / outdent → Whitespace (a list keeps its own style)",
   [
     {
       id: "W1",
@@ -2540,6 +2547,7 @@ group("undo", "Undo", OM + " (every key is one undo step)", [
   },
   {
     id: "U8",
+    surfaces: ["tab", "lanes"],
     title: "Undo insert code block",
     text: "- a|",
     keys: [{ cmd: `${ID}:insert-code-block` }, "Ctrl-z"],
@@ -2554,7 +2562,7 @@ group("undo", "Undo", OM + " (every key is one undo step)", [
     want: "- a",
     undo: false,
     note: "CodeMirror joins typing within 0.5 s to the adjacent change in its history, so one Ctrl+Z undoes the Enter and the typed text together, as with Obsidian's own Enter. Kept by the user's decision.",
-    src: "SPEC.md §7 Outline mode (undo steps)",
+    src: "SPEC.md → Outline mode (undo steps)",
   },
 ]);
 

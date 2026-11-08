@@ -1,6 +1,6 @@
-// Indent / outdent / move on the outline (the repo's SPEC.md, "Editor Outliner"). Pure: an operation takes the parsed note and the selected
-// line span and returns the note's new lines as rows. Each row remembers which old line it came from (o, -1
-// for an inserted line), so the caller can map the cursor and folds to the new text.
+// Indent / outdent / move on the outline (SPEC.md → Indent / outdent, Move up / down). Pure: an operation takes
+// the parsed note and the selected line span and returns the note's new lines as rows. Each row remembers which
+// old line it came from (o, -1 for an inserted line), so the caller can map the cursor and folds to the new text.
 import {
   Item,
   Outline,
@@ -222,6 +222,25 @@ export function blockRun(o: Outline, l0: number, l1: number): { all: Block[]; i0
   return { all, i0, i1 };
 }
 
+/**
+ * Whether indent / outdent / move would act on lines l0..l1 (not return null), without working out the result:
+ * the selection covers a heading, lies within one list, or (move only) covers body blocks. A command's "is it
+ * available here" check, cheap on a long note.
+ */
+export function applies(o: Outline, kind: "indent" | "outdent" | "move", l0: number, l1: number): boolean {
+  return !!headingRun(o, l0, l1) || !!itemRun(o, l0, l1) || (kind === "move" && !!blockRun(o, l0, l1));
+}
+
+/** Whether lines l0..l1 reach into a list (in a section's body or in a callout), by the lists' line ranges. */
+export function listIn(o: Outline, l0: number, l1: number): boolean {
+  for (const s of [o.root, ...o.sections]) {
+    const [a, b] = bodyRange(o, s);
+    if (b <= l0 || a > l1) continue;
+    if (listsOf(o, s).some(x => x.start <= l1 && x.end > l0)) return true;
+  }
+  return false;
+}
+
 /** Where a new child of `prev` goes: its existing children's indent, else one unit in (and past its marker). */
 export function childCol(prev: Item, ctx: Ctx, exclude?: (x: Item) => boolean): number {
   const kid = prev.children.find(x => !exclude?.(x));
@@ -336,34 +355,63 @@ export function move(o: Outline, l0: number, l1: number, dir: -1 | 1, ctx: Ctx):
 
 // ---- ordered lists ----
 
+/** A line that may be an ordered list item for either numbering (ours or Obsidian's): digits and `.` / `)`. */
+export const ORDERED_LINE = /^[>\s]*\d+[.)]/;
+
+/** Rows that went through finish(): numbered already, nothing for applyRows to renumber. */
+const numbered = new WeakSet<Row[]>();
+/** finish()'s rows whose outline it already parsed (and that numbering left as they were). */
+const parsed = new WeakMap<Row[], Outline>();
+export const isNumbered = (rows: Row[]) => numbered.has(rows);
+/** The parsed outline of rows that came from finish(), when it has one: the caller needn't parse them again. */
+export const outlineOfRows = (rows: Row[]): Outline | null => parsed.get(rows) ?? null;
+
 /**
  * Numbers the ordered lists after a change: first the lists the change touched, each from its lowest number
  * (what Obsidian's own line moves keep), then Obsidian's renumbering rules on top (numbering.ts), so the result
  * is one Obsidian's renumbering leaves alone. A row is touched when its text changed or it no longer follows
- * the row it used to follow (moved, or something was removed or inserted just before it).
+ * the row it used to follow (moved, or something was removed or inserted just before it). Without an ordered
+ * item anywhere in the rows there is nothing to number, and the note isn't parsed again.
  */
 export function finish(o: Outline, rows: Row[], tabSize = 4): { rows: Row[] } {
+  if (!rows.some(r => ORDERED_LINE.test(r.t))) {
+    numbered.add(rows);
+    return { rows };
+  }
   const touched = new Set<number>();
   rows.forEach((r, i) => {
     const follows = i === 0 ? r.o === 0 : rows[i - 1]!.o >= 0 && r.o === rows[i - 1]!.o + 1;
     if (r.o < 0 || r.t !== o.texts[r.o] || !follows) touched.add(i);
   });
-  const ours = renumber(rows, touched, tabSize);
-  const { lines } = renumberLikeObsidian(
+  const ours = renumberRows(rows, touched, tabSize);
+  const { lines, edits } = renumberLikeObsidian(
     o.texts,
-    ours.map(r => r.t),
+    ours.rows.map(r => r.t),
   );
-  return { rows: ours.map((r, i) => (lines[i] === r.t ? r : { t: lines[i]!, o: r.o })) };
+  const out = edits.length ? ours.rows.map((r, i) => (lines[i] === r.t ? r : { t: lines[i]!, o: r.o })) : ours.rows;
+  numbered.add(out);
+  if (!ours.changed && !edits.length) parsed.set(out, ours.outline);
+  return { rows: out };
 }
 
 const ORDERED = /^(\d{1,9})([.)])/;
 
 export function renumber(rows: Row[], touched: Set<number> | null, tabSize = 4): Row[] {
+  return renumberRows(rows, touched, tabSize).rows;
+}
+
+/** renumber, with the outline it parsed (of the rows as given) and whether it changed any number. */
+function renumberRows(
+  rows: Row[],
+  touched: Set<number> | null,
+  tabSize: number,
+): { rows: Row[]; outline: Outline; changed: boolean } {
   const o = buildOutline(
     rows.map(r => r.t),
     tabSize,
   );
   const out = rows.map(r => ({ ...r }));
+  let changed = false;
   const num = (it: Item) => {
     const L = o.info[it.line]!;
     const m = ORDERED.exec(o.texts[it.line]!.slice(L.pre + L.ws));
@@ -385,7 +433,11 @@ export function renumber(rows: Row[], touched: Set<number> | null, tabSize = 4):
         for (const it of run) {
           const m = num(it)!;
           const r = out[it.line]!;
-          r.t = r.t.slice(0, m.at) + String(n++) + r.t.slice(m.at + m.len);
+          const t = r.t.slice(0, m.at) + String(n++) + r.t.slice(m.at + m.len);
+          if (t !== r.t) {
+            r.t = t;
+            changed = true;
+          }
         }
       }
       run = [];
@@ -408,5 +460,5 @@ export function renumber(rows: Row[], touched: Set<number> | null, tabSize = 4):
       fix(itemsOf(o, b));
     }
   }
-  return out;
+  return { rows: out, outline: o, changed };
 }

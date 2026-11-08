@@ -19,6 +19,20 @@ export const DEFAULTS: Settings = {
   levelLabels: true,
 };
 
+/**
+ * The settings from saved data: each known setting that holds a boolean, else its default. Anything else goes,
+ * such as the outlineMode switch older versions saved (outline mode is always on now) or a damaged value.
+ */
+export function loadSettings(saved: unknown): Settings {
+  const out: Settings = { ...DEFAULTS };
+  if (saved && typeof saved === "object")
+    for (const k of Object.keys(DEFAULTS) as (keyof Settings)[]) {
+      const v: unknown = Reflect.get(saved, k);
+      if (typeof v === "boolean") out[k] = v;
+    }
+  return out;
+}
+
 export class EditorOutlinerTab extends PluginSettingTab {
   constructor(
     app: App,

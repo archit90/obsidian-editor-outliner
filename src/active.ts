@@ -1,4 +1,4 @@
-// Outline mode's active state (the repo's SPEC.md, "Editor Outliner" → "Outline mode"): whether the selection
+// Outline mode's active state (SPEC.md → Outline mode): whether the selection
 // lies inside one list, which item the cursor edits, and whether that item is plain enough for the
 // Logseq-like keys to take over. Pure: works on the parsed note, no Obsidian or CodeMirror. The keys (enter.ts,
 // merge.ts, paste.ts) all start from cleanOwner, and step aside where it finds no item.

@@ -4,7 +4,7 @@
 // case format (see cases.mjs's header). Ids are unique across both files.
 // @ts-check (the case types are cases.mjs's)
 const ID = "editor-outliner";
-const S7 = "SPEC.md §7";
+const SPEC = "SPEC.md";
 // clears notices left by earlier cases; a case's check then reads the newest one
 const CLEAR_NOTICES = "for (const n of document.querySelectorAll('.notice')) n.remove();";
 /** @param {string} re a regex literal, as source */
@@ -20,7 +20,7 @@ export function deep(group) {
   group(
     "dindent",
     "Indent / outdent outside outline mode",
-    S7 + " → Indent / outdent; Which hierarchy a command acts on",
+    SPEC + " → Indent / outdent; Which hierarchy a command acts on",
     [
       {
         id: "KI1",
@@ -214,6 +214,7 @@ export function deep(group) {
       },
       {
         id: "KI24",
+        surfaces: ["tab", "lanes"],
         title: "Outliner keys off: Tab in a list is Obsidian's, the command still indents with the subtree",
         settings: { keys: false },
         text: "- a\n- b|\n\t- c",
@@ -255,7 +256,7 @@ export function deep(group) {
   );
 
   // ------------------------------------------------------------------------------------------------------
-  group("dmove", "Move outside outline mode", S7 + " → Move up / down", [
+  group("dmove", "Move outside outline mode", SPEC + " → Move up / down", [
     {
       id: "KM1",
       title: "An item moves down past its sibling with its children",
@@ -449,10 +450,19 @@ export function deep(group) {
       want: "- a\n    - y|\n    - x",
       undo: true,
     },
+    {
+      id: "KM19",
+      title: "A %% in inline code opens no comment: moving the section above it moves only that section",
+      text: "# A\nx\n# B|\n- Use `%%` here\n# C\ny",
+      keys: "Ctrl-ArrowUp",
+      want: "# B|\n- Use `%%` here\n\n# A\nx\n# C\ny",
+      undo: true,
+      src: SPEC + " → Outline model (delimiters inside inline code open no block)",
+    },
   ]);
 
   // ------------------------------------------------------------------------------------------------------
-  group("dexpand", "Expand / shrink selection", S7 + " → Expand / shrink selection", [
+  group("dexpand", "Expand / shrink selection", SPEC + " → Expand / shrink selection", [
     {
       id: "XS1",
       title: "Word",
@@ -732,7 +742,7 @@ export function deep(group) {
   ]);
 
   // ------------------------------------------------------------------------------------------------------
-  group("dnodesel", "Node selection: headings and details", S7 + " → Node selection", [
+  group("dnodesel", "Node selection: headings and details", SPEC + " → Node selection", [
     {
       id: "NS1",
       title: "Heading → selects the first sub-section",
@@ -824,7 +834,7 @@ export function deep(group) {
   ]);
 
   // ------------------------------------------------------------------------------------------------------
-  group("dfold", "Folding commands", S7 + " → Folding", [
+  group("dfold", "Folding commands", SPEC + " → Folding", [
     {
       id: "FC1",
       title: "Fold the heading at the cursor",
@@ -844,6 +854,7 @@ export function deep(group) {
     },
     {
       id: "FC3",
+      surfaces: ["tab", "lanes"],
       title: "Fold children of a heading: its sub-sections",
       text: "# A|\na\n## B\nb\n## C\nc",
       keys: { cmd: `${ID}:fold-children` },
@@ -851,6 +862,7 @@ export function deep(group) {
     },
     {
       id: "FC4",
+      surfaces: ["tab", "lanes"],
       title: "Unfold a heading and everything under it",
       text: "# A|\na\n## B\nb\n## C\nc",
       fold: [2, 4],
@@ -859,6 +871,7 @@ export function deep(group) {
     },
     {
       id: "FC5",
+      surfaces: ["tab", "lanes"],
       title: "Fold headings to level 2",
       text: "# A\na\n## B\nb\n### B1\nx\n## C\nc",
       keys: { cmd: `${ID}:fold-to-level-2` },
@@ -866,6 +879,7 @@ export function deep(group) {
     },
     {
       id: "FC6",
+      surfaces: ["tab", "lanes"],
       title: "Fold headings to level 1",
       text: "# A\na\n## B\nb\n# C\nc",
       keys: { cmd: `${ID}:fold-to-level-1` },
@@ -873,6 +887,7 @@ export function deep(group) {
     },
     {
       id: "FC7",
+      surfaces: ["tab", "lanes"],
       title: "Unfold all (an item and a heading folded)",
       text: "# A\na\n- x\n\t- y\n# C\nc",
       fold: [2, 4],
@@ -881,6 +896,7 @@ export function deep(group) {
     },
     {
       id: "FC8",
+      surfaces: ["tab", "lanes"],
       title: "Fold a list item at the cursor (the deepest item)",
       text: "- a\n\t- b|\n\t\t- c\n- d",
       keys: { cmd: `${ID}:fold` },
@@ -888,6 +904,7 @@ export function deep(group) {
     },
     {
       id: "FC9",
+      surfaces: ["tab", "lanes"],
       title: "Fold children of an item",
       text: "- a|\n\t- b\n\t\t- c\n\t- d\n\t\t- e",
       keys: { cmd: `${ID}:fold-children` },
@@ -895,6 +912,7 @@ export function deep(group) {
     },
     {
       id: "FC10",
+      surfaces: ["tab", "lanes"],
       title: "H7 can't fold: a notice",
       setupEval: CLEAR_NOTICES,
       text: "####### A|\nx",
@@ -905,6 +923,7 @@ export function deep(group) {
     },
     {
       id: "FC11",
+      surfaces: ["tab", "lanes"],
       title: "Fold heading off in Obsidian's settings: a notice",
       setupEval: CLEAR_NOTICES,
       config: { foldHeading: false },
@@ -916,6 +935,7 @@ export function deep(group) {
     },
     {
       id: "FC12",
+      surfaces: ["tab", "lanes"],
       title: "Text before the first heading, not in a list: a notice, nothing folds",
       setupEval: CLEAR_NOTICES,
       text: "pa|ra\n\n# A\nx",
@@ -927,6 +947,7 @@ export function deep(group) {
     },
     {
       id: "FC13",
+      surfaces: ["tab", "lanes"],
       title: "Fold children: a leaf item has none, a notice",
       setupEval: CLEAR_NOTICES,
       text: "- a|\n- b",
@@ -950,7 +971,7 @@ export function deep(group) {
   group(
     "dview",
     "Heading guides, level labels and H7+ styling",
-    S7 + " → Heading guides; Heading level labels; Outline model (H7+)",
+    SPEC + " → Heading guides; Heading level labels; Outline model (H7+)",
     [
       {
         id: "G1",
@@ -1094,7 +1115,23 @@ export function deep(group) {
   );
 
   // ------------------------------------------------------------------------------------------------------
-  group("ddrag", "Drag handles (real mouse drags)", S7 + " → Drag handles", [
+  group("ddelim", "Inline code and block delimiters", SPEC + " → Outline model", [
+    {
+      id: "G14",
+      title: "Headings after `%%`, `$$` and `<!--` in inline code still get their labels and guides",
+      text: "# A\nUse `%%` and `$$` and `<!--` in code\n## B\nb|",
+      keys: [],
+      views: ["lp"],
+      check: `${LINE} ${AFTER} await new Promise(r => setTimeout(r, 300));
+        const guides = cm.dom.querySelectorAll('.eo-guides .eo-guide-line').length;
+        return (after(2).includes('H') && guides === 2) || { label: after(2), guides };`,
+      checkLabel: "The H2 line has its level label; both sections have a guide.",
+      surfaces: "all",
+    },
+  ]);
+
+  // ------------------------------------------------------------------------------------------------------
+  group("ddrag", "Drag handles (real mouse drags)", SPEC + " → Drag handles (desktop)", [
     {
       id: "DG1",
       title: "Drag an item down, straight: same depth",
@@ -1235,7 +1272,7 @@ export function deep(group) {
   ]);
 
   // ------------------------------------------------------------------------------------------------------
-  group("dwhere", "Where it works and settings", S7 + " → Where it works; Settings; Keys", [
+  group("dwhere", "Where it works and settings", SPEC + " → Where it works; Settings (defaults); Keys", [
     {
       id: "WH1",
       title: "Popover editor: outline mode Enter splits",
@@ -1304,6 +1341,7 @@ export function deep(group) {
       text: '- a\n\t- b\n\t  ```dataview\n\t  LIST FROM "_test"\n\t  ```\n\npara|',
       keys: [{ wait: 1500 }],
       surfaces: ["tab"],
+      needs: ["dataview"],
       views: ["lp"],
       check: `const v = S.views.tab; const lp = !!cm.dom.querySelector('.block-language-dataview');
         await v.setState({ ...v.getState(), mode: 'preview' }, { history: false }); await new Promise(r => setTimeout(r, 1500));
@@ -1311,6 +1349,15 @@ export function deep(group) {
         await v.setState({ ...v.getState(), mode: 'source', source: false }, { history: false }); await new Promise(r => setTimeout(r, 300));
         return (lp && rv) || { lp, rv };`,
       checkLabel: "A rendered Dataview block in Live Preview and in Reading view.",
+    },
+    {
+      id: "WH14",
+      title: "Every Obsidian internal the plugin relies on is there (none reported missing on load)",
+      text: "x|",
+      keys: [],
+      check: `const m = app.plugins.plugins['${ID}'].missingInternals; return (Array.isArray(m) && m.length === 0) || m;`,
+      checkLabel: "The plugin's missingInternals list is empty (it also warns in the console when one is missing).",
+      src: SPEC + " → Development → Internals",
     },
     {
       id: "WH12",
@@ -1330,7 +1377,7 @@ export function deep(group) {
 
   // ------------------------------------------------------------------------------------------------------
   const VIM = "const v = cm.cm?.state?.vim;";
-  group("dvim", "Vim mode: the outliner keys", S7 + " → Where it works (Obsidian's Vim mode)", [
+  group("dvim", "Vim mode: the outliner keys", SPEC + " → Where it works (Obsidian's Vim mode)", [
     {
       id: "VM1",
       title: "Normal mode: Tab demotes a heading",
@@ -1414,7 +1461,7 @@ export function deep(group) {
   ]);
 
   // ------------------------------------------------------------------------------------------------------
-  const NSO = S7 + " → Node selection (list items, with the Outliner keys on)";
+  const NSO = SPEC + " → Node selection (list items, with the Outliner keys on)";
   group("dnodeseloff", "Item node selection: more cases", NSO, [
     {
       id: "NO1",
@@ -1550,4 +1597,162 @@ export function deep(group) {
       surfaces: "all",
     },
   ]);
+
+  // ------------------------------------------------------------------------------------------------------
+  // Another plugin's "editor-paste" handler (simulated: a handler the case registers) gets a paste the outliner
+  // would take first, as with Obsidian's own paste
+  /** @param {boolean} take */
+  const PASTE_HOOK = take => `if (S.__pasteRef) app.workspace.offref(S.__pasteRef); S.__pasteSeen = 0;
+    S.__pasteRef = app.workspace.on('editor-paste', evt => { if (evt.defaultPrevented) return; S.__pasteSeen++; ${take ? "evt.preventDefault();" : ""} });`;
+  const PASTE_UNHOOK = "if (S.__pasteRef) app.workspace.offref(S.__pasteRef); S.__pasteRef = null;";
+  group("dplugins", "Working with other plugins", SPEC + " → Working with other plugins", [
+    {
+      id: "OP1",
+      title: "An editor-paste handler that takes a multi-line paste in a list item: the outliner leaves it alone",
+      text: "- a|",
+      setupEval: PASTE_HOOK(true),
+      keys: { paste: { "text/plain": "x\ny" } },
+      want: "@same",
+      check: "return S.__pasteSeen === 1 || S.__pasteSeen",
+      checkLabel: "The handler saw the paste once.",
+      surfaceTeardown: PASTE_UNHOOK,
+      surfaces: ["tab", "canvas-text", "popover"],
+    },
+    {
+      id: "OP2",
+      title: "An editor-paste handler that leaves the paste: it sees it once, and the outliner pastes",
+      text: "- a|",
+      setupEval: PASTE_HOOK(false),
+      keys: { paste: { "text/plain": "- x\n- y" } },
+      want: "- a\n- x\n- y|",
+      check: "return S.__pasteSeen === 1 || S.__pasteSeen",
+      checkLabel: "The handler saw the paste exactly once.",
+      surfaceTeardown: PASTE_UNHOOK,
+      surfaces: ["tab", "canvas-text", "popover"],
+    },
+    {
+      id: "OP3",
+      title: "A paste the outliner doesn't take (one line) reaches editor-paste handlers through Obsidian, once",
+      text: "- a|",
+      setupEval: PASTE_HOOK(false),
+      keys: { paste: { "text/plain": "word" } },
+      want: "- aword|",
+      check: "return S.__pasteSeen === 1 || S.__pasteSeen",
+      checkLabel: "The handler saw the paste exactly once (from Obsidian's own paste).",
+      surfaceTeardown: PASTE_UNHOOK,
+    },
+  ]);
+
+  // ------------------------------------------------------------------------------------------------------
+  // In an Editor Multiple Lanes card: what differs from a tab is the host. Obsidian's active editor may be the
+  // lanes view, the card doesn't scroll itself (its lane does), and cards come and go as Lanes opens notes.
+  const LANES = ["editor-multiple-lanes"];
+  const SECOND = "_test/e2e-b.md";
+  const CLOSE_SECOND = `for (const l of app.workspace.getLeavesOfType('markdown')) if (l.view.file?.path === '${SECOND}') l.detach();`;
+  /** the editor's scroll container: the nearest ancestor that scrolls (a card's lane) */
+  const SCROLLER = `const scroller = (() => { for (let p = cm.scrollDOM; p; p = p.parentElement) { const oy = getComputedStyle(p).overflowY; if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p; } return null; })();`;
+  /** @param {number} n */
+  const LONG = n => Array.from({ length: n }, (_, i) => "- item " + i).join("\n");
+  group(
+    "dlanes",
+    "Editor Multiple Lanes cards",
+    SPEC + " → Where it works; Keys (commands act on the focused editor)",
+    [
+      {
+        id: "LC1",
+        title: "Two cards: a command run from the palette acts on the card last focused, not the other",
+        text: "- a\n- b|",
+        setupEval: `const v = await S.laneCard('${SECOND}', '- p\\n- q'); const b = v.editor.cm; b.focus();
+        b.dispatch({ selection: { anchor: b.state.doc.length } }); S.__b = b; await new Promise(r => setTimeout(r, 200));`,
+        keys: ["Ctrl-p", { wait: 500 }, { type: "Indent heading or list item" }, { wait: 500 }, "Enter", { wait: 400 }],
+        want: "@same",
+        check: "const t = S.__b.state.doc.toString(); return t === '- p\\n\\t- q' || t;",
+        checkLabel: "The second card's item is indented; the first card is unchanged.",
+        surfaces: ["lanes"],
+        needs: LANES,
+        views: ["lp"],
+        surfaceTeardown: CLOSE_SECOND,
+      },
+      {
+        id: "LC2",
+        title: "Dragging an item to the bottom edge of a card's lane scrolls the lane, and the drop lands below",
+        text: "|" + LONG(80),
+        setupEval: `${SCROLLER} if (scroller) scroller.scrollTop = 0; await new Promise(r => setTimeout(r, 300));
+        const r = scroller.getBoundingClientRect(); const pos = cm.posAtCoords({ x: r.left + r.width / 2, y: r.bottom - 5 });
+        S.__visible = pos === null ? 0 : cm.state.doc.lineAt(pos).number - 1;`,
+        keys: { drag: { line: 0, edge: "bottom", hold: 1500 } },
+        check: `${SCROLLER} const lines = cm.state.doc.toString().split('\\n'); const at = lines.indexOf('- item 0');
+        return (at > S.__visible && (scroller?.scrollTop ?? 0) > 0) || { at, visible: S.__visible, top: scroller?.scrollTop };`,
+        checkLabel: "The item landed below the lines visible before the drag, and the lane scrolled.",
+        undo: true,
+        surfaces: ["lanes"],
+        needs: LANES,
+        views: ["lp"],
+      },
+      {
+        id: "LC3",
+        title: "Commands are offered with the focus in a card, whatever Obsidian's active editor is",
+        text: "- a\n- b|\n\t- c",
+        keys: [],
+        check: `const ids = ['indent', 'outdent', 'move-up', 'move-down', 'expand-selection-up', 'fold', 'insert-code-block'];
+        const off = ids.filter(id => !app.commands.findCommand('${ID}:' + id).checkCallback(true));
+        return off.length === 0 || { off, activeIsCard: app.workspace.activeEditor?.editor?.cm === cm };`,
+        checkLabel: "Every one of those commands says it applies (checkCallback).",
+        surfaces: ["lanes"],
+        needs: LANES,
+      },
+      {
+        id: "LC4",
+        title: "A card closed and opened again: the new editor gets the keys and the guides",
+        text: "# H\n- a\n- b|",
+        setupEval: `const p = S.views.lanes.file.path; await new Promise(r => setTimeout(r, 2500)); S.views.lanes.leaf.detach(); S.views.lanes = null;
+        await new Promise(r => setTimeout(r, 300)); await S.open('lanes', S.view); await S.setup('# H\\n- a\\n- b', [{ anchor: 11, head: 11 }], []);`,
+        keys: "Tab",
+        want: "# H\n- a\n\t- b|",
+        check: "return !!cm.dom.querySelector('.eo-guides .eo-guide-line')",
+        checkLabel: "The reopened card's editor has the heading guide.",
+        undo: true,
+        surfaces: ["lanes"],
+        needs: LANES,
+        views: ["lp"],
+      },
+      {
+        id: "LC5",
+        title: "Ctrl+↓ past the lane's visible bottom: the lane scrolls so the moved item stays in view",
+        text: "|" + LONG(60),
+        setupEval: `${SCROLLER} scroller.scrollTop = 0; await new Promise(r => setTimeout(r, 300));
+        const r = scroller.getBoundingClientRect(); const pos = cm.posAtCoords({ x: r.left + r.width / 2, y: r.bottom - 30 });
+        const line = cm.state.doc.lineAt(pos); cm.dispatch({ selection: { anchor: line.to } }); cm.focus(); S.__start = line.number - 1;`,
+        keys: ["Ctrl-ArrowDown", "Ctrl-ArrowDown", "Ctrl-ArrowDown", "Ctrl-ArrowDown", "Ctrl-ArrowDown", { wait: 300 }],
+        check: `${SCROLLER} const c = cm.coordsAtPos(cm.state.selection.main.head); const r = scroller.getBoundingClientRect();
+        const moved = cm.state.doc.lineAt(cm.state.selection.main.head).number - 1 === S.__start + 5;
+        return (moved && c.top >= r.top - 1 && c.bottom <= r.bottom + 1) || { moved, c: [c.top, c.bottom], r: [r.top, r.bottom] };`,
+        checkLabel: "The item moved five lines down and the cursor is inside the lane's visible area.",
+        surfaces: ["lanes"],
+        needs: LANES,
+        views: ["lp"],
+      },
+      {
+        id: "LC6",
+        title: "A setting change reaches the card at once, and the plugin's classes leave it when disabled",
+        text: "# H\n- a|\n\t- b",
+        keys: [],
+        check: `const p = app.plugins.plugins['${ID}'];
+        const count = () => cm.dom.querySelectorAll('.eo-guide-line').length;
+        await new Promise(r => setTimeout(r, 300)); const on = count();
+        p.settings.headingGuides = false; await p.saveSettings(); await new Promise(r => setTimeout(r, 300)); const off = count();
+        p.settings.headingGuides = true; await p.saveSettings(); await new Promise(r => setTimeout(r, 300));
+        await app.plugins.disablePlugin('${ID}'); await new Promise(r => setTimeout(r, 500));
+        const left = [...cm.dom.querySelectorAll('[class*=eo-], [data-eo-level]')].length + (cm.dom.className.includes('eo-') ? 1 : 0);
+        await app.plugins.enablePlugin('${ID}'); await new Promise(r => setTimeout(r, 800));
+        return (on > 0 && off === 0 && left === 0) || { on, off, left };`,
+        checkLabel:
+          "Guides go and come back with the setting; after disabling, no eo- class or element is left in the card.",
+        surfaces: ["lanes"],
+        needs: LANES,
+        views: ["lp"],
+        undo: false,
+      },
+    ],
+  );
 }

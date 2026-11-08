@@ -1,4 +1,4 @@
-// Node selection (the repo's SPEC.md, "Editor Outliner" → "Node selection"): a selection of whole sibling
+// Node selection (SPEC.md → Node selection): a selection of whole sibling
 // nodes, list items with their subtrees or heading sections, that Expand selection reaches (or the user selects
 // line by line). Pure: finds it in a text selection, its parent and child, and removes or copies the nodes.
 // The CodeMirror glue (nodesel.ts) keeps it in a StateField and decides when it applies.

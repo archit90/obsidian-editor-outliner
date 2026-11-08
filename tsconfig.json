@@ -8,6 +8,7 @@
     "noImplicitAny": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "isolatedModules": true,
     "importHelpers": true,

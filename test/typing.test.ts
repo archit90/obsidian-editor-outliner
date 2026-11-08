@@ -33,8 +33,8 @@ describe("typing", () => {
         .forEach((line, i) => {
           const m = DIRECTIVE.exec(line);
           if (!m) return;
-          const [rules, reason] = m[1].replace(/\*\/\s*$/, "").split(/\s--\s?/, 2);
-          if (!rules.trim() || (reason ?? "").trim().length < MIN_REASON)
+          const [rules = "", reason = ""] = (m[1] ?? "").replace(/\*\/\s*$/, "").split(/\s--\s?/, 2);
+          if (!rules.trim() || reason.trim().length < MIN_REASON)
             bad.push(`${path.relative(ROOT, f)}:${i + 1}: ${line.trim()}`);
         });
     }

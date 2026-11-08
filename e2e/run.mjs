@@ -1,28 +1,32 @@
-// End-to-end tests of Editor Outliner's outline mode in a real Obsidian, driven over the Chrome DevTools
-// Protocol. The cases are data (cases.mjs); CASES.md is the catalogue generated from them.
+// End-to-end tests of Editor Outliner in a real Obsidian, driven over the Chrome DevTools Protocol with real key
+// and mouse input. The cases are data (cases.mjs and cases-deep.mjs); CASES.md is the catalogue generated from them.
 //
 // Usage
-//   1. Start an Obsidian you can throw away, on a test vault, with a debugging port, hidden if you like, e.g.
-//        Xvfb :99 & DISPLAY=:99 obsidian --no-sandbox --user-data-dir=/tmp/obs-profile \
-//          --remote-debugging-port=9224 --remote-allow-origins=http://localhost
-//      and open the test vault in it (with Editor Outliner and Editor Lanes enabled). Never point it at a
-//      vault or an Obsidian whose notes matter: the runner writes _test/e2e*.md and _test/e2e.canvas, changes
-//      the outliner's settings and adds an Editor Lanes routing exception.
-//   2. CDP_PORT=9224 node custom-plugins/editor-outliner/e2e/run.mjs [options]
+//   1. A throwaway Obsidian: npm run build && e2e/sandbox.sh reset 4 (a fresh vault with only this plugin, its
+//      fixtures from e2e/make-vault.mjs). To test together with other plugins: OBS_PLUGINS=<folder>:<owner/repo>
+//      e2e/sandbox.sh reset 4 (see sandbox.sh). It refuses to run against a vault that isn't a sandbox's.
+//   2. node e2e/run.mjs [options] (CDP_PORT, default e2e/cdp.mjs's: sandbox 4)
 //        --filter <regex>     only cases whose id, group or title match
-//        --surfaces <list>    lanes,tab,canvas-text,canvas-file,popover (default: all; a case says where it runs)
-//        --views <list>       lp,source (default: both; canvas cards run in Live Preview only)
+//        --surfaces <list>    tab,lanes,canvas-text,canvas-file,popover (default: all; a case says where it runs)
+//        --views <list>       lp,source (default: both; canvas cards and the popover run in Live Preview only)
 //        --no-deploy          don't copy main.js / manifest.json / styles.css into the vault and reload
-//        --catalogue          only (re)write CASES.md from cases.mjs
+//        --catalogue          only (re)write CASES.md from the cases
 //        --verbose            print every case
-//   It prints PASS / FAIL per case and run (with a diff) and writes e2e/results.md.
+//   It prints PASS / FAIL / ERROR / SKIP per case and run (with a diff), writes e2e/results.md and exits 1 when
+//   a case fails. A case or surface that needs another plugin (needs; the lanes surface needs
+//   editor-multiple-lanes, Canvas core:canvas, the popover core:page-preview) is skipped without it;
+//   E2E_REQUIRE=<id>,<id> makes such a skip a failure (for together-runs).
+//   The runner writes _test/e2e*.md, _test/tab/e2e-tab.md and _test/e2e.canvas, changes the outliner's settings and
+//   some Obsidian settings for a case (restored after it) and, with Editor Multiple Lanes, its lanesOnly and
+//   routeExceptions settings (restored at the end).
 //
-// Not a vitest file: vitest.config.mts in custom-plugins/ only includes */src/**/*.test.ts.
+// Not a vitest file: vitest.config.mts only includes src/**/*.test.ts and test/**/*.test.ts.
 // @ts-check (JSDoc types; the page's state comes back as the DevTools protocol's JSON, cdp.mjs's CdpJson)
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { connect } from "./cdp.mjs";
+import { assertSandboxVault, connect } from "./cdp.mjs";
+import { LANES, envLine, environment, lanesForSuite, lanesRestore, verdict } from "./env.mjs";
 import { cases, groups } from "./cases.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -36,7 +40,7 @@ const PLUGIN_ID = "editor-outliner";
  * @typedef {Awaited<ReturnType<typeof connect>>} Cdp
  * @typedef {{ anchor: number, head: number }} Range
  * @typedef {{ what: string, want: string, got: string }} Problem
- * @typedef {{ id: string, group: string, title: string, surface: string, view: string, status: string, problems: Problem[] }} Result
+ * @typedef {{ id: string, group: string, title: string, surface: string, view: string, status: string, problems: Problem[], skipped?: string[] }} Result
  * @typedef {{ clip?: string, dragState?: CdpJson }} Ctx
  */
 
@@ -49,8 +53,17 @@ const opt = name => {
 /** @param {string} name */
 const flag = name => args.includes(name);
 
-const SURFACES = ["lanes", "tab", "canvas-text", "canvas-file", "popover"];
+const SURFACES = ["tab", "lanes", "canvas-text", "canvas-file", "popover"];
 const VIEWS = ["lp", "source"];
+/** What each surface needs besides this plugin (a plugin id, or core:<id> for a core plugin). */
+/** @type {Record<string, string[]>} */
+const SURFACE_NEEDS = {
+  tab: [],
+  lanes: [LANES],
+  "canvas-text": ["core:canvas"],
+  "canvas-file": ["core:canvas"],
+  popover: ["core:page-preview"],
+};
 
 // ---------- markers: `|` cursor (or the case's `cur`), ⟦ anchor … ⟧ head ----------
 
@@ -125,8 +138,12 @@ const showKeys = keys =>
                   : k.drag
                     ? k.drag.noMove
                       ? `click the drag handle of line ${k.drag.line}`
-                      : `drag line ${k.drag.line} by its handle to before line ${k.drag.to}` +
+                      : `drag line ${k.drag.line} by its handle ` +
+                        (k.drag.edge
+                          ? `to the ${k.drag.edge} edge of its scroll container`
+                          : `to before line ${k.drag.to}`) +
                         (k.drag.dx ? `, ${k.drag.dx}px sideways` : "") +
+                        (k.drag.hold ? `, hold ${k.drag.hold} ms` : "") +
                         (k.drag.escape ? ", Escape before releasing" : "")
                     : k.ime !== undefined
                       ? `IME composition ${JSON.stringify(k.ime)}`
@@ -143,8 +160,8 @@ function catalogue() {
   out.push("# Editor Outliner: end-to-end cases");
   out.push("");
   out.push(
-    "Generated from `cases.mjs` (outline mode, groups M … X) and `cases-deep.mjs` (everything else, groups KI … WH; " +
-      "`TEST-CASES.md` is their catalogue with statuses) by `node e2e/run.mjs --catalogue`; edit the cases there. " +
+    "Generated from `cases.mjs` (outline mode, groups E … X) and `cases-deep.mjs` (everything else, groups KI … L; " +
+      "`TEST-CASES.md` is their catalogue with statuses) by `npm run e2e:catalogue`; edit the cases there. " +
       "`run.mjs` runs them in a real Obsidian (see its header). Results of the last run: `results.md`.",
   );
   out.push("");
@@ -162,17 +179,16 @@ function catalogue() {
       "(the key steps aside). `unchanged` means the setup text and selection stay.",
   );
   out.push(
-    "- Unless a case says otherwise: outline mode on, Live Preview and Source mode, in an Editor Lanes card, " +
-      "Obsidian set to indent with tabs (tab size 4). Cases marked *everywhere* also run in a normal tab and in " +
-      "Canvas text and file cards.",
+    "- Unless a case says otherwise: outline mode on, Live Preview and Source mode, in a normal tab, Obsidian set " +
+      "to indent with tabs (tab size 4). Cases marked *everywhere* also run in an Editor Multiple Lanes card (when " +
+      "that plugin is enabled), in Canvas text and file cards and in a page preview popover (Live Preview).",
   );
   out.push(
     "- After every case whose text changed (outline mode on, one key), one `Ctrl-z` must restore the setup text " +
       "(the `~undo` result).",
   );
-  out.push(
-    "- Source: the SPEC.md line (section 7) or the Logseq rule (editor.cljs / paste.cljs) the expectation comes from.",
-  );
+  out.push("- Needs: another plugin the case (or its surface) requires; without it the case is skipped.");
+  out.push("- Source: the SPEC.md section or the Logseq rule (editor.cljs / paste.cljs) the expectation comes from.");
   out.push("");
   out.push("| Group | Cases |");
   out.push("|---|---|");
@@ -190,7 +206,6 @@ function catalogue() {
       out.push(`### ${c.id}. ${c.title}`);
       out.push("");
       const where = [];
-      if (c.mode === "off") where.push("outline mode **off**");
       if (c.surfaces === "all") where.push("*everywhere*");
       else if (c.surfaces) where.push("in " + c.surfaces.join(", "));
       if (c.views) where.push(c.views.map(v => (v === "lp" ? "Live Preview" : "Source mode")).join(" and ") + " only");
@@ -198,6 +213,7 @@ function catalogue() {
       if (c.config) where.push("Obsidian config " + JSON.stringify(c.config));
       if (c.fold) where.push("folded lines (0-based) " + c.fold.join(", "));
       if (where.length) out.push("When: " + where.join("; ") + ".");
+      if (c.needs?.length) out.push("Needs: " + c.needs.join(", ") + ".");
       out.push("");
       out.push("Setup:");
       out.push(fence(c.text));
@@ -231,21 +247,16 @@ function catalogue() {
         out.push("Clipboard text:");
         out.push(fence(c.wantClip));
       }
-      if (c.wantStatus) out.push(`Status bar item: ${c.wantStatus}.`);
       if (c.wantHl)
         out.push("Node-selected (highlighted) lines: " + (c.wantHl.length ? c.wantHl.join(", ") : "none") + ".");
       if (c.wantEditing !== undefined) out.push(`The card is ${c.wantEditing ? "still" : "no longer"} being edited.`);
       if (c.checkLabel) out.push(c.checkLabel);
       out.push("");
-      if (c.needsDecision) {
-        out.push("**Needs decision:** " + c.needsDecision);
-        out.push("");
-      }
       if (c.note) {
         out.push(c.note);
         out.push("");
       }
-      out.push("Source: " + (c.src || "SPEC.md section 7"));
+      out.push("Source: " + (c.src || "SPEC.md"));
       out.push("");
     }
   }
@@ -260,6 +271,47 @@ const PAGE = String.raw`
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const S = {
     views: {}, cm: null, surface: null, canvasLeaf: null, renumbered: [],
+    // a folder of the suite's notes, made when missing (a fresh vault has none but _test/)
+    async folder(p) {
+      for (let i = p.indexOf("/"); ; i = p.indexOf("/", i + 1)) {
+        const q = i < 0 ? p : p.slice(0, i);
+        if (!app.vault.getAbstractFileByPath(q)) await app.vault.createFolder(q).catch(() => {});
+        if (i < 0) break;
+      }
+    },
+    async note(p, text) {
+      if (p.includes("/")) await S.folder(p.slice(0, p.lastIndexOf("/")));
+      const f = app.vault.getAbstractFileByPath(p);
+      if (!f) return app.vault.create(p, text ?? "");
+      if (text !== undefined) await app.vault.modify(f, text);
+      return f;
+    },
+    // an Editor Multiple Lanes card: a Markdown view inside a lanes tab (Lanes' view type, editor-lanes)
+    inLane: v => !!v.containerEl.closest('.workspace-leaf-content[data-type="editor-lanes"]'),
+    // opens a note in a lanes card (Lanes routes it there: the harness turns its lanesOnly on) and returns its view
+    async laneCard(p, text) {
+      const f = await S.note(p, text);
+      const lanes = app.workspace.getLeavesOfType("editor-lanes")[0];
+      if (lanes) app.workspace.setActiveLeaf(lanes, { focus: true });
+      await app.workspace.getLeaf(false).openFile(f);
+      for (let i = 0; i < 20; i++) {
+        await sleep(150);
+        const v = app.workspace.getLeavesOfType("markdown").map(l => l.view).find(x => x.file?.path === p && S.inLane(x) && x.containerEl.isConnected);
+        if (v) return v;
+      }
+      throw new Error("harness: couldn't open " + p + " in a lanes card");
+    },
+    // opens a note in a normal tab (with no tab group left, a case closed the last tab: getLeaf("tab") throws)
+    async tab(p, text) {
+      const f = await S.note(p, text);
+      let leaf;
+      try { leaf = app.workspace.getLeaf("tab"); } catch { leaf = app.workspace.getLeaf(false); }
+      await leaf.openFile(f);
+      await sleep(600);
+      const v = app.workspace.getLeavesOfType("markdown").map(l => l.view).find(x => x.file?.path === p && !S.inLane(x) && x.containerEl.isConnected);
+      if (!v) throw new Error("harness: couldn't open " + p + " in a tab");
+      return v;
+    },
     async open(surface, view) {
       S.surface = surface;
       S.view = view;
@@ -267,24 +319,10 @@ const PAGE = String.raw`
       // a popover from an earlier surface (or run) would cover the editors: close it
       if (surface !== "popover") S.closePopovers();
       if (surface === "lanes" || surface === "tab") {
-        const p = surface === "lanes" ? "_test/e2e.md" : "_test/e2e-tab.md";
-        const f = app.vault.getAbstractFileByPath(p) || (await app.vault.create(p, ""));
-        const inLane = v => !!v.containerEl.closest(".lane-split");
+        const p = surface === "lanes" ? "_test/e2e.md" : "_test/tab/e2e-tab.md";
         let v = S.views[surface];
-        if (!v || !v.containerEl.isConnected || v.file?.path !== p || inLane(v) !== (surface === "lanes")) {
-          if (surface === "lanes") {
-            const lanes = app.workspace.getLeavesOfType("editor-lanes")[0];
-            if (lanes) app.workspace.setActiveLeaf(lanes, { focus: true });
-            await app.workspace.getLeaf(false).openFile(f);
-          } else {
-            // with no tab left in the main area (a case closed the last one), getLeaf("tab") has no tab group
-            let leaf;
-            try { leaf = app.workspace.getLeaf("tab"); } catch { leaf = app.workspace.getLeaf(false); }
-            await leaf.openFile(f);
-          }
-          await sleep(600);
-          v = app.workspace.getLeavesOfType("markdown").map(l => l.view).find(x => x.file?.path === p && inLane(x) === (surface === "lanes") && x.containerEl.isConnected);
-          if (!v) throw new Error("couldn't open " + p + " as " + surface);
+        if (!v || !v.containerEl.isConnected || v.file?.path !== p || S.inLane(v) !== (surface === "lanes")) {
+          v = surface === "lanes" ? await S.laneCard(p) : await S.tab(p);
           S.views[surface] = v;
         }
         const src = view === "source";
@@ -304,7 +342,7 @@ const PAGE = String.raw`
       if (surface === "popover") {
         // a page preview popover of _test/e2e-pop.md over the normal tab, switched to its editor (Live Preview)
         const pp = "_test/e2e-pop.md";
-        if (!app.vault.getAbstractFileByPath(pp)) await app.vault.create(pp, "");
+        await S.note(pp);
         const live = S.popover?.hoverEl?.isConnected && S.popover.embed?.editorEl?.querySelector(".cm-editor")?.isConnected;
         if (!live) {
           await S.open("tab", "lp");
@@ -335,15 +373,14 @@ const PAGE = String.raw`
       }
       // canvas: one canvas with a text card and a file card
       const cp = "_test/e2e.canvas", fp = "_test/e2e-card.md";
-      if (!app.vault.getAbstractFileByPath(fp)) await app.vault.create(fp, "");
+      await S.note(fp);
       let leaf = S.canvasLeaf;
       if (!leaf || !leaf.view?.canvas || !leaf.view.containerEl.isConnected) {
         const data = { nodes: [
           { id: "t1", type: "text", text: "- a", x: 0, y: 0, width: 520, height: 520 },
           { id: "f1", type: "file", file: fp, x: 600, y: 0, width: 520, height: 520 } ], edges: [] };
-        let f = app.vault.getAbstractFileByPath(cp);
-        if (f) await app.vault.modify(f, JSON.stringify(data)); else f = await app.vault.create(cp, JSON.stringify(data));
-        leaf = app.workspace.getLeaf("tab");
+        const f = await S.note(cp, JSON.stringify(data));
+        try { leaf = app.workspace.getLeaf("tab"); } catch { leaf = app.workspace.getLeaf(false); }
         await leaf.openFile(f);
         await sleep(1000);
         S.canvasLeaf = leaf;
@@ -430,18 +467,15 @@ const PAGE = String.raw`
       if (S.node?.child?.editor?.cm && S.node.child.editor.cm !== S.cm) throw new Error("harness: the card's editor was replaced during the case");
       const cm = S.cm, st = cm.state;
       const lineOf = el => { try { return st.doc.lineAt(cm.posAtDOM(el)).number - 1 } catch { return -1 } };
-      const sb = document.querySelector(".eo-status");
       return {
         text: st.doc.toString(),
         ranges: st.selection.ranges.map(r => ({ anchor: r.anchor, head: r.head })),
         folds: [...new Set([...cm.dom.querySelectorAll(".cm-foldPlaceholder")].map(lineOf))].sort((a, b) => a - b),
         hl: [...new Set([...cm.dom.querySelectorAll(".eo-node-selected")].map(lineOf))].sort((a, b) => a - b),
-        status: !sb ? "none" : sb.classList.contains("is-active") ? "active" : sb.classList.contains("is-on") ? "on" : "off",
         focus: cm.hasFocus,
         // Escape leaving a card blurs its editor; the canvas keeps isEditing until another click
         editing: S.node ? !!S.node.isEditing && cm.hasFocus : undefined,
         suggest: !!app.workspace.editorSuggest?.isShowingSuggestion?.(),
-        mode: !app.plugins.plugins["${PLUGIN_ID}"].outlineOffForTests,
         renumbered: S.renumbered,
       };
     },
@@ -477,6 +511,17 @@ const PAGE = String.raw`
       const y = line < doc.lines ? cm.lineBlockAt(doc.line(line + 1).from).top : cm.lineBlockAt(doc.length).bottom;
       const c = cm.contentDOM.getBoundingClientRect();
       return S.top(c.left + 4, y + cm.documentTop);
+    },
+    // a point near the bottom of the editor's scroll container (a lanes card scrolls in its lane)
+    edgeXY() {
+      const cm = S.cm, W = cm.dom.ownerDocument.defaultView;
+      let sc = cm.scrollDOM;
+      for (let p = cm.scrollDOM; p; p = p.parentElement) {
+        const oy = W.getComputedStyle(p).overflowY;
+        if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight + 1) { sc = p; break; }
+      }
+      const r = sc.getBoundingClientRect(), c = cm.contentDOM.getBoundingClientRect();
+      return S.top(c.left + 4, r.bottom - 8);
     },
     handleXY() {
       const h = S.cm.dom.querySelector(".eo-drag-handle");
@@ -603,7 +648,7 @@ async function doKeys(c, keys, ctx) {
       await mouse("mousePressed", hx, hy, { clickCount: 1, buttons: 1 });
       let [tx, ty] = [hx, hy];
       if (!d.noMove) {
-        const t = await S(`S.lineTop(${d.to})`);
+        const t = await S(d.edge ? `S.edgeXY()` : `S.lineTop(${d.to})`);
         ty = t[1] + (d.dy || 0);
         tx = hx + (d.dx || 0);
         const n = 8;
@@ -613,6 +658,8 @@ async function doKeys(c, keys, ctx) {
         }
         if (k.drag.shot) ctx.dragState = await S(k.drag.shot);
       }
+      // hold still before releasing (at a scroller's edge, the plugin scrolls it meanwhile)
+      if (d.hold) await sleep(d.hold);
       if (d.escape) {
         await c.key("Escape");
         await sleep(40);
@@ -693,14 +740,10 @@ function compare(cs, st, ref, ctx) {
     problems.push({ what: "folds", want: cs.wantFolds.join(",") || "none", got: st.folds.join(",") || "none" });
   if (cs.wantHl && st.hl.join(",") !== cs.wantHl.join(","))
     problems.push({ what: "highlighted lines", want: cs.wantHl.join(",") || "none", got: st.hl.join(",") || "none" });
-  if (cs.wantStatus && st.status !== cs.wantStatus)
-    problems.push({ what: "status", want: cs.wantStatus, got: st.status });
   if (cs.wantClip !== undefined && ctx.clip !== cs.wantClip)
     problems.push({ what: "clipboard", want: cs.wantClip, got: String(ctx.clip) });
   if (cs.wantEditing !== undefined && st.editing !== undefined && st.editing !== cs.wantEditing)
     problems.push({ what: "card editing", want: String(cs.wantEditing), got: String(st.editing) });
-  if (cs.wantMode !== undefined && st.mode !== cs.wantMode)
-    problems.push({ what: "outline mode", want: String(cs.wantMode), got: String(st.mode) });
   if (st.renumbered?.length)
     problems.push({
       what: "Obsidian renumbered after the plugin's change",
@@ -739,7 +782,8 @@ async function main() {
   const views = (opt("--views") || VIEWS.join(",")).split(",");
   const verbose = flag("--verbose");
   const c = await connect();
-  // uncaught exceptions and console errors while the cases run (results.md lists them)
+  const vault = await assertSandboxVault(c);
+  // uncaught exceptions, console errors and the plugin's warnings while the cases run (results.md lists them)
   /** @type {string[]} */
   const consoleErrors = [];
   const t0 = Date.now();
@@ -748,68 +792,80 @@ async function main() {
     consoleErrors.push("exception: " + (d.exception?.description || d.text).split("\n").slice(0, 3).join(" | "));
   });
   c.on("Runtime.consoleAPICalled", p => {
-    if (p.type !== "error" || p.timestamp < t0) return;
-    consoleErrors.push(
-      "console.error: " +
-        p.args
-          .map(/** @param {CdpJson} a */ a => a.value ?? a.description ?? a.type)
-          .join(" ")
-          .split("\n")
-          .slice(0, 3)
-          .join(" | "),
-    );
+    if (p.timestamp < t0) return;
+    const text = p.args
+      .map(/** @param {CdpJson} a */ a => a.value ?? a.description ?? a.type)
+      .join(" ")
+      .split("\n")
+      .slice(0, 3)
+      .join(" | ");
+    if (p.type === "error") consoleErrors.push("console.error: " + text);
+    else if (p.type === "warning" && /Editor Outliner/.test(text)) consoleErrors.push("console.warn: " + text);
   });
   await c.send("Runtime.enable");
   /** @type {Result[]} */
   const results = [];
+  /** @type {CdpJson} */
+  let lanesOld = null;
+  /** @type {import("./env.mjs").Env | null} */
+  let env = null;
   try {
     if (!flag("--no-deploy")) {
-      const base = await c.ev(`app.vault.adapter.basePath`);
-      const dir = path.join(base, ".obsidian", "plugins", PLUGIN_ID);
+      const dir = path.join(vault, ".obsidian", "plugins", PLUGIN_ID);
+      fs.mkdirSync(dir, { recursive: true });
       for (const f of ["main.js", "manifest.json", "styles.css"])
-        fs.copyFileSync(path.join(PLUGIN, f), path.join(dir, f));
+        if (fs.existsSync(path.join(PLUGIN, f))) fs.copyFileSync(path.join(PLUGIN, f), path.join(dir, f));
       await c.ev(
-        `(async()=>{await app.plugins.disablePlugin("${PLUGIN_ID}"); await app.plugins.enablePlugin("${PLUGIN_ID}"); return 1})()`,
+        `(async()=>{await app.plugins.loadManifests(); await app.plugins.disablePlugin("${PLUGIN_ID}"); await app.plugins.enablePlugin("${PLUGIN_ID}"); return 1})()`,
       );
       await sleep(500);
       console.log("deployed the build to " + dir);
     }
-    // a normal tab needs an Editor Lanes routing exception
-    await c.ev(
-      `(async()=>{const lp=app.plugins.plugins["editor-multiple-lanes"]; if (lp && !/e2e-tab/.test(lp.settings.routeExceptions)) { lp.settings.routeExceptions = (lp.settings.routeExceptions ? lp.settings.routeExceptions + "\\n" : "") + "_test/e2e-tab.md"; await lp.settingsChanged("routing"); } return 1})()`,
-    );
+    const e = await environment(c);
+    env = e.env;
+    const loaded = e.loaded;
+    console.log(`${envLine(env)} Vault: ${vault}`);
+    lanesOld = await lanesForSuite(c);
     await c
       .send("Browser.grantPermissions", { permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] })
       .catch(() => {});
     await c.ev(PAGE);
     await c.ev(`window.__e2e.closePopovers()`);
     const sel = cases.filter(cs => !filter || filter.test(cs.id) || filter.test(cs.group) || filter.test(cs.title));
-    // Editor Outliner doesn't need Editor Lanes: without it, the cases that default to a lanes card run in a
-    // normal tab, and the ones written for lanes only are skipped
-    const hasLanes = await c.ev(`!!app.plugins.plugins["editor-multiple-lanes"]`);
-    const defaultSurfaces = hasLanes ? ["lanes"] : ["tab"];
-    if (!hasLanes) {
-      const only = sel.filter(cs => Array.isArray(cs.surfaces) && cs.surfaces.every(s => s === "lanes"));
-      console.log(
-        `Editor Lanes not enabled: lanes surface skipped (${only.length} lanes-only cases), default cases run in a tab`,
-      );
-    }
     const runs = [];
-    for (const s of surfaces.filter(s => hasLanes || s !== "lanes"))
+    for (const s of surfaces)
       for (const v of s.startsWith("canvas") || s === "popover" ? ["lp"] : views) runs.push([s, v]);
     for (const [surface, view] of runs) {
       const mine = sel.filter(cs => {
-        const sf = cs.surfaces === "all" ? SURFACES : cs.surfaces || defaultSurfaces;
+        const sf = cs.surfaces === "all" ? SURFACES : cs.surfaces || ["tab"];
         const vw = cs.views || VIEWS;
         return sf.includes(surface) && (surface.startsWith("canvas") || surface === "popover" || vw.includes(view));
       });
       if (!mine.length) continue;
-      const info = await c.ev(`window.__e2e.open(${JSON.stringify(surface)}, ${JSON.stringify(view)})`);
-      console.log(`\n== ${surface} / ${view} (${mine.length} cases) ${JSON.stringify(info)}`);
+      // what the surface needs: without it every case here is skipped (or fails, when E2E_REQUIRE asks for it)
+      const surfaceMissing = (SURFACE_NEEDS[surface] ?? []).filter(id => !loaded.has(id));
+      const info = surfaceMissing.length
+        ? null
+        : await c.ev(`window.__e2e.open(${JSON.stringify(surface)}, ${JSON.stringify(view)})`);
+      console.log(`\n== ${surface} / ${view} (${mine.length} cases)${info ? " " + JSON.stringify(info) : ""}`);
       for (const cs of mine) {
         const tag = `${cs.id} [${surface}/${view}]`;
         /** @type {Result} */
         const r = { id: cs.id, group: cs.group, title: cs.title, surface, view, status: "PASS", problems: [] };
+        const v = verdict(loaded, [...new Set([...(SURFACE_NEEDS[surface] ?? []), ...(cs.needs ?? [])])]);
+        if (v) {
+          if ("fail" in v) {
+            r.status = "FAIL";
+            r.problems.push({ what: "needs", want: v.fail.join(", ") + " enabled (E2E_REQUIRE)", got: "not enabled" });
+            console.log(`FAIL ${tag} (needs ${v.fail.join(", ")}: not enabled, and E2E_REQUIRE asks for it)`);
+          } else {
+            r.status = "SKIP";
+            r.skipped = v.skip;
+            console.log(`SKIP ${tag} (needs ${v.skip.join(", ")}: not enabled)`);
+          }
+          results.push(r);
+          continue;
+        }
         /** @type {Result | null} */
         let ur = null;
         let restoreSettings = null;
@@ -818,7 +874,6 @@ async function main() {
           if (cs.settings) restoreSettings = await c.ev(`window.__e2e.settings(${JSON.stringify(cs.settings)})`);
           if (cs.config) restoreConfig = await c.ev(`window.__e2e.config(${JSON.stringify(cs.config)})`);
           if (cs.surfaceSetup) await c.ev(`(async()=>{const S=window.__e2e; ${cs.surfaceSetup}})()`);
-          const on = cs.mode !== "off";
           let ref = null;
           if (cs.want === "@off") ref = await runOnce(c, cs, false, {});
           if (cs.want === "@obsidian") {
@@ -832,16 +887,16 @@ async function main() {
           }
           /** @type {Ctx} */
           const ctx = {};
-          const st = await runOnce(c, cs, on, ctx);
+          const st = await runOnce(c, cs, true, ctx);
           r.problems = compare(cs, st, ref, ctx);
-          r.status = r.problems.length ? (cs.needsDecision ? "DECIDE" : "FAIL") : "PASS";
+          r.status = r.problems.length ? "FAIL" : "PASS";
           // one Ctrl+Z undoes it
           const setupText = parseMarked(cs.text, cs.cur).text;
           const actions = cs.keys.filter(
             k => typeof k === "string" || !(k.wait || k.copy || k.readClip || k.writeClip),
           ).length;
           const undo =
-            cs.undo ?? (on && actions === 1 && st.text !== setupText && cs.want !== "@off" && cs.want !== "@obsidian");
+            cs.undo ?? (actions === 1 && st.text !== setupText && cs.want !== "@off" && cs.want !== "@obsidian");
           if (undo && r.status === "PASS") {
             await c.key("z", { ctrl: true });
             await sleep(80);
@@ -886,9 +941,11 @@ async function main() {
     await c.ev(`window.__e2e.mode(true)`);
     await c.ev(`window.__e2e.closePopovers()`);
   } finally {
+    await lanesRestore(c, lanesOld).catch(e => console.log("couldn't restore Editor Multiple Lanes' settings: " + e));
     c.close();
   }
-  writeResults(results, consoleErrors);
+  const bad = writeResults(results, consoleErrors, { env, vault });
+  process.exitCode = bad ? 1 : 0;
 }
 
 /**
@@ -905,45 +962,64 @@ function report(r, tag) {
 }
 
 /**
+ * Writes e2e/results.md; returns how many checks failed or errored.
  * @param {Result[]} results
  * @param {string[]} consoleErrors
+ * @param {{ env: import("./env.mjs").Env | null, vault: string }} env
  */
-function writeResults(results, consoleErrors = []) {
-  const pass = results.filter(r => r.status === "PASS").length;
-  const fail = results.filter(r => r.status === "FAIL").length;
-  const err = results.filter(r => r.status === "ERROR").length;
-  const decide = results.filter(r => r.status === "DECIDE").length;
+function writeResults(results, consoleErrors, env) {
+  const count = (/** @type {string} */ s) => results.filter(r => r.status === s).length;
+  const [pass, fail, err, skip] = ["PASS", "FAIL", "ERROR", "SKIP"].map(count);
   const out = [];
   out.push("# Editor Outliner e2e results");
   out.push("");
   out.push(
-    `Run ${new Date().toISOString()}: ${results.length} checks, ${pass} pass, ${fail} fail, ${err} error, ` +
-      `${decide} needing a decision (DECIDE: the case waits for the user's choice; see CASES.md).`,
+    `Run ${new Date().toISOString()}: ${results.length} checks, ${pass} pass, ${fail} fail, ${err} error, ${skip} skipped ` +
+      "(a skipped check needs a plugin that isn't enabled).",
+  );
+  out.push("");
+  out.push(
+    `${envLine(env.env)} Vault: a sandbox (\`${path.basename(path.dirname(path.dirname(env.vault)))}/` +
+      `${path.basename(path.dirname(env.vault))}\`).`,
   );
   out.push("");
   const byGroup = new Map();
   for (const r of results) {
-    const g = byGroup.get(r.group) || { pass: 0, fail: 0, error: 0, decide: 0 };
+    const g = byGroup.get(r.group) || { pass: 0, fail: 0, error: 0, skip: 0 };
     g[r.status.toLowerCase()]++;
     byGroup.set(r.group, g);
   }
-  out.push("| Group | Pass | Fail | Error | Decide |");
+  out.push("| Group | Pass | Fail | Error | Skipped |");
   out.push("|---|---|---|---|---|");
   for (const g of groups) {
     const x = byGroup.get(g.id);
-    if (x) out.push(`| ${g.title} | ${x.pass} | ${x.fail} | ${x.error} | ${x.decide} |`);
+    if (x) out.push(`| ${g.title} | ${x.pass} | ${x.fail} | ${x.error} | ${x.skip} |`);
   }
   out.push("");
+  const skipped = new Map();
+  for (const r of results.filter(r => r.status === "SKIP")) {
+    const why = (r.skipped ?? []).join(", ");
+    skipped.set(why, [...(skipped.get(why) ?? []), `${r.id} [${r.surface}/${r.view}]`]);
+  }
+  if (skipped.size) {
+    out.push("Skipped (needs a plugin that isn't enabled):");
+    out.push("");
+    for (const [why, ids] of skipped)
+      out.push(`- needs ${why}: ${ids.length} checks (${ids.slice(0, 12).join(", ")}${ids.length > 12 ? ", …" : ""})`);
+    out.push("");
+  }
   const errs = [...new Set(consoleErrors)];
   out.push(
-    `Console during the run: ${consoleErrors.length} uncaught exception(s) / console.error call(s)` +
-      (errs.length ? ` (${errs.filter(e => /editor-outliner/.test(e)).length} mentioning editor-outliner):` : "."),
+    `Console during the run: ${consoleErrors.length} uncaught exception(s) / console.error call(s) / warnings of the plugin` +
+      (errs.length
+        ? ` (${errs.filter(e => /editor-outliner|Editor Outliner/.test(e)).length} mentioning Editor Outliner):`
+        : "."),
   );
   out.push("");
   for (const e of errs.slice(0, 30)) out.push("- `" + e.replace(/`/g, "'").slice(0, 300) + "`");
   if (errs.length) out.push("");
   if (errs.length) console.log(`console errors: ${consoleErrors.length}\n` + errs.slice(0, 30).join("\n"));
-  const bad = results.filter(r => r.status !== "PASS");
+  const bad = results.filter(r => r.status === "FAIL" || r.status === "ERROR");
   if (bad.length) {
     out.push("## Failures");
     out.push("");
@@ -961,8 +1037,9 @@ function writeResults(results, consoleErrors = []) {
   }
   fs.writeFileSync(path.join(HERE, "results.md"), out.join("\n"));
   console.log(
-    `\n${results.length} checks: ${pass} pass, ${fail} fail, ${err} error, ${decide} decide. Wrote e2e/results.md`,
+    `\n${results.length} checks: ${pass} pass, ${fail} fail, ${err} error, ${skip} skipped. Wrote e2e/results.md`,
   );
+  return bad.length;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) await main();

@@ -32,8 +32,8 @@ Two separate hierarchies that never cross:
 
 Text before the first heading is the root's body. Frontmatter (closed by `---`) is never part of the outline.
 Code, `$$` math, `%%` and `<!-- -->` comment blocks are opaque (`#` and `-` inside mean nothing), also when
-the block opens mid-line. A line starting with inline ` ``` ` code is not a fence. A paragraph's setext
-underline moves with it.
+the block opens mid-line; a delimiter inside inline code (`` `%%` ``) opens nothing, as in Obsidian. A line starting
+with inline ` ``` ` code is not a fence. A paragraph's setext underline moves with it.
 
 ## Which hierarchy a command acts on
 
@@ -373,6 +373,9 @@ focused editor, else the last one focused.
 | Delete                               | Outline mode active: at an item's end pull the next item in; at a continuation / code line's end join the next line                                                                                                                                                                    |
 | Ctrl/Cmd+V                           | Outline mode active: Markdown blocks become items, a code block alone goes into the item, multi-line text stays in it (code-block paste rule always)                                                                                                                                   |
 
+On macOS Cmd+↑ / ↓ moves the node at the cursor wherever the note has one, paragraphs included: Obsidian's "go
+to the start / end of the document" only remains in frontmatter (a decision, so moves have one key everywhere).
+
 Every command is one undo step (undo restores the text, not folds). Tab falls through to Obsidian inside code
 blocks, while an autocomplete popup is open, with several cursors and during IME composition; so do
 Shift+Tab, the move keys and Alt+↑ / ↓ with several cursors and while composing. Changes don't count as typing, so they
@@ -387,8 +390,13 @@ don't open autocomplete.
   extensions sit in a compartment the plugin reconfigures itself; Obsidian's `updateOptions()` only reaches
   Markdown tabs). An editor already open when the plugin loads gets it when reopened.
 - **Performance:** typing doesn't re-parse the note: labels, guides and the code-in-item layout keep their
-  decorations across plain edits and are worked out again after a short pause (20,000-line note: typing
-  costs the same with the plugin on or off).
+  decorations across edits that leave the line's shape (heading level, fences, block delimiters) as it was, typing
+  in a heading's text included, and are worked out again after a short pause. A key that changes the note
+  (outline mode's Enter or Backspace, a move, a drop) compares and writes only the lines it changed, numbers
+  ordered lists only when the note has some, and hands the outline it worked out to the decorations; the
+  palette's "does this command apply" checks don't work the change out. Measured on a 20,000-line note (X9, X9b):
+  typing costs about the same with the plugin on or off; outline mode's Enter and Backspace cost a few
+  milliseconds more than Obsidian's own.
 - **Mobile:** the editor toolbar's indent / outdent buttons (Obsidian's "Indent list item" / "Unindent list
   item") indent and outdent the heading or list item at the cursor with its subtree, as Tab / Shift+Tab do;
   elsewhere (body text, code, a table cell) they are Obsidian's. There is no drag handle on mobile.
@@ -414,7 +422,35 @@ Style headings beyond H6 (on) · Heading level labels (on).
 
 ## Working with other plugins
 
-TODO (filled in from the cross-plugin review).
+The plugin needs no other plugin, and no other plugin needs it. Where they meet, it goes through Obsidian's own
+contracts; the e2e suite tests each side without the partner (simulating what it provides), then with it
+(cases that need it are skipped without it).
+
+- **Editor Multiple Lanes:** its cards are ordinary Markdown views hosted in a lanes tab, so they get the plugin
+  like any tab (no code of either knows the other). What differs is the host: Obsidian's active editor may be
+  the lanes view, so the keys are a CodeMirror keymap on the focused editor and the commands act on the focused
+  (or last focused) editor; a card doesn't scroll itself, so a drag near the edge scrolls the nearest scrolling
+  ancestor (the lane); cards come and go as Lanes opens and parks notes, and every new editor gets the plugin
+  (settings changes and unloading reach every open one). Tested in a lanes card: the cases that run everywhere,
+  the command cases, and LC1–LC6 (two cards and the palette, a drag that scrolls the lane, commands offered in a
+  card, a card reopened, a move past the lane's bottom, settings and unloading). The suite uses Lanes' test
+  contract only: `settings.lanesOnly` / `settings.routeExceptions` with `settingsChanged("routing")` (saved first,
+  restored at the end; its normal-tab notes live in `_test/tab/`, an exception) and the view type `editor-lanes`
+  to tell a card.
+- **Backlinks Full View:** its panes sit inside a note's editor (below the text) but outside its content, so they
+  get no guides, handles or keys; nothing to coordinate.
+- **Autocomplete popups** of any plugin (Obsidian's EditorSuggest: links, tags, Tasks, Templater…): while one is
+  open the outliner's keys step aside, so the popup gets Enter, Tab and the arrows.
+- **Paste handlers** (`editor-paste`): a paste the outliner would take (multi-line text in a list item or in a code
+  block in an item) goes to the other plugins' handlers first, as Obsidian's own paste does; one that calls
+  `preventDefault` keeps it (OP1–OP3, with a simulated handler).
+- **Dataview:** "Insert Dataview query in item" writes a `dataview` code block in the item; Dataview renders it,
+  in Live Preview and Reading view, inside the item (WH11 needs Dataview).
+- **Vim mode** (Obsidian's): normal and visual mode keep vim's keys; outline mode acts in insert mode
+  (see Where it works).
+- **Other outliners** binding Tab, Enter or Backspace in lists (the Outliner plugin, for one) conflict with the
+  outline-mode keys: use one of them, or turn this plugin's "Outliner keys" off for the rest. Advanced Tables and
+  other table plugins keep Tab in tables: the outliner's Tab falls through outside headings and lists.
 
 ## Development
 
@@ -434,7 +470,20 @@ TODO (filled in from the cross-plugin review).
   unit-tested (`test/obsidian-stub.ts` stands in for `obsidian`). Patches of Obsidian methods use
   `monkey-around` and are registered with the plugin, so they come off on unload.
 - **Internals:** every Obsidian internal used was checked against Obsidian 1.15.0's `app.js` and `app.css`.
-  `minAppVersion` is 1.15.0. A new Obsidian version means re-checking them.
+  `minAppVersion` is 1.15.0. A new Obsidian version means re-checking them:
+  - typed in `src/types/`: `Editor.cm` / `activeCM`, `app.commands` (the mobile toolbar's indent buttons),
+    `vault.getConfig("autoConvertHtml")`, `workspace.editorSuggest`, the Vim adapter on `EditorView.cm`;
+    `src/internals.ts` checks the ones it can on load and warns in the console when one is missing
+    (`missingInternals` on the plugin, WH14);
+  - behaviour copied from Obsidian: the renumbering of ordered lists (`numbering.ts`), checked against a table
+    recorded in Obsidian, `src/numbering.fixtures.json`: re-record it after an Obsidian update
+    (`npm run e2e:numbering` in a sandbox); the unit tests use it, and the e2e check X12 replays it in Obsidian
+    on every run, failing when Obsidian's rules changed; the clipboard rules of its paste (the
+    `<!-- obsidian -->` mark of its own copies);
+  - CSS: the Canvas card iframe (`.mod-inside-iframe`), the line margin Obsidian sets with `!important` (code
+    in items), the active line (`.cm-active`, level labels), the indentation-guide and `--h6-*` variables.
+- **Test hook:** `outlineOffForTests` on the plugin instance turns the outline-mode keys off for the e2e suite
+  (to compare with Obsidian's own keys); not saved, no UI. Keep it.
 - **Versions and releases:** `npm version patch|minor|major` bumps `package.json`, then `scripts/version-bump.mjs`
   copies the version into `manifest.json` and `versions.json`; npm commits and tags it (tag = the version, no
   `v`, `.npmrc`). `git push --follow-tags` runs `.github/workflows/release.yml`: `npm run check`, a check that the
@@ -443,18 +492,28 @@ TODO (filled in from the cross-plugin review).
 - **Trying a build in a vault:** `npm run deploy -- <vault> …` (or `OBSIDIAN_VAULTS`) builds and copies `main.js`,
   `manifest.json` and `styles.css` into each vault that already has the plugin (`--install` adds it); `data.json`
   is never touched. Reload the plugin in Obsidian afterwards.
-- **End-to-end tests:** `e2e/sandbox.sh start|stop|restart|reset|deploy|shot <n>` runs a throwaway Obsidian
+- **End-to-end tests:** `e2e/sandbox.sh start|stop|restart|reset|deploy|shot|status <n>` runs a throwaway Obsidian
   (`OBS_APP`, default the 1.15.0 AppImage) on its own Xvfb display `:110+n` (never on your screen), with its own
-  profile, its own vault in `.sandbox/sb<n>/` (git-ignored) and the DevTools port `9310+n`. The vault is a fresh
-  empty one with only this plugin, plus any built plugins in `OBS_PLUGINS` (folders separated by `:`) to test them
-  together; or a copy of `OBS_VAULT` (e.g. a big test vault). Every start installs the current build. The suite
-  in `e2e/` drives it over the DevTools protocol (`e2e/cdp.mjs`) with real key and mouse input. Needs Xvfb, rsync,
-  curl, node and ImageMagick.
+  profile, its own vault in `.sandbox/sb<n>/` (git-ignored) and the DevTools port `9310+n`; this plugin's sandbox
+  is 4 (port 9314, `e2e/cdp.mjs`'s default). The vault is a fresh empty one with only this plugin, plus the plugins
+  in `OBS_PLUGINS` to test them together (folders with a build, or `owner/repo[@version]` releases); or a copy of
+  `OBS_VAULT` (a big test vault, say). `e2e/make-vault.mjs` adds what the suite wants on disk: the editor settings
+  the cases are written for (tabs of size 4, no readable line length), Canvas and Page preview on, `_test/` and
+  `_test/tab/`, and the hand-test notes of the manual checklist in `_test/manual/` (from `e2e/fixtures/`). Every
+  start installs the current build. `npm run e2e` runs `e2e/run.mjs` (the key cases) and `e2e/extra.mjs` (the
+  other checks) over the DevTools protocol (`e2e/cdp.mjs`) with real key and mouse input; they refuse a vault that
+  isn't a sandbox's, exit 1 on a failure and write `e2e/results.md` / `e2e/extra-results.md`. A case that needs
+  another plugin (or a core plugin, `core:<id>`) is skipped without it; `E2E_REQUIRE=<id>,…` makes that a failure.
+  Alone: `npm run build && e2e/sandbox.sh reset 4 && npm run e2e`. Together with Editor Multiple Lanes:
+  `OBS_PLUGINS=<its folder or archit90/obsidian-editor-multiple-lanes> OBS_SANDBOX_DIR=$PWD/.sandbox-together
+e2e/sandbox.sh reset 4 && E2E_REQUIRE=editor-multiple-lanes npm run e2e:cases -- --surfaces lanes`. The
+  catalogues: `TEST-CASES.md` and `e2e/CASES.md` (`npm run e2e:catalogue`). Review findings by id:
+  `docs/reviews.md`. Needs Xvfb, rsync, curl, node and ImageMagick.
 
 ## Verification status
 
 - **Confirmed in Obsidian by the user:** heading level labels.
-- **Editor Outliner, checked in a test Obsidian** (1.15.0 started hidden with a test vault, driven over the
+- **Checked in a test Obsidian** (1.15.0 started hidden in a sandbox, driven over the
   DevTools protocol with real key and mouse input; not the user's eye): in an Editor Multiple Lanes card, Enter, Tab,
   node-selection copy at column 0; in a Canvas text card and file card at zoom 0.57 and 1.23, the plugin's
   styles inside the card's iframe (heading guides, level labels, H7+ styling, the node-selection highlight),
@@ -466,20 +525,27 @@ TODO (filled in from the cross-plugin review).
   of "Where it works". Earlier, the node-selection keys (Expand to item and section nodes, ↑ / ↓ with the edge
   stop, Shrink, ← / →, Escape, Backspace / Delete with Ctrl+Z, Tab / Shift+Tab / Alt+Shift+↓, Ctrl+C / Ctrl+X)
   in a lanes card and a Canvas text card.
-- **Editor Outliner end-to-end suite:** `custom-plugins/editor-outliner/e2e/` (catalogues `CASES.md` and
-  `../TEST-CASES.md`, cases `cases.mjs` + `cases-deep.mjs`, runner `run.mjs`, results `results.md`; `extra.mjs` /
-  `extra-results.md` for the checks that aren't keys) runs every outline-mode case and the deep cases (indent /
-  move outside outline mode, Expand, node selection, folding, guides, labels, H7+,
-  real mouse drags, Vim, settings) against a hidden Obsidian over the DevTools protocol, in a lanes card and a
-  normal tab (Live Preview and Source mode), in Canvas text and file cards and in a page preview popover, with a
-  one-Ctrl+Z check after each change, a check that Obsidian's renumbering never has to change the plugin's
-  result, and a log of console errors; `extra.mjs` covers popout windows, the settings tab, unloading, a
-  20,000-line note and mobile emulation (`--mobile`, including the toolbar's indent / outdent buttons). Last
-  full run 2026-11-07: 2221 / 2221 checks; extra checks 8 / 8 (X10, X11 with --mobile). Cases marked "needs decision" wait for the
-  user's choice.
-- **Editor Outliner, manual checklist** (cases in `_test/Outline mode.md` in vault 948; `_test/Outline
-canvas.canvas` for Canvas). Tick each in a normal tab, an Editor Multiple Lanes card and a Canvas card unless it says
-  otherwise; Ctrl+Z undoes every case in one step.
+- **End-to-end suite** (`e2e/`: catalogues `e2e/CASES.md` and `TEST-CASES.md`, cases `cases.mjs` +
+  `cases-deep.mjs`, runner `run.mjs`, results `results.md`; `extra.mjs` / `extra-results.md` for the checks that
+  aren't keys) runs every outline-mode case and the deep cases against a sandbox Obsidian over the DevTools
+  protocol, in a normal tab (Live Preview and Source mode), an Editor Multiple Lanes card (with that plugin), Canvas
+  text and file cards and a page preview popover, with a one-Ctrl+Z check after each change, a check that
+  Obsidian's renumbering never has to change the plugin's result, and a log of console errors; `extra.mjs` covers
+  popout windows, the settings tab, unloading, a 20,000-line note (typing, moves, outline mode's keys, the
+  palette's checks), Obsidian's renumbering against `src/numbering.fixtures.json`, and mobile emulation.
+  Last runs, 2026-11-08, Obsidian 1.15.0:
+  - **alone** (a fresh vault with only this plugin): `run.mjs` 2218 checks, 2043 pass, 0 fail, 175 skipped (the
+    lanes card surface and WH11 need other plugins); `extra.mjs --mobile` 12 / 12;
+  - **together with Editor Multiple Lanes** (its folder build, `--surfaces lanes`, `E2E_REQUIRE`): 252 checks,
+    251 pass; MB2's one-Ctrl+Z check failed once in the full run and passed when run again (flaky, recorded in
+    TEST-CASES.md);
+  - 20,000-line note: typing 11.4 ms with the plugin, 13.6 without (dispatch + measure); a move 20 ms, an indent
+    19 ms (29.8 and 27.7 before the 2026-11-08 changes); outline mode's Enter 27 ms against Obsidian's 26 (36 before),
+    Backspace merge 29 against 22 (37 before); the palette's checks of five commands 0 ms (18 before).
+- **Manual checklist** (the hand-test notes are in `_test/manual/` of every sandbox, from `e2e/fixtures/`:
+  `Outline mode.md` with its stages, `Outline canvas.canvas` for Canvas, and notes with headings, nested lists, mixed
+  blocks and a long outline). Tick each in a normal tab, an Editor Multiple Lanes card (when installed) and a Canvas
+  card unless it says otherwise; Ctrl+Z undoes every case in one step.
   - Multi-block items
     - [ ] "Insert code block in item" / "Insert Dataview query in item" from the palette, also from a lanes card
     - [ ] Alt+↑ / ↓: paragraph and code steps inside an item
@@ -530,6 +596,6 @@ canvas.canvas` for Canvas). Tick each in a normal tab, an Editor Multiple Lanes 
   (Obsidian registers no fold undo either).
 - **Everything else** is built, unit-tested (`npm run check`) and was used in the author's vaults, but not confirmed
   by the user in Obsidian.
-- **Deep test catalogue** (2026-11-07): `TEST-CASES.md`, cases checked against this spec and common sense, each run
+- **Deep test catalogue** (2026-11-08): `TEST-CASES.md`, cases checked against this spec and common sense, each run
   in an isolated test Obsidian over the DevTools protocol with real key and mouse input, then fixed and re-run until a
   full run was clean. It records the final status per case and the date of the final run.

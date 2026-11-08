@@ -1,25 +1,42 @@
 // CodeMirror glue: parses the editor's note (cached per document version), runs an operation, and applies
 // its rows as one transaction (one undo step) with the selection and folds carried over.
-import { EditorSelection, EditorState, Extension, Prec, StateEffect, Text } from "@codemirror/state";
+import { EditorSelection, EditorState, Extension, Prec, StateEffect, Text, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { foldEffect, foldable, foldedRanges, indentUnit, unfoldEffect } from "@codemirror/language";
 import { Notice } from "obsidian";
 import { Outline, buildOutline, locate } from "./parse";
-import { Ctx, OpResult, Row, indent, move, outdent, unitCols } from "./ops";
+import {
+  Ctx,
+  ORDERED_LINE,
+  OpResult,
+  Row,
+  applies,
+  indent,
+  isNumbered,
+  listIn,
+  move,
+  outdent,
+  outlineOfRows,
+  unitCols,
+} from "./ops";
 import { Chain, XState, chainAt, move as moveStep, spanOf, stateOf } from "./select";
 import { renumberLikeObsidian } from "./numbering";
-import { Pos, codeCopyText, codeNewline, codePasteText, insertCodeBlock } from "./content";
+import { Pos, canInsertCodeBlock, codeCopyText, codeNewline, codePasteText, insertCodeBlock } from "./content";
+import { RowChange, rowChange } from "./rowdiff";
 
 const outlines = new WeakMap<Text, Outline>();
 
-export function outlineOf(state: EditorState): Outline {
-  let o = outlines.get(state.doc);
+/** The outline of a document, parsed once per document version. */
+export function outlineOfDoc(doc: Text, tabSize: number): Outline {
+  let o = outlines.get(doc);
   if (!o) {
-    o = buildOutline(state.doc.toJSON(), state.tabSize);
-    outlines.set(state.doc, o);
+    o = buildOutline(doc.toJSON(), tabSize);
+    outlines.set(doc, o);
   }
   return o;
 }
+
+export const outlineOf = (state: EditorState): Outline => outlineOfDoc(state.doc, state.tabSize);
 
 export function ctxOf(state: EditorState, logical: boolean): Ctx {
   return { tabSize: state.tabSize, unit: state.facet(indentUnit), logical };
@@ -35,92 +52,134 @@ export function lineSpan(state: EditorState): [number, number] {
   return [a, b];
 }
 
+/** Whether a row in or right next to the changed lines may be an ordered item: only there can Obsidian's
+ * renumbering rules start (numbering.ts visits the changed lines and the one after). */
+function orderedNear(rows: Row[], c: RowChange): boolean {
+  for (let i = Math.max(0, c.first - 1); i < Math.min(rows.length, c.newEnd + 2); i++)
+    if (ORDERED_LINE.test(rows[i]!.t)) return true;
+  return false;
+}
+
+/** Whether the transaction (after the transaction filters) makes exactly the one change, nothing more. */
+function onlyChange(tr: Transaction, c: RowChange): boolean {
+  let n = 0;
+  let same = true;
+  tr.changes.iterChanges((fromA, toA, _fromB, _toB, ins) => {
+    n++;
+    if (fromA !== c.from || toA !== c.to || ins.length !== c.insert.length || ins.toString() !== c.insert) same = false;
+  });
+  return same && n === 1;
+}
+
 /**
  * Replaces the note with rows as one change (one undo step), mapping the selection (or putting the cursor at
  * cursor, a position in the new rows) and re-folding folds the change touched. userEvent is never "input.*" /
- * "delete.*", so Obsidian doesn't open autocomplete for it.
+ * "delete.*", so Obsidian doesn't open autocomplete for it. Only the changed lines are compared and written
+ * (rowdiff.ts), so a key in a long note doesn't copy the whole note.
  */
 export function applyRows(view: EditorView, o: Outline, rows: Row[], userEvent = "move.outliner", cursor?: Pos) {
-  // ordered lists numbered as Obsidian's own renumbering would (numbering.ts), whatever the operation, so
-  // Obsidian has nothing left to change and the note undo restores is one it leaves alone
-  const num = renumberLikeObsidian(
-    o.texts,
-    rows.map(r => r.t),
-  );
-  if (num.edits.length) {
-    rows = rows.map((r, i) => (num.lines[i] === r.t ? r : { t: num.lines[i]!, o: r.o }));
-    for (const e of num.edits)
-      if (cursor && e.line === cursor.line && cursor.ch > e.at) cursor = { line: cursor.line, ch: cursor.ch + e.delta };
-  }
   const state = view.state;
-  const oldS = state.doc.toString();
-  const texts = rows.map(r => r.t);
-  const newS = texts.join("\n");
-  if (oldS === newS) return;
-  const max = Math.min(oldS.length, newS.length);
-  let p = 0;
-  while (p < max && oldS.charCodeAt(p) === newS.charCodeAt(p)) p++;
-  let q = 0;
-  while (q < max - p && oldS.charCodeAt(oldS.length - 1 - q) === newS.charCodeAt(newS.length - 1 - q)) q++;
-  const changedTo = oldS.length - q;
-
-  const newIdx = new Map<number, number>();
-  rows.forEach((r, i) => {
-    if (r.o >= 0) newIdx.set(r.o, i);
-  });
-  const starts: number[] = [];
-  let acc = 0;
-  for (const t of texts) {
-    starts.push(acc);
-    acc += t.length + 1;
+  const doc = state.doc;
+  const lineStart = (i: number) => doc.line(i + 1).from;
+  let change = rowChange(o.texts, rows, lineStart);
+  if (!change) return;
+  // ordered lists numbered as Obsidian's own renumbering would (numbering.ts), whatever the operation, so
+  // Obsidian has nothing left to change and the note undo restores is one it leaves alone (rows from finish()
+  // are numbered already)
+  if (!isNumbered(rows) && orderedNear(rows, change)) {
+    const num = renumberLikeObsidian(
+      o.texts,
+      rows.map(r => r.t),
+    );
+    if (num.edits.length) {
+      rows = rows.map((r, i) => (num.lines[i] === r.t ? r : { t: num.lines[i]!, o: r.o }));
+      for (const e of num.edits)
+        if (cursor && e.line === cursor.line && cursor.ch > e.at)
+          cursor = { line: cursor.line, ch: cursor.ch + e.delta };
+      change = rowChange(o.texts, rows, lineStart);
+      if (!change) return;
+    }
   }
+  const c = change;
+  const nO = o.texts.length;
+  const nN = rows.length;
+  const lenDelta = c.insert.length - (c.to - c.from);
+  const newLen = doc.length + lenDelta;
+
+  // the new index of an old line (the last row that came from it), worked out when first needed
+  let index: Int32Array | null = null;
+  const newIndexOf = (l: number): number | undefined => {
+    if (!index) {
+      const idx = new Int32Array(nO).fill(-1);
+      rows.forEach((r, i) => {
+        if (r.o >= 0 && r.o < nO) idx[r.o] = i;
+      });
+      index = idx;
+    }
+    const v = index[l];
+    return v === undefined || v < 0 ? undefined : v;
+  };
+  // where new line ni starts: before the change as in the old text, after it shifted with the text's end
+  const firstStart = c.first < nO ? lineStart(c.first) : doc.length + 1;
+  const newStart = (ni: number): number => {
+    if (ni < c.first) return lineStart(ni);
+    if (ni >= c.newEnd) return lineStart(ni - (nN - nO)) + lenDelta;
+    let at = firstStart;
+    for (let k = c.first; k < ni; k++) at += rows[k]!.t.length + 1;
+    return at;
+  };
   const mapPos = (pos: number): number | null => {
-    const l = state.doc.lineAt(pos);
-    const ni = newIdx.get(l.number - 1);
+    const l = doc.lineAt(pos);
+    const ni = newIndexOf(l.number - 1);
     if (ni === undefined) return null;
-    const d = texts[ni]!.length - o.texts[l.number - 1]!.length;
+    const t = rows[ni]!.t;
+    const d = t.length - o.texts[l.number - 1]!.length;
     // the edits only change a line's prefix (indent, #, number): keep the cursor on the same text,
     // except a cursor at the very start of a line, which stays there
     const ch0 = pos - l.from;
-    const ch = ch0 === 0 ? 0 : Math.max(0, Math.min(texts[ni]!.length, ch0 + d));
-    return starts[ni]! + ch;
+    const ch = ch0 === 0 ? 0 : Math.max(0, Math.min(t.length, ch0 + d));
+    return newStart(ni) + ch;
   };
   const r = state.selection.main;
   // a selection that ends at the start of the next line covers whole lines: keep it ending right after
   // its last line, wherever that line went
   const [, l1] = lineSpan(state);
   const mapEnd = (pos: number): number | null => {
-    const l = state.doc.lineAt(pos);
+    const l = doc.lineAt(pos);
     if (r.empty || pos !== r.to || pos !== l.from || l.number - 1 !== l1 + 1) return mapPos(pos);
-    const ni = newIdx.get(l1);
+    const ni = newIndexOf(l1);
     if (ni === undefined) return mapPos(pos);
-    return ni + 1 < texts.length ? starts[ni + 1]! : newS.length;
+    return ni + 1 < nN ? newStart(ni + 1) : newLen;
   };
   let anchor = r.anchor === r.to ? mapEnd(r.anchor) : mapPos(r.anchor);
   let head = r.head === r.to ? mapEnd(r.head) : mapPos(r.head);
-  if (cursor) anchor = head = starts[cursor.line]! + cursor.ch;
+  if (cursor) anchor = head = newStart(cursor.line) + cursor.ch;
 
   // folds touching the changed region: Obsidian drops them, so remember their lines and refold after
   const refold: number[] = [];
-  foldedRanges(state).between(0, oldS.length, (from, to) => {
-    if (from <= changedTo && to >= p) {
-      const ni = newIdx.get(state.doc.lineAt(from).number - 1);
+  foldedRanges(state).between(0, doc.length, (from, to) => {
+    if (from <= c.to && to >= c.from) {
+      const ni = newIndexOf(doc.lineAt(from).number - 1);
       if (ni !== undefined) refold.push(ni);
     }
   });
 
-  view.dispatch({
-    changes: { from: p, to: changedTo, insert: newS.slice(p, newS.length - q) },
+  const tr = state.update({
+    changes: { from: c.from, to: c.to, insert: c.insert },
     selection: anchor !== null && head !== null ? EditorSelection.single(anchor, head) : undefined,
     scrollIntoView: true,
     userEvent,
   });
+  // the rows' outline when finish() parsed them already: the decorations then don't parse the note again
+  const parsed = outlineOfRows(rows);
+  if (parsed && parsed.tabSize === state.tabSize && onlyChange(tr, c)) outlines.set(tr.newDoc, parsed);
+  view.dispatch(tr);
 
   if (refold.length) {
     const st = view.state;
     const effects: StateEffect<unknown>[] = [];
-    const newTo = newS.length - q;
-    foldedRanges(st).between(p, newTo, (from, to) => {
+    const newTo = c.from + c.insert.length;
+    foldedRanges(st).between(c.from, newTo, (from, to) => {
       effects.push(unfoldEffect.of({ from, to }));
     });
     for (const ni of new Set(refold)) {
@@ -152,7 +211,7 @@ export const nested = (view: EditorView) => !!view.dom.parentElement?.closest(".
 
 /**
  * Runs an outline operation on the main selection. False when it isn't for us (Obsidian handles the key).
- * With check, only says whether it would apply.
+ * With check, only says whether it would apply, without working out the result (the palette asks every command).
  */
 export function runOp(view: EditorView, kind: OpKind, logical: boolean, check = false): boolean {
   const state = view.state;
@@ -162,9 +221,7 @@ export function runOp(view: EditorView, kind: OpKind, logical: boolean, check = 
   const ctx = ctxOf(state, logical);
   // A list always stays a list: Shift+Tab inside one never goes to Obsidian, whose outdent removes
   // indentation line by line and can take lines out of their item, or the item out of the list
-  let inList = false;
-  for (let l = l0; l <= l1 && !inList; l++) inList = !!locate(o, l)?.list;
-  const keep = kind === "outdent" && inList;
+  const keep = kind === "outdent" && listIn(o, l0, l1);
   if (suggestOpen()) return keep;
   // Tab inside a code block (also one nested in a list item) is Obsidian's; Shift+Tab too, as long as the
   // line stays inside its item
@@ -175,12 +232,13 @@ export function runOp(view: EditorView, kind: OpKind, logical: boolean, check = 
     const item = locate(o, head)?.item;
     return item ? L.col - unitCols(ctx) < item.cc : false;
   }
+  if (check) return keep || applies(o, kind === "up" || kind === "down" ? "move" : kind, l0, l1);
   let res: OpResult;
   if (kind === "indent") res = indent(o, l0, l1, ctx);
   else if (kind === "outdent") res = outdent(o, l0, l1, ctx);
   else res = move(o, l0, l1, kind === "up" ? -1 : 1, ctx);
   if (res === null) return keep;
-  if (check || res === "noop") return true;
+  if (res === "noop") return true;
   if ("error" in res) {
     new Notice(res.error);
     return true;
@@ -275,8 +333,9 @@ export function insertBlock(view: EditorView, lang: string, check = false): bool
   const line = soleLine(view);
   if (line === null) return false;
   const o = outlineOf(view.state);
+  if (check) return canInsertCodeBlock(o, line);
   const res = insertCodeBlock(o, line, lang, ctxOf(view.state, false));
-  if (!res || check) return !!res;
+  if (!res) return false;
   applyRows(view, o, res.rows, "insert.outliner", res.cursor);
   view.focus();
   return true;
@@ -317,11 +376,16 @@ export function codeEnter(view: EditorView): boolean {
 }
 
 /**
- * The clipboard rules for code blocks in items, on whether or not the outliner keys are: copied / cut / dragged
- * text loses the item indent; pasted multi-line text gains it on every line after the first. outline: outline
- * mode's paste, tried when they don't apply (it says whether it took the paste).
+ * The clipboard rules for code blocks in items, whatever the "Outliner keys" setting: copied / cut / dragged text
+ * loses the item indent; pasted multi-line text gains it on every line after the first. outline: outline mode's
+ * paste of the clipboard data, as the change to make, tried when those rules don't apply (null: not ours). offer:
+ * hands a paste the plugin would take to other plugins first (Obsidian's "editor-paste" event, which its own paste
+ * fires before pasting); true when one of them took it.
  */
-export function codeClipboard(outline?: (view: EditorView, data: DataTransfer) => boolean): Extension {
+export function codeClipboard(
+  outline?: (view: EditorView, data: DataTransfer) => (() => void) | null,
+  offer?: (view: EditorView, e: ClipboardEvent) => boolean,
+): Extension {
   return [
     EditorView.clipboardOutputFilter.of((text, state) => {
       if (state.selection.ranges.length > 1) return text;
@@ -332,25 +396,33 @@ export function codeClipboard(outline?: (view: EditorView, data: DataTransfer) =
     Prec.highest(
       EditorView.domEventHandlers({
         paste: (e, view) => {
-          if (e.defaultPrevented || soleLine(view) === null || !e.clipboardData) return false;
-          const text = e.clipboardData.getData("text/plain");
-          const st = view.state;
-          const r = st.selection.main;
-          const insert = text
-            ? codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false))
-            : null;
-          if (insert === null) {
-            if (!outline?.(view, e.clipboardData)) return false;
-            e.preventDefault();
-            return true;
-          }
+          const data = e.clipboardData;
+          if (e.defaultPrevented || soleLine(view) === null || !data) return false;
+          const plan = () => {
+            const st = view.state;
+            const text = data.getData("text/plain");
+            const r = st.selection.main;
+            const insert = text
+              ? codePasteText(outlineOf(st), posOf(st, r.from), posOf(st, r.to), text, ctxOf(st, false))
+              : null;
+            if (insert === null) return outline?.(view, data) ?? null;
+            return () =>
+              view.dispatch({
+                changes: { from: r.from, to: r.to, insert },
+                selection: EditorSelection.cursor(r.from + insert.length),
+                scrollIntoView: true,
+                userEvent: "input.paste",
+              });
+          };
+          let go = plan();
+          if (!go) return false;
+          const before = view.state;
+          if (offer?.(view, e)) return true;
+          // a handler that changed the note without taking the paste: work it out again
+          if (view.state !== before) go = plan();
+          if (!go) return false;
           e.preventDefault();
-          view.dispatch({
-            changes: { from: r.from, to: r.to, insert },
-            selection: EditorSelection.cursor(r.from + insert.length),
-            scrollIntoView: true,
-            userEvent: "input.paste",
-          });
+          go();
           return true;
         },
       }),

@@ -1,4 +1,4 @@
-// Node selection (the repo's SPEC.md, "Editor Outliner" → "Node selection"): CodeMirror glue for nodes.ts. A
+// Node selection (SPEC.md → Node selection): CodeMirror glue for nodes.ts. A
 // StateField holds the node selection, worked out from the editor's selection on every selection or text
 // change (so any other selection change forgets it, as with Expand's steps); its keys, the whole-line
 // highlight and copy / cut. Node selection (headings and list items alike) follows the "Outliner keys" setting.
@@ -39,7 +39,7 @@ const nodeField = StateField.define<NodeSel | null>({
   update: (value, tr) => (tr.selection || tr.docChanged ? derive(tr.state) : value),
 });
 
-/** Set by the plugin: whether the "Outliner keys" setting is on (heading node selection needs it). */
+/** Set by the plugin: whether the "Outliner keys" setting is on (node selection, of headings and items, needs it). */
 let keysOn: () => boolean = () => false;
 export function setKeysCheck(fn: () => boolean) {
   keysOn = fn;

@@ -10,27 +10,27 @@ import {
   layer,
 } from "@codemirror/view";
 import { setIcon } from "obsidian";
-import { Outline, trimEnd } from "./parse";
+import { Outline, shape, trimEnd } from "./parse";
 import { unitCols } from "./ops";
 import { Option, Source, Target, drop, sourceAt, sourceDepth, sourceLine, targets } from "./drop";
 import { applyRows, ctxOf, nested, outlineOf } from "./editor";
 import type { Settings } from "./settings";
 
-/** Text that can change the outline: a heading, a fence, a comment or math delimiter, a frontmatter line. */
-const STRUCTURAL = /^[\s>]*(?:#|```|~~~|---)|\$\$|%%|<!--|-->/;
-
 /**
- * An edit inside one line that can't change any line's heading depth or H7+ status (most typing): the
- * decorations only need mapping, and the note isn't re-parsed on every keystroke.
+ * An edit inside one line that can't change any line's heading depth or H7+ status (most typing, also in a
+ * heading's text or next to a `-->`): the line keeps its shape (parse.ts), so the decorations only need mapping,
+ * and the note isn't re-parsed on every keystroke.
  */
 function plainEdit(u: ViewUpdate): boolean {
   if (u.startState.doc.lines !== u.state.doc.lines) return false;
+  const tabSize = u.state.tabSize;
   let plain = true;
-  u.changes.iterChangedRanges((fa, ta, fb) => {
+  u.changes.iterChangedRanges((fa, ta, fb, tb) => {
     if (!plain) return;
     const a = u.startState.doc.lineAt(fa);
-    if (u.startState.doc.lineAt(ta).number !== a.number) plain = false;
-    else if (STRUCTURAL.test(a.text) || STRUCTURAL.test(u.state.doc.lineAt(fb).text)) plain = false;
+    const b = u.state.doc.lineAt(fb);
+    if (u.startState.doc.lineAt(ta).number !== a.number || u.state.doc.lineAt(tb).number !== b.number) plain = false;
+    else if (shape(a.text, tabSize) !== shape(b.text, tabSize)) plain = false;
   });
   return plain;
 }
@@ -78,12 +78,6 @@ export function lineDecorations(settings: () => Settings) {
 /** Space between two heading guides, in px (less when the margin is narrow). */
 const GUIDE_STEP = 10;
 
-/**
- * Heading guides: one continuous vertical line per section, from under its heading to its last line, drawn on
- * a layer behind the text. Every section at the same depth gets the same x for the whole note, outermost
- * leftmost, so a guide doesn't jump between lines of different depth, and it runs through tables, callouts
- * and embeds (Live Preview widgets, which have no .cm-line of their own).
- */
 /** A section as the guides draw it: its heading line, its last non-blank line, its depth (1 outermost). */
 interface GuideSpan {
   line: number;
@@ -120,6 +114,12 @@ function guidesKeep(u: ViewUpdate): boolean {
   return keep;
 }
 
+/**
+ * Heading guides: one continuous vertical line per section, from under its heading to its last line, drawn on
+ * a layer behind the text. Every section at the same depth gets the same x for the whole note, outermost
+ * leftmost, so a guide doesn't jump between lines of different depth, and it runs through tables, callouts
+ * and embeds (Live Preview widgets, which have no .cm-line of their own).
+ */
 export function headingGuides() {
   /** Each editor's guide sections, for the document they were worked out from. */
   const cache = new WeakMap<EditorView, { doc: unknown; spans: GuideSpan[]; deepest: number }>();
@@ -324,7 +324,7 @@ export function dragHandles(logical: () => boolean): Extension {
           step: src.kind === "item" ? view.defaultCharacterWidth * unitCols(ctx) : HEADING_STEP,
           base: content.left + pad,
           right: content.right,
-          // Editor Lanes cards scroll their lane, not the editor
+          // an editor that grows with its text (an Editor Multiple Lanes card, say) scrolls in an ancestor
           scroller: sc.scrollHeight > sc.clientHeight ? sc : scrollParent(sc),
         };
         view.dom.classList.add("eo-dragging");
@@ -394,7 +394,8 @@ export function dragHandles(logical: () => boolean): Extension {
       onUp = () => {
         const d = this.drag;
         this.end();
-        if (!d?.target || !d.opt || this.view.state.doc.toString() !== d.o.texts.join("\n")) return;
+        // the note changed during the drag (outlines are cached per document): drop nothing
+        if (!d?.target || !d.opt || outlineOf(this.view.state) !== d.o) return;
         const rows = drop(d.o, d.src, d.target.line, d.opt, ctxOf(this.view.state, logical()));
         if (rows) applyRows(this.view, d.o, rows);
       };
