@@ -1,10 +1,4 @@
-/* Editor Outliner. Heading guides: one line per section on a layer behind the text (view.ts headingGuides),
-   in Obsidian's list indentation-guide colour and width, so heading and list guides look the same. */
-.eo-guides .eo-guide-line {
-  width: var(--indentation-guide-width, 1px);
-  background-color: var(--indentation-guide-color);
-  pointer-events: none;
-}
+/* Editor Outliner. Indentation guides are Obsidian's own, for nested lists only; headings get none. */
 
 /* Headings beyond H6 (7+ #): Obsidian shows them as text; style them like a small H6. */
 .markdown-source-view.mod-cm6 .cm-line.eo-deep-heading {

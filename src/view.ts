@@ -1,16 +1,8 @@
-// Editor view extensions: heading guides, H7+ styling and heading level labels (line decorations), and drag handles.
+// Editor view extensions: H7+ styling and heading level labels (line decorations), and drag handles.
 import { Extension, RangeSetBuilder } from "@codemirror/state";
-import {
-  Decoration,
-  DecorationSet,
-  EditorView,
-  RectangleMarker,
-  ViewPlugin,
-  ViewUpdate,
-  layer,
-} from "@codemirror/view";
+import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { setIcon } from "obsidian";
-import { Outline, shape, trimEnd } from "./parse";
+import { Outline, shape } from "./parse";
 import { unitCols } from "./ops";
 import { Option, Source, Target, drop, sourceAt, sourceDepth, sourceLine, targets } from "./drop";
 import { applyRows, ctxOf, nested, outlineOf } from "./editor";
@@ -73,102 +65,6 @@ export function lineDecorations(settings: () => Settings) {
     },
     { decorations: v => v.decorations },
   );
-}
-
-/** Space between two heading guides, in px (less when the margin is narrow). */
-const GUIDE_STEP = 10;
-
-/** A section as the guides draw it: its heading line, its last non-blank line, its depth (1 outermost). */
-interface GuideSpan {
-  line: number;
-  endLine: number;
-  depth: number;
-}
-
-/** The guides' sections of a note, with the deepest depth. */
-function guideSpans(o: Outline): { spans: GuideSpan[]; deepest: number } {
-  let deepest = 0;
-  const depthOf = new Map<unknown, number>();
-  const spans: GuideSpan[] = [];
-  for (const s of o.sections) {
-    const d = s.parent && s.parent !== o.root ? depthOf.get(s.parent)! + 1 : 1;
-    depthOf.set(s, d);
-    deepest = Math.max(deepest, d);
-    spans.push({ line: s.line, endLine: trimEnd(o, s.line, s.end) - 1, depth: d });
-  }
-  return { spans, deepest };
-}
-
-/**
- * An edit that can't move any guide: plainEdit (no heading, fence or frontmatter line touched, no line added or
- * removed) that also doesn't turn a blank line into text or back (a section's guide ends at its last non-blank
- * line). The guides' sections then stay as they were, and typing doesn't re-parse the note for them.
- */
-function guidesKeep(u: ViewUpdate): boolean {
-  if (!plainEdit(u)) return false;
-  let keep = true;
-  u.changes.iterChangedRanges((fa, _ta, fb) => {
-    if (keep && (u.startState.doc.lineAt(fa).text.trim() === "") !== (u.state.doc.lineAt(fb).text.trim() === ""))
-      keep = false;
-  });
-  return keep;
-}
-
-/**
- * Heading guides: one continuous vertical line per section, from under its heading to its last line, drawn on
- * a layer behind the text. Every section at the same depth gets the same x for the whole note, outermost
- * leftmost, so a guide doesn't jump between lines of different depth, and it runs through tables, callouts
- * and embeds (Live Preview widgets, which have no .cm-line of their own).
- */
-export function headingGuides() {
-  /** Each editor's guide sections, for the document they were worked out from. */
-  const cache = new WeakMap<EditorView, { doc: unknown; spans: GuideSpan[]; deepest: number }>();
-  return layer({
-    above: false,
-    class: "eo-guides",
-    update: u => {
-      if (!u.docChanged) return u.viewportChanged || u.geometryChanged;
-      const c = cache.get(u.view);
-      if (c && c.doc === u.startState.doc && guidesKeep(u)) c.doc = u.state.doc;
-      return true;
-    },
-    markers(view) {
-      if (nested(view)) return [];
-      let c = cache.get(view);
-      if (!c || c.doc !== view.state.doc) {
-        c = { doc: view.state.doc, ...guideSpans(outlineOf(view.state)) };
-        cache.set(view, c);
-      }
-      const { spans, deepest } = c;
-      if (!spans.length) return [];
-      const doc = view.state.doc;
-      const { from: vFrom, to: vTo } = view.viewport;
-      const first = doc.lineAt(vFrom).number - 1;
-      const last = doc.lineAt(vTo).number - 1;
-      // layer coordinates: relative to the scroller's content (CodeMirror's getBase)
-      const sc = view.scrollDOM.getBoundingClientRect();
-      const baseLeft = sc.left - view.scrollDOM.scrollLeft;
-      const baseTop = sc.top - view.scrollDOM.scrollTop;
-      const content = view.contentDOM.getBoundingClientRect();
-      const textLeft = content.left - baseLeft;
-      // fit the guides into the margin left of the text
-      const room = Math.max(0, textLeft - 10);
-      const step = deepest > 1 ? Math.max(3, Math.min(GUIDE_STEP, room / (deepest - 1))) : GUIDE_STEP;
-      const out: RectangleMarker[] = [];
-      for (const s of spans) {
-        const endLine = s.endLine;
-        if (endLine <= s.line || endLine < first || s.line > last) continue;
-        const top = view.lineBlockAt(doc.line(Math.max(s.line, first) + 1).from);
-        const bottom = view.lineBlockAt(doc.line(Math.min(endLine, last) + 1).from);
-        const y0 = (s.line >= first ? top.bottom : top.top) + view.documentTop - baseTop;
-        const y1 = bottom.bottom + view.documentTop - baseTop;
-        if (y1 - y0 < 1) continue;
-        const x = textLeft - 6 - (deepest - s.depth) * step;
-        out.push(new RectangleMarker("eo-guide-line", x, y0, null, y1 - y0));
-      }
-      return out;
-    },
-  });
 }
 
 /** Horizontal step on screen between heading levels while dragging, in px. */

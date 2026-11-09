@@ -3,7 +3,7 @@
 // and the settings below, never the vault's other notes.
 //   - .obsidian/app.json: the editor settings the cases are written for (merged into what's there): tabs of size 4,
 //     Live Preview, folding of headings and indents, "Auto convert HTML", no Vim, and no readable line length (the
-//     geometry the drag and guide cases were measured in);
+//     geometry the drag cases were measured in);
 //   - .obsidian/core-plugins.json: Canvas, Page preview and the command palette on (the Canvas and popover surfaces,
 //     the palette case); a fresh vault gets Obsidian's other defaults;
 //   - _test/ and _test/tab/ (the runners' notes; _test/tab/ is the normal-tab folder Lanes leaves alone);
@@ -83,7 +83,7 @@ const manual = path.join(vault, "_test", "manual");
 for (const f of fs.readdirSync(path.join(HERE, "fixtures")))
   fs.copyFileSync(path.join(HERE, "fixtures", f), path.join(manual, f));
 
-// a long note for moves, folding and guides by hand: 20 chapters, each with sections, lists and subsections
+// a long note for moves and folding by hand: 20 chapters, each with sections, lists and subsections
 const long = [];
 for (let c = 1; c <= 20; c++) {
   long.push(`# Chapter ${c}`, "", `Intro to chapter ${c}.`, "");

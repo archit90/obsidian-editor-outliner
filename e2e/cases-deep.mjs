@@ -1,5 +1,5 @@
 // Deep cases beyond outline mode (TEST-CASES.md): indent / outdent and move outside outline mode, which hierarchy a
-// command acts on, Expand / Shrink, node selection details, folding, heading guides, level labels, H7+ styling,
+// command acts on, Expand / Shrink, node selection details, folding, no heading guides, level labels, H7+ styling,
 // drag handles, settings and where it works. Added to cases.mjs's groups by cases.mjs (deep(group)); the same
 // case format (see cases.mjs's header). Ids are unique across both files.
 // @ts-check (the case types are cases.mjs's)
@@ -970,56 +970,21 @@ export function deep(group) {
   // ------------------------------------------------------------------------------------------------------
   group(
     "dview",
-    "Heading guides, level labels and H7+ styling",
-    SPEC + " → Heading guides; Heading level labels; Outline model (H7+)",
+    "No heading guides; level labels and H7+ styling",
+    SPEC + " → Heading level labels; Outline model (H7+)",
     [
       {
         id: "G1",
-        title: "One guide per section with content; same depth same x, outermost leftmost, 10px apart",
-        text: "# A\na\n## B\nb\n## C\nc\n### D\nd\n# E\ne",
+        title: "Headings get no guide lines; nested lists keep Obsidian's own indentation guides",
+        text: "# A\na\n## B\n- x\n\t- y|",
         keys: [],
-        check: `const g = [...cm.dom.querySelectorAll('.eo-guides .eo-guide-line')].map(e => ({ x: parseFloat(e.style.left), t: parseFloat(e.style.top), h: parseFloat(e.style.height) }));
-          if (g.length !== 5) return 'guides: ' + g.length;
-          const xs = [...new Set(g.map(e => e.x))].sort((a, b) => a - b);
-          if (xs.length !== 3) return 'xs ' + xs;
-          if (Math.abs(xs[1] - xs[0] - 10) > 0.5 || Math.abs(xs[2] - xs[1] - 10) > 0.5) return 'step ' + xs;
-          const content = cm.contentDOM.getBoundingClientRect();
-          return true;`,
-        checkLabel: "5 guides at 3 x positions, 10 px apart.",
+        views: ["lp"],
+        check: `await new Promise(r => setTimeout(r, 300));
+          const ours = cm.dom.querySelectorAll('.eo-guides, .eo-guide-line').length;
+          const listGuides = cm.dom.querySelectorAll('.cm-line .cm-indent').length;
+          return (ours === 0 && listGuides > 0) || { ours, listGuides };`,
+        checkLabel: "No guide drawn by Editor Outliner; the nested list item has Obsidian's indentation guide.",
         surfaces: "all",
-      },
-      {
-        id: "G2",
-        title: "A guide runs from under its heading to the section's last non-blank line",
-        text: "# A\na\n\nb\n\n\n# E",
-        keys: [],
-        check: `${LINE} const g = cm.dom.querySelector('.eo-guides .eo-guide-line'); if (!g) return 'no guide';
-          const base = cm.scrollDOM.getBoundingClientRect().top - cm.scrollDOM.scrollTop;
-          const top = parseFloat(g.style.top), bottom = top + parseFloat(g.style.height);
-          const h = lineEl(0).getBoundingClientRect(), b = lineEl(3).getBoundingClientRect();
-          return Math.abs(top - (h.bottom - base)) < 3 && Math.abs(bottom - (b.bottom - base)) < 3 || [top, bottom, h.bottom - base, b.bottom - base];`,
-        checkLabel: "The guide's top is the heading line's bottom, its bottom the last non-blank line's bottom.",
-      },
-      {
-        id: "G3",
-        title: "Guides use Obsidian's indentation-guide colour",
-        text: "# A\na",
-        keys: [],
-        check: `const g = cm.dom.querySelector('.eo-guide-line'); if (!g) return 'no guide'; const W = cm.dom.ownerDocument.defaultView;
-          const want = W.getComputedStyle(cm.dom).getPropertyValue('--indentation-guide-color').trim();
-          const probe = cm.dom.ownerDocument.createElement('div'); probe.style.backgroundColor = want; cm.dom.appendChild(probe);
-          const w = W.getComputedStyle(probe).backgroundColor; probe.remove();
-          return W.getComputedStyle(g).backgroundColor === w || [W.getComputedStyle(g).backgroundColor, w];`,
-        checkLabel: "The guide's background is var(--indentation-guide-color).",
-      },
-      {
-        id: "G4",
-        title: "Heading guides off: no guides",
-        settings: { headingGuides: false },
-        text: "# A\na",
-        keys: [],
-        check: "return !cm.dom.querySelector('.eo-guide-line')",
-        checkLabel: "No guide.",
       },
       {
         id: "G5",
@@ -1094,12 +1059,12 @@ export function deep(group) {
       },
       {
         id: "G12",
-        title: "Typing a # turns a line into a heading: label and guide follow",
+        title: "Typing a # turns a line into a heading: its label follows (and no guide line)",
         text: "a|\nb",
         keys: ["Home", { type: "# " }, "ArrowDown"],
         views: ["lp"],
-        check: `${LINE} ${AFTER} return (after(0) === '"H1"' && !!cm.dom.querySelector('.eo-guide-line')) || after(0);`,
-        checkLabel: "Line 0 is labelled H1 and has a guide.",
+        check: `${LINE} ${AFTER} return (after(0) === '"H1"' && !cm.dom.querySelector('.eo-guide-line')) || after(0);`,
+        checkLabel: "Line 0 is labelled H1; no guide line.",
       },
       {
         id: "G13",
@@ -1118,14 +1083,13 @@ export function deep(group) {
   group("ddelim", "Inline code and block delimiters", SPEC + " → Outline model", [
     {
       id: "G14",
-      title: "Headings after `%%`, `$$` and `<!--` in inline code still get their labels and guides",
+      title: "Headings after `%%`, `$$` and `<!--` in inline code still get their labels",
       text: "# A\nUse `%%` and `$$` and `<!--` in code\n## B\nb|",
       keys: [],
       views: ["lp"],
       check: `${LINE} ${AFTER} await new Promise(r => setTimeout(r, 300));
-        const guides = cm.dom.querySelectorAll('.eo-guides .eo-guide-line').length;
-        return (after(2).includes('H') && guides === 2) || { label: after(2), guides };`,
-      checkLabel: "The H2 line has its level label; both sections have a guide.",
+        return after(2).includes('H') || { label: after(2) };`,
+      checkLabel: "The H2 line has its level label.",
       surfaces: "all",
     },
   ]);
@@ -1703,14 +1667,14 @@ export function deep(group) {
       },
       {
         id: "LC4",
-        title: "A card closed and opened again: the new editor gets the keys and the guides",
+        title: "A card closed and opened again: the new editor gets the keys and the level labels",
         text: "# H\n- a\n- b|",
         setupEval: `const p = S.views.lanes.file.path; await new Promise(r => setTimeout(r, 2500)); S.views.lanes.leaf.detach(); S.views.lanes = null;
         await new Promise(r => setTimeout(r, 300)); await S.open('lanes', S.view); await S.setup('# H\\n- a\\n- b', [{ anchor: 11, head: 11 }], []);`,
         keys: "Tab",
         want: "# H\n- a\n\t- b|",
-        check: "return !!cm.dom.querySelector('.eo-guides .eo-guide-line')",
-        checkLabel: "The reopened card's editor has the heading guide.",
+        check: "return !!cm.dom.querySelector('.cm-line.eo-level-label')",
+        checkLabel: "The reopened card's editor labels the heading.",
         undo: true,
         surfaces: ["lanes"],
         needs: LANES,
@@ -1738,16 +1702,16 @@ export function deep(group) {
         text: "# H\n- a|\n\t- b",
         keys: [],
         check: `const p = app.plugins.plugins['${ID}'];
-        const count = () => cm.dom.querySelectorAll('.eo-guide-line').length;
+        const count = () => cm.dom.querySelectorAll('.cm-line.eo-level-label').length;
         await new Promise(r => setTimeout(r, 300)); const on = count();
-        p.settings.headingGuides = false; await p.saveSettings(); await new Promise(r => setTimeout(r, 300)); const off = count();
-        p.settings.headingGuides = true; await p.saveSettings(); await new Promise(r => setTimeout(r, 300));
+        p.settings.levelLabels = false; await p.saveSettings(); await new Promise(r => setTimeout(r, 300)); const off = count();
+        p.settings.levelLabels = true; await p.saveSettings(); await new Promise(r => setTimeout(r, 300));
         await app.plugins.disablePlugin('${ID}'); await new Promise(r => setTimeout(r, 500));
         const left = [...cm.dom.querySelectorAll('[class*=eo-], [data-eo-level]')].length + (cm.dom.className.includes('eo-') ? 1 : 0);
         await app.plugins.enablePlugin('${ID}'); await new Promise(r => setTimeout(r, 800));
         return (on > 0 && off === 0 && left === 0) || { on, off, left };`,
         checkLabel:
-          "Guides go and come back with the setting; after disabling, no eo- class or element is left in the card.",
+          "Level labels go and come back with the setting; after disabling, no eo- class or element is left in the card.",
         surfaces: ["lanes"],
         needs: LANES,
         views: ["lp"],

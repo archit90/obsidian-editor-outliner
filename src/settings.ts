@@ -4,7 +4,6 @@ import type EditorOutlinerPlugin from "./main";
 export interface Settings {
   logicalOutdent: boolean; // outdented nodes move after their parent's subtree; following siblings stay
   keys: boolean; // Tab / Shift+Tab, Mod+Up/Down, Alt+Up/Down, Alt+Shift+Up/Down (a CodeMirror keymap)
-  headingGuides: boolean;
   dragHandles: boolean;
   deepHeadings: boolean; // style lines of 7+ # as headings
   levelLabels: boolean; // Live Preview: a faint "H3" after each heading
@@ -13,7 +12,6 @@ export interface Settings {
 export const DEFAULTS: Settings = {
   logicalOutdent: false,
   keys: true,
-  headingGuides: true,
   dragHandles: true,
   deepHeadings: true,
   levelLabels: true,
@@ -65,7 +63,6 @@ export class EditorOutlinerTab extends PluginSettingTab {
       "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+↑/↓ (Cmd+↑/↓ on a Mac) move them, or the selected ones, with their children; Alt+↑ / Alt+↓ expand the selection up / down (word, line, then whole blocks: siblings that way, then the parent) and Alt+Shift+↑ / Alt+Shift+↓ shrink that edge back; a selection of whole items or sections is a node selection (←/→ fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
       "keys",
     );
-    this.toggle("Heading guides", "Vertical lines in the left margin showing each heading's section.", "headingGuides");
     this.toggle(
       "Drag handles",
       "A handle left of the heading, list item or block under the mouse; drag it to move the node. Desktop only.",

@@ -10,7 +10,7 @@ Outliner editing for Markdown notes: indent / outdent, move with children and gr
 headings, nested lists and body blocks; list items that hold several paragraphs and code blocks (Dataview
 queries too); an outline mode in which Enter, Shift+Enter, Shift+Tab, Backspace, Delete and paste work inside
 lists as in Logseq; node selection (whole items or sections, reached by Expand selection) with tree-like keys; plus
-folding commands, heading guides, heading level labels and drag handles.
+folding commands, heading level labels and drag handles.
 
 ## Outline model
 
@@ -318,20 +318,17 @@ headings to level 1–6, unfold all. Folds inside moved nodes survive the move. 
 it needs Settings → Editor → "Fold heading" / "Fold indent"; when nothing can fold a notice says so (also with the
 cursor in text before the first heading, outside a list; headings deeper than H6 can't fold).
 
-## Heading guides
+## No heading guides
 
-Each heading section gets one continuous vertical line in the left margin, from under its heading to its
-last non-blank line, drawn on a layer behind the text, so it runs past tables, callouts and embeds. Every
-section at the same depth has the same x for the whole note, outermost leftmost, 10 px apart, less when the
-margin is too narrow. They use Obsidian's list indentation-guide colour and width. Not mirrored for
-right-to-left notes.
+Headings get no vertical guide lines. The only
+indentation guides are Obsidian's own, on nested list items.
 
 ## Heading level labels
 
 In Live Preview, each heading line (H1–H6 and H7+) shows a faint "H3"-style label after its text, in the
 interface font, not selectable and not part of the note. Hidden on the line being edited (where the `#`
-marks show) and in Source mode. After the text rather than in the margin, which holds the fold arrow, drag
-handle and guides.
+marks show) and in Source mode. After the text rather than in the margin, which holds the fold arrow and the drag
+handle.
 
 ## Drag handles (desktop)
 
@@ -389,7 +386,7 @@ don't open autocomplete.
 - **Settings and unloading** reach every open editor at once, Canvas cards and popovers included (the
   extensions sit in a compartment the plugin reconfigures itself; Obsidian's `updateOptions()` only reaches
   Markdown tabs). An editor already open when the plugin loads gets it when reopened.
-- **Performance:** typing doesn't re-parse the note: labels, guides and the code-in-item layout keep their
+- **Performance:** typing doesn't re-parse the note: labels and the code-in-item layout keep their
   decorations across edits that leave the line's shape (heading level, fences, block delimiters) as it was, typing
   in a heading's text included, and are worked out again after a short pause. A key that changes the note
   (outline mode's Enter or Backspace, a move, a drop) compares and writes only the lines it changed, numbers
@@ -402,11 +399,11 @@ don't open autocomplete.
   elsewhere (body text, code, a table cell) they are Obsidian's. There is no drag handle on mobile.
 - **Canvas cards** (file cards and text cards, while being edited) get everything: outline mode (the same
   global state), all keys, the commands from the palette, expand selection, node selection, folding, heading
-  guides, level labels, H7+ styling and drag handles. Obsidian edits a card in a same-origin iframe: it copies
+  level labels, H7+ styling and drag handles. Obsidian edits a card in a same-origin iframe: it copies
   the app's styles (the plugin's included) into it and relays its key presses to the main window, so hotkeys
   reach a focused card, and "the focused editor" looks inside a focused iframe.
   Inside the iframe all coordinates are the card's own, so Canvas zoom changes nothing for drag handles, the
-  drop line or the guides. A drag on a handle doesn't pan the canvas or move the card; Escape during a drag
+  drop line. A drag on a handle doesn't pan the canvas or move the card; Escape during a drag
   stays in the card (the next Escape leaves it, as Obsidian does).
 - **Obsidian's Vim mode:** Vim sees a key before the plugin's keymaps, so normal- and visual-mode keys
   (Enter, Backspace, Delete, Escape, arrows, Ctrl+V) stay vim's. The outline-mode keys and node selection
@@ -417,7 +414,7 @@ don't open autocomplete.
 
 ## Settings (defaults)
 
-Logical outdenting (off) · Outliner keys (on) · Heading guides (on) · Drag handles (on) ·
+Logical outdenting (off) · Outliner keys (on) · Drag handles (on) ·
 Style headings beyond H6 (on) · Heading level labels (on).
 
 ## Working with other plugins
@@ -438,7 +435,7 @@ contracts; the e2e suite tests each side without the partner (simulating what it
   restored at the end; its normal-tab notes live in `_test/tab/`, an exception) and the view type `editor-lanes`
   to tell a card.
 - **Backlinks Full View:** its panes sit inside a note's editor (below the text) but outside its content, so they
-  get no guides, handles or keys; nothing to coordinate.
+  get no handles or keys; nothing to coordinate.
 - **Autocomplete popups** of any plugin (Obsidian's EditorSuggest: links, tags, Tasks, Templater…): while one is
   open the outliner's keys step aside, so the popup gets Enter, Tab and the arrows.
 - **Paste handlers** (`editor-paste`): a paste the outliner would take (multi-line text in a list item or in a code
@@ -519,7 +516,7 @@ e2e/sandbox.sh reset 4 && E2E_REQUIRE=editor-multiple-lanes npm run e2e:cases --
 - **Checked in a test Obsidian** (1.15.0 started hidden in a sandbox, driven over the
   DevTools protocol with real key and mouse input; not the user's eye): in an Editor Multiple Lanes card, Enter, Tab,
   node-selection copy at column 0; in a Canvas text card and file card at zoom 0.57 and 1.23, the plugin's
-  styles inside the card's iframe (heading guides, level labels, H7+ styling, the node-selection highlight),
+  styles inside the card's iframe (level labels, H7+ styling, the node-selection highlight),
   commands from the palette
   (Ctrl+P, and by id: indent, fold, insert code block), Enter / Shift+Enter / Shift+Tab ending a list / Tab /
   Backspace and Delete merges / Alt+Shift+↑ / Expand and Escape / a block paste and a plain multi-line paste,
@@ -595,7 +592,7 @@ e2e/sandbox.sh reset 4 && E2E_REQUIRE=editor-multiple-lanes npm run e2e:cases --
           the document start / end (the Linux test Obsidian can't check the Cmd mapping)
     - [ ] Mobile (no drag handles): outline-mode keys with a hardware keyboard; the toolbar's
           indent / outdent buttons move items and headings with their children
-- **Accepted limits:** heading guides aren't mirrored for right-to-left notes; undo doesn't restore folds
+- **Accepted limits:** undo doesn't restore folds
   (Obsidian registers no fold undo either).
 - **Everything else** is built, unit-tested (`npm run check`) and was used in the author's vaults, but not confirmed
   by the user in Obsidian.

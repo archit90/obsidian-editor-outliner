@@ -4,7 +4,7 @@
 //   drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
 //   code-indent rules and the insert commands (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
-//   view.ts: heading guides, H7+ styling, drag handles. Outline mode: active.ts (the active state), enter.ts
+//   view.ts: H7+ styling, drag handles. Outline mode: active.ts (the active state), enter.ts
 //   (Enter / Shift+Enter / Shift+Tab), merge.ts (Backspace / Delete), paste.ts (Paste), all pure; mode.ts
 //   their CodeMirror glue. nodes.ts: node selection (pure); nodesel.ts: its field, keys and highlight.
 // The keys are high-precedence CodeMirror keymaps (see buildExtensions); no command has a default hotkey.
@@ -46,7 +46,7 @@ import {
 } from "./mode";
 import { nodeSelectionExtension, setKeysCheck } from "./nodesel";
 import { DEFAULTS, EditorOutlinerTab, Settings, loadSettings } from "./settings";
-import { dragHandles, headingGuides, lineDecorations } from "./view";
+import { dragHandles, lineDecorations } from "./view";
 import { itemCodeIndent } from "./codeindent";
 import { missingInternals } from "./internals";
 
@@ -80,7 +80,7 @@ const rememberFocus = EditorView.domEventHandlers({
  * Every editor that has the plugin's extensions, so a settings change or unloading can reconfigure them all.
  * Obsidian's workspace.updateOptions() only reaches the editors of Markdown views (tabs, and Editor Multiple
  * Lanes cards, which are Markdown views too): a Canvas card's or a page preview popover's editor would keep the old
- * extensions (drag handles, guides, keys) until it closes.
+ * extensions (drag handles, keys) until it closes.
  */
 const editors = new Set<{ view: EditorView }>();
 const tracker = ViewPlugin.fromClass(
@@ -240,7 +240,6 @@ export default class EditorOutlinerPlugin extends Plugin {
     );
     this.extensions.push(lineDecorations(() => this.settings));
     this.extensions.push(itemCodeIndent());
-    if (this.settings.headingGuides) this.extensions.push(headingGuides());
     if (this.settings.dragHandles && !Platform.isMobile) this.extensions.push(dragHandles(logical));
   }
 

@@ -101,11 +101,11 @@ try {
   if (wanted("X1", "X2") && runs("X1", t1, editors) && runs("X2", t2, editors)) {
     const s = await ev(`${DOCS} ${OPEN}
       const p = app.plugins.plugins[ID];
-      const before = { handles: q(".eo-drag-handle"), guides: q(".eo-guides"), labels: q(".eo-level-label") };
-      p.settings.dragHandles = false; p.settings.headingGuides = false; p.settings.levelLabels = false; await p.saveSettings(); await sleep(300);
-      const off = { handles: q(".eo-drag-handle"), guides: q(".eo-guides"), labels: q(".eo-level-label") };
-      p.settings.dragHandles = true; p.settings.headingGuides = true; p.settings.levelLabels = true; await p.saveSettings(); await sleep(300);
-      const on = { handles: q(".eo-drag-handle"), guides: q(".eo-guides"), labels: q(".eo-level-label") };
+      const before = { handles: q(".eo-drag-handle"), labels: q(".eo-level-label"), guides: q(".eo-guides") };
+      p.settings.dragHandles = false; p.settings.levelLabels = false; await p.saveSettings(); await sleep(300);
+      const off = { handles: q(".eo-drag-handle"), labels: q(".eo-level-label") };
+      p.settings.dragHandles = true; p.settings.levelLabels = true; await p.saveSettings(); await sleep(300);
+      const on = { handles: q(".eo-drag-handle"), labels: q(".eo-level-label") };
       await app.plugins.disablePlugin(ID); await sleep(800);
       const left = docs().flatMap(d => [...d.querySelectorAll("[class*=eo-], [data-eo-level]")].map(e => e.className));
       await app.plugins.enablePlugin(ID); await sleep(800);
@@ -115,9 +115,10 @@ try {
       "X1",
       t1,
       s.before.handles >= 3 &&
-        s.off.handles + s.off.guides + s.off.labels === 0 &&
+        s.before.guides === 0 &&
+        s.off.handles + s.off.labels === 0 &&
         s.on.handles === s.before.handles &&
-        s.on.guides === s.before.guides,
+        s.on.labels === s.before.labels,
       { before: s.before, off: s.off, on: s.on },
     );
     record("X2", t2, s.left.length === 0, { left: s.left.slice(0, 5) });
@@ -212,18 +213,23 @@ try {
         await target.send("Input.dispatchMouseEvent", { type, x: r[0], y: r[1], button: "left", clickCount: 1 });
       await sleep(400);
     };
-    await click("Heading guides");
+    await click("Heading level labels");
     const gOff = await ev(
-      `return [window.__s.view.editor.cm.dom.querySelectorAll(".eo-guide-line").length, JSON.parse(await app.vault.adapter.read(app.vault.configDir + "/plugins/" + ID + "/data.json")).headingGuides]`,
+      `return [window.__s.view.editor.cm.dom.querySelectorAll(".cm-line.eo-level-label").length, JSON.parse(await app.vault.adapter.read(app.vault.configDir + "/plugins/" + ID + "/data.json")).levelLabels]`,
     );
-    await click("Heading guides");
-    const gOn = await ev(`return window.__s.view.editor.cm.dom.querySelectorAll(".eo-guide-line").length`);
+    await click("Heading level labels");
+    const gOn = await ev(`return window.__s.view.editor.cm.dom.querySelectorAll(".cm-line.eo-level-label").length`);
     sw?.close();
     await ev(`app.setting.close(); window.__s.detach(); return 1`);
     record(
       "X8",
-      "Settings tab: six toggles (no outline mode switch); clicking Heading guides hides and shows the guides and saves",
-      names.length === 6 && !names.includes("Outline mode") && gOff[0] === 0 && gOff[1] === false && gOn > 0,
+      "Settings tab: five toggles (no outline mode or heading guides switch); clicking Heading level labels hides and shows the labels and saves",
+      names.length === 5 &&
+        !names.includes("Outline mode") &&
+        !names.includes("Heading guides") &&
+        gOff[0] === 0 &&
+        gOff[1] === false &&
+        gOn > 0,
       { names, gOff, gOn },
     );
   }
@@ -356,7 +362,7 @@ try {
     await mev(`const f = await put("_test/tab/x-tab.md", "# H\\n- a\\n- one two\\n\\t- c"); const leaf = app.workspace.getLeaf(false); await leaf.openFile(f); await sleep(1500);
       await leaf.view.setState({ ...leaf.view.getState(), mode: "source", source: false }, { history: false }); window.__m = leaf.view.editor.cm; const v = window.__m; v.focus(); v.dispatch({ selection: { anchor: v.state.doc.line(3).from + 5 } }); return 1`);
     const mob = await mev(
-      `return { mobile: app.isMobile, handle: !!window.__m.dom.querySelector(".eo-drag-handle"), guides: !!window.__m.dom.querySelector(".eo-guide-line") }`,
+      `return { mobile: app.isMobile, handle: !!window.__m.dom.querySelector(".eo-drag-handle"), guides: !!window.__m.dom.querySelector(".eo-guide-line"), labels: !!window.__m.dom.querySelector(".cm-line.eo-level-label") }`,
     );
     await mc.key("Enter");
     await sleep(200);
@@ -371,10 +377,11 @@ try {
     const mtab = await mev(`return window.__m.state.doc.toString()`);
     record(
       "X10",
-      "Mobile emulation: no drag handle; guides; Enter and Tab from a hardware keyboard",
+      "Mobile emulation: no drag handle, no heading guides, level labels; Enter and Tab from a hardware keyboard",
       mob.mobile &&
         !mob.handle &&
-        mob.guides &&
+        !mob.guides &&
+        mob.labels &&
         menter === "# H\n- a\n- one\n\t- two\n\t- c" &&
         mtab === "# H\n- a\n\t- one two\n\t\t- c",
       { ...mob, menter, mtab },

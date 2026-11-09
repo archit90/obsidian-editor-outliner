@@ -18,7 +18,7 @@ lists.
   into items.
 - **Multi-block list items:** paragraphs and fenced code blocks (Dataview queries too) inside an item, laid
   out under the item in Live Preview.
-- **Folding commands, heading guides** (vertical lines per section), **heading level labels** (a faint H2
+- **Folding commands**, **heading level labels** (a faint H2
   after each heading), **headings beyond H6** (7+ `#`), and **drag handles** to move nodes (desktop).
 - Works in tabs, [Editor Multiple Lanes](https://github.com/archit90/obsidian-editor-multiple-lanes) cards (optional), Canvas cards, popout windows and page previews; on mobile the toolbar's
   indent buttons indent with children.
@@ -27,8 +27,8 @@ Every action is also a command, so you can bind your own hotkeys.
 
 ## Settings
 
-Logical outdenting (off) · Outliner keys (on) · Heading guides (on) · Drag handles (on) · Style headings
-beyond H6 (on) · Heading level labels (on).
+Logical outdenting (off) · Outliner keys (on) · Drag handles (on) · Style headings beyond H6 (on) · Heading level
+labels (on). Headings get no guide lines; nested lists keep Obsidian's own indentation guides.
 
 ## Install with BRAT
 
