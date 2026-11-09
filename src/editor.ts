@@ -23,6 +23,7 @@ import { Chain, XState, chainAt, move as moveStep, spanOf, stateOf } from "./sel
 import { renumberLikeObsidian } from "./numbering";
 import { Pos, canInsertCodeBlock, codeCopyText, codeNewline, codePasteText, insertCodeBlock } from "./content";
 import { RowChange, rowChange } from "./rowdiff";
+import { homeStops, homeTarget } from "./home";
 
 const outlines = new WeakMap<Text, Outline>();
 
@@ -318,6 +319,32 @@ export const expandUp = (view: EditorView) => selectStep(view, -1, true);
 export const expandDown = (view: EditorView) => selectStep(view, 1, true);
 export const shrinkUp = (view: EditorView) => selectStep(view, -1, false);
 export const shrinkDown = (view: EditorView) => selectStep(view, 1, false);
+
+// ---- Home ----
+
+/**
+ * Home (extend: Shift+Home) in a heading or a list: the cursor goes to the start of the line's text, and from
+ * there one stop per press toward the line's start (home.ts). On a wrapped line's later row it first goes to that
+ * row's start, as Obsidian's Home does. False where Home is Obsidian's: other lines, several cursors, IME, a nested
+ * editor.
+ */
+export function home(view: EditorView, extend: boolean): boolean {
+  const st = view.state;
+  if (st.selection.ranges.length > 1 || nested(view) || view.composing) return false;
+  const r = st.selection.main;
+  const line = st.doc.lineAt(r.head);
+  const stops = homeStops(outlineOf(st), line.number - 1);
+  if (!stops) return false;
+  const row = view.moveToLineBoundary(r, false);
+  let to = EditorSelection.cursor(line.from + homeTarget(stops, r.head - line.from));
+  if (row.head > line.from + stops[0]! && row.head < r.head) to = row;
+  view.dispatch({
+    selection: extend ? EditorSelection.range(r.anchor, to.head, undefined, undefined, to.assoc) : to,
+    scrollIntoView: true,
+    userEvent: "select",
+  });
+  return true;
+}
 
 // ---- multi-block items ----
 

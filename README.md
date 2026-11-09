@@ -11,6 +11,8 @@ lists.
   (Ctrl+↑ / ↓, Cmd+↑ / ↓ on macOS). Items move into neighbouring lists as in Logseq.
 - **Expand / shrink selection** (Alt+↑ / ↓ and Alt+Shift+↑ / ↓): word, sentence, line, then whole items and
   sections: siblings first, then the parent, up to the top level.
+- **Home** in a heading or a list item stops at the start of the text first (after the `#`s, or the bullet and
+  checkbox); pressed again it goes to the line's start in a heading, and in a list one indent level out per press.
 - **Node selection:** a selection of whole items or sections acts as a tree: ← / → fold or go to the parent /
   child, Backspace deletes, copy gives clean Markdown.
 - **Outline mode in lists** (always on in a list): Enter splits items, Enter on the last empty item leaves the

@@ -356,22 +356,40 @@ can be the lanes view) and only once while a key is held. The keys act on the fo
 held, and fall through to Obsidian where the outline doesn't apply. Commands run from the palette act on the
 focused editor, else the last one focused.
 
-| Key                                  | Action                                                                                                                                                                                                                                                                                 |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tab / Shift+Tab                      | Indent / outdent (falls through to Obsidian outside headings and lists)                                                                                                                                                                                                                |
-| Ctrl+↑ / ↓ (Cmd+↑ / ↓ on macOS)      | Move up / down: the selection snapped to whole sibling nodes, else the node at the cursor; the selection follows. Where the outline doesn't apply (frontmatter, a table cell, several cursors, IME) the key is Obsidian's: on macOS Cmd+↑ / ↓ there goes to the document's start / end |
-| Alt+↑ / Alt+↓                        | Expand selection up / down: text steps, then siblings that way, at the edge the parent, up to the note's top level                                                                                                                                                                     |
-| Alt+Shift+↑ / Alt+Shift+↓            | Shrink selection up / down: the top / bottom edge back toward where it started. These keys do nothing else: with nothing to shrink, several cursors, IME or in a nested editor they do nothing (CodeMirror's copy line up / down never runs)                                           |
-| ← / →, Backspace / Delete            | With a node selection: fold or select the parent / unfold or select the first child; remove the nodes                                                                                                                                                                                  |
-| Enter                                | In a fenced code block in a list item: new line keeps the item indent and the code's indent. Outline mode active: split the item / empty-item rules. Else Obsidian's Enter                                                                                                             |
-| Shift+Enter                          | Outline mode active: new line in the same item (else Obsidian's)                                                                                                                                                                                                                       |
-| Shift+Tab on an empty top-level item | Outline mode active: end the list                                                                                                                                                                                                                                                      |
-| Backspace                            | Outline mode active: at an item's start merge it into the item above (or delete a blank one above); at a continuation / code line's indent join the line above; after a checkbox remove it                                                                                             |
-| Delete                               | Outline mode active: at an item's end pull the next item in; at a continuation / code line's end join the next line                                                                                                                                                                    |
-| Ctrl/Cmd+V                           | Outline mode active: Markdown blocks become items, a code block alone goes into the item, multi-line text stays in it (code-block paste rule always)                                                                                                                                   |
+| Key                                                   | Action                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tab / Shift+Tab                                       | Indent / outdent (falls through to Obsidian outside headings and lists)                                                                                                                                                                                                                |
+| Ctrl+↑ / ↓ (Cmd+↑ / ↓ on macOS)                       | Move up / down: the selection snapped to whole sibling nodes, else the node at the cursor; the selection follows. Where the outline doesn't apply (frontmatter, a table cell, several cursors, IME) the key is Obsidian's: on macOS Cmd+↑ / ↓ there goes to the document's start / end |
+| Alt+↑ / Alt+↓                                         | Expand selection up / down: text steps, then siblings that way, at the edge the parent, up to the note's top level                                                                                                                                                                     |
+| Alt+Shift+↑ / Alt+Shift+↓                             | Shrink selection up / down: the top / bottom edge back toward where it started. These keys do nothing else: with nothing to shrink, several cursors, IME or in a nested editor they do nothing (CodeMirror's copy line up / down never runs)                                           |
+| ← / →, Backspace / Delete                             | With a node selection: fold or select the parent / unfold or select the first child; remove the nodes                                                                                                                                                                                  |
+| Home / Shift+Home (also Cmd+← / Cmd+Shift+← on macOS) | In a heading or a list item: to the start of the line's text, then stop by stop to the line's start (below); Shift extends the selection. Else Obsidian's Home                                                                                                                         |
+| Enter                                                 | In a fenced code block in a list item: new line keeps the item indent and the code's indent. Outline mode active: split the item / empty-item rules. Else Obsidian's Enter                                                                                                             |
+| Shift+Enter                                           | Outline mode active: new line in the same item (else Obsidian's)                                                                                                                                                                                                                       |
+| Shift+Tab on an empty top-level item                  | Outline mode active: end the list                                                                                                                                                                                                                                                      |
+| Backspace                                             | Outline mode active: at an item's start merge it into the item above (or delete a blank one above); at a continuation / code line's indent join the line above; after a checkbox remove it                                                                                             |
+| Delete                                                | Outline mode active: at an item's end pull the next item in; at a continuation / code line's end join the next line                                                                                                                                                                    |
+| Ctrl/Cmd+V                                            | Outline mode active: Markdown blocks become items, a code block alone goes into the item, multi-line text stays in it (code-block paste rule always)                                                                                                                                   |
 
 On macOS Cmd+↑ / ↓ moves the node at the cursor wherever the note has one, paragraphs included: Obsidian's "go
 to the start / end of the document" only remains in frontmatter (a decision, so moves have one key everywhere).
+
+**Home** in a heading or a list stops at the start of the line's text first, then goes on toward the line's start,
+one stop per press (`home.ts`):
+
+- **A heading:** the start of its text (after the `#`s), then the line's start.
+- **A list item:** the start of its text (after the bullet or number, and the checkbox), then the marker, then one
+  indent level out per press (where each ancestor's marker starts), down to the line's start. In `⇥⇥- item` that is
+  after `- `, before `-`, after the first tab, the line's start. A level the line's whitespace doesn't land on (it
+  falls inside a tab) is skipped. In a callout the levels count from the quote prefix, and the last stop is the
+  line's start.
+- **Another text line of an item:** the start of its text, then the item's level and its ancestors' the same way.
+
+At the line's start Home stays. Shift+Home extends the selection by the same stops; with a selection, Home starts
+from its head. On a wrapped line with the cursor on a later row, Home first goes to that row's start, as Obsidian's
+does, and from there to the start of the text. On macOS Cmd+← / Cmd+Shift+← do the same in left-to-right text.
+Home is Obsidian's everywhere else: body text, a code line or blank line in an item, a quote in an item, with
+several cursors, during IME composition, in a nested editor, and with "Outliner keys" off.
 
 Every command is one undo step (undo restores the text, not folds). Tab falls through to Obsidian inside code
 blocks, while an autocomplete popup is open, with several cursors and during IME composition; so do
@@ -410,7 +428,8 @@ don't open autocomplete.
   act only in insert mode (read from the Vim adapter's `insertMode`); a visual-mode selection is never a node
   selection (no highlight, no column-0 copy). Escape with a node selection in insert mode is vim's (back to
   normal mode). Tab / Shift+Tab, Ctrl+↑ / ↓, Alt+↑ / ↓ and Alt+Shift+↑ / ↓ aren't vim keys and work in every mode (Expand
-  in normal mode leaves vim in visual mode). The plugin adds no vim motions of its own.
+  in normal mode leaves vim in visual mode). Home is vim's in normal and visual mode and the plugin's in insert mode.
+  The plugin adds no vim motions of its own.
 
 ## Settings (defaults)
 

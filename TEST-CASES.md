@@ -1,7 +1,7 @@
 # Editor Outliner: deep test catalogue
 
 Everything the outline-mode suite (`e2e/CASES.md`, groups E … X) doesn't cover: indent / outdent and move outside
-outline mode, which hierarchy a command acts on, Expand / Shrink, node selection on headings, folding, no heading guides,
+outline mode, which hierarchy a command acts on, Expand / Shrink, Home, node selection on headings, folding, no heading guides,
 level labels, H7+ styling, drag handles with real mouse drags, Vim mode, where it works (normal tab, Editor Multiple Lanes
 card, Canvas text and file card, page preview popover, popout window, Source / Live Preview / Reading view, mobile
 emulation), working with other plugins, settings, keys and hotkey conflicts, IME, several cursors, undo, unloading,
@@ -18,23 +18,24 @@ console errors, long notes and typing (`TYPING`).
   skipping; `--surfaces lanes` runs just the card surface. Dataview the same way (`blacksmithgu/obsidian-dataview`).
 - One case or group: `node e2e/run.mjs --filter '^(KI|KM)[0-9]'`; the catalogue: `npm run e2e:catalogue`.
 
-**Together with Lanes, 2026-11-08 (after the fixes):** `--surfaces lanes`: 252/252 checks (`e2e/results-together.md`).
+**Together with Lanes, 2026-11-09:** `--surfaces lanes`: 263 checks, 262 pass, 1 flaky (`e2e/results-together.md`).
 MB2's one-Ctrl+Z check in a lanes card fails about once in 10–25 runs (the same focused editor, the Ctrl+Z changes
 nothing; cause not found): the runner then runs the case once more and records FLAKY if that passes.
 
-**Final runs: 2026-11-08**, Obsidian 1.15.0 in a sandbox, real key and mouse input over the DevTools protocol:
+**Final runs: 2026-11-09** (with the Home cases, HM), Obsidian 1.15.0 in a sandbox, real key and mouse input over the
+DevTools protocol:
 
-- **Alone** (a fresh vault, only this plugin): `run.mjs` 2218 checks: 2043 pass, 0 fail, 0 error, 175 skipped
-  (the lanes card surface: 174, and WH11: Dataview); `extra.mjs --mobile` 12 / 12 (X1–X4, X6–X12).
+- **Alone** (a fresh vault, only this plugin): `run.mjs` 2294 checks: 2108 pass, 0 fail, 0 error, 186 skipped
+  (the lanes card surface: 185, and WH11: Dataview); `extra.mjs --mobile` 12 / 12 (X1–X4, X6–X12).
 - **Together with Editor Multiple Lanes** (its folder build; `--surfaces lanes`, `E2E_REQUIRE=editor-multiple-lanes`):
-  252 checks, 251 pass. MB2's one-Ctrl+Z check (Insert Dataview query from the palette, in a card) failed once and
-  passed when MB1–MB5 ran again: flaky in a long run (not chased further).
-- Visual checks and TYPING pass. Before the 2026-11-08 changes, at 20,000 lines: Enter split +11.5 ms over
+  263 checks, 262 pass. MB2's one-Ctrl+Z check (Insert Dataview query from the palette, in a card) failed once and
+  passed when the case ran again: flaky in a long run (not chased further).
+- TYPING passes; the visual checks were last read on 2026-11-08 (not repeated on 2026-11-09). Before the 2026-11-08 changes, at 20,000 lines: Enter split +11.5 ms over
   Obsidian's own Enter (now +0.9), Backspace merge +13.8 ms (now +7.6), a move 29.8 ms (now 20.1).
 
 How the cases run:
 
-- **Key cases** (groups below, ids KI, KM, XS, NS, FC, G, DG, VM, WH, NO, OP, LC) are data in `e2e/cases-deep.mjs`, run
+- **Key cases** (groups below, ids KI, KM, XS, HM, NS, FC, G, DG, VM, WH, NO, OP, LC) are data in `e2e/cases-deep.mjs`, run
   by `e2e/run.mjs` together with the outline-mode cases (`CASES.md` lists both, generated from them). Notation as in
   `CASES.md`: `|` cursor, `⟦ … ⟧` selection, `↵` a line break and `⇥` a tab in these tables, L*n* a 0-based line.
   "tab" means a normal tab in Live Preview and Source mode (the runner's default); "lanes" an Editor Multiple Lanes
@@ -197,6 +198,42 @@ Source: SPEC.md → Expand / shrink selection.
 | XS20  | Several cursors: Alt+↑ is Obsidian's (the cursors stay)                                                                 | tab         | `ab\|c↵de\|f`                                    | Alt-ArrowUp                                                                     | `@obsidian`                                      | PASS   |
 | XS21  | Frontmatter: word, line, then nothing more                                                                              | tab; source | `---↵key: va\|lue↵---↵# H`                       | Alt-ArrowDown ×4                                                                | `---↵⟦key: value⟧↵---↵# H`                       | PASS   |
 | XS22  | Paragraph in a callout: the paragraph, then at its edge the callout                                                     | tab; source | `# H↵> [!note] T↵> one↵> tw\|o↵>↵> - x`          | Alt-ArrowUp ×4                                                                  | `# H↵⟧> [!note] T↵> one↵> two↵>↵> - x⟦`          | PASS   |
+
+## Home in headings and lists (HM)
+
+Source: SPEC.md → Keys → Home.
+
+| Id   | Case                                                                       | Where                       | Setup                                  | Steps                                      | Expected                                                               | Status |
+| ---- | -------------------------------------------------------------------------- | --------------------------- | -------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------- | ------ |
+| HM1  | Heading: Home stops at the start of the text                               | everywhere                  | `# A↵## Tit\|le`                       | Home                                       | `# A↵## \|Title`                                                       | PASS   |
+| HM2  | Heading: Home again goes to the line's start                               | everywhere                  | `# A↵## Tit\|le`                       | Home, Home                                 | `# A↵\|## Title`                                                       | PASS   |
+| HM3  | Heading: at the line's start Home stays                                    | tab                         | `# A↵## Tit\|le`                       | Home, Home, Home                           | `# A↵\|## Title`                                                       | PASS   |
+| HM4  | Top-level item: after the bullet, then the line's start                    | tab                         | `- one↵- tw\|o`                        | Home                                       | `- one↵- \|two`                                                        | PASS   |
+| HM5  | Top-level item: Home again goes to the line's start                        | tab                         | `- one↵- tw\|o`                        | Home, Home                                 | `- one↵\|- two`                                                        | PASS   |
+| HM6  | Nested item: Home stops after the bullet                                   | everywhere                  | `- a↵⇥- b↵⇥⇥- item\|`                  | Home                                       | `- a↵⇥- b↵⇥⇥- \|item`                                                  | PASS   |
+| HM7  | Nested item: the second Home stops at the bullet                           | everywhere                  | `- a↵⇥- b↵⇥⇥- item\|`                  | Home, Home                                 | `- a↵⇥- b↵⇥⇥\|- item`                                                  | PASS   |
+| HM8  | Nested item: the third Home goes one indent out                            | everywhere                  | `- a↵⇥- b↵⇥⇥- item\|`                  | Home, Home, Home                           | `- a↵⇥- b↵⇥\|⇥- item`                                                  | PASS   |
+| HM9  | Nested item: the fourth Home reaches the line's start, and a fifth stays   | tab                         | `- a↵⇥- b↵⇥⇥- item\|`                  | Home, Home, Home, Home, Home               | `- a↵⇥- b↵\|⇥⇥- item`                                                  | PASS   |
+| HM10 | Space indents: each Home goes to the next ancestor's level                 | tab                         | `- a↵  - b↵      - item\|`             | Home, Home, Home                           | `- a↵  - b↵  \|    - item`                                             | PASS   |
+| HM11 | Task: Home stops after the checkbox                                        | tab                         | `- a↵⇥- [ ] ta\|sk`                    | Home                                       | `- a↵⇥- [ ] \|task`                                                    | PASS   |
+| HM12 | Task: the second Home stops at the bullet                                  | tab                         | `- a↵⇥- [ ] ta\|sk`                    | Home, Home                                 | `- a↵⇥\|- [ ] task`                                                    | PASS   |
+| HM13 | Numbered item: after the number, then the number, then the indent          | tab                         | `1. a↵⇥2. it\|em`                      | Home, Home                                 | `1. a↵⇥\|2. item`                                                      | PASS   |
+| HM14 | From inside the marker: the marker's start                                 | tab                         | `- a↵⇥-\| b`                           | Home                                       | `- a↵⇥\|- b`                                                           | PASS   |
+| HM15 | An item's second text line: the text's start                               | tab                         | `- a↵⇥- b↵⇥  mo\|re`                   | Home                                       | `- a↵⇥- b↵⇥  \|more`                                                   | PASS   |
+| HM16 | An item's second text line: then the item's level, then the line's start   | tab                         | `- a↵⇥- b↵⇥  mo\|re`                   | Home, Home                                 | `- a↵⇥- b↵⇥\|  more`                                                   | PASS   |
+| HM17 | Shift+Home selects back to the start of the text                           | everywhere                  | `- a↵⇥- item\|`                        | Shift-Home                                 | `- a↵⇥- ⟧item⟦`                                                        | PASS   |
+| HM18 | Shift+Home again extends to the bullet, then the indent                    | tab                         | `- a↵⇥- item\|`                        | Shift-Home, Shift-Home, Shift-Home         | `- a↵⟧⇥- item⟦`                                                        | PASS   |
+| HM19 | Shift+Home in a heading: the text, then the whole line                     | tab                         | `## Title\|`                           | Shift-Home, Shift-Home                     | `⟧## Title⟦`                                                           | PASS   |
+| HM20 | Home with a selection starts from its head                                 | tab                         | `- a↵⇥- ⟦it⟧em`                        | Home                                       | `- a↵⇥- \|item`                                                        | PASS   |
+| HM21 | List in a callout: the levels count from the quote prefix                  | tab; source                 | `> [!note]↵> - a↵>   - it\|em`         | Home, Home, Home                           | `> [!note]↵> - a↵> \|  - item`                                         | PASS   |
+| HM22 | A wrapped item, cursor on a later row: Home goes to that row's start first | tab                         | `- word word word word …rd word end\|` | Home                                       | The cursor is at a row start inside the text, not at the text's start. | PASS   |
+| HM23 | A wrapped item: from a row's start Home goes to the start of the text      | tab                         | `- word word word word …rd word end\|` | Home, Home                                 | `- \|word word word word…ord word end`                                 | PASS   |
+| HM24 | Body text: Home is Obsidian's                                              | tab                         | `- a↵↵  some te\|xt`                   | Home, Home                                 | `@obsidian`                                                            | PASS   |
+| HM25 | A code line in an item: Home is Obsidian's                                 | tab                         | `- a↵ ```↵ co\|de↵ ````                | Home                                       | `@obsidian`                                                            | PASS   |
+| HM26 | Several cursors: Home is Obsidian's                                        | tab                         | `- a↵⇥- item\|↵⇥- other`               | a cursor at the end of lines 1 and 2, Home | `@obsidian`                                                            | PASS   |
+| HM27 | Outliner keys off: Home is Obsidian's                                      | tab; source; {"keys":false} | `- a↵⇥- item\|`                        | Home, Home                                 | `- a↵\|⇥- item`                                                        | PASS   |
+| HM28 | Vim normal mode: Home is vim's                                             | tab; lp; {"vimMode":true}   | `- a↵⇥- it\|em`                        | {"wait":200}, Home                         | `@obsidian`                                                            | PASS   |
+| HM29 | Vim insert mode: Home stops at the start of the text                       | tab; lp; {"vimMode":true}   | `- a↵⇥- it\|em`                        | {"wait":200}, i, Home                      | `- a↵⇥- \|item`                                                        | PASS   |
 
 ## Node selection: headings and details (NS)
 

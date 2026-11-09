@@ -3,7 +3,7 @@ import type EditorOutlinerPlugin from "./main";
 
 export interface Settings {
   logicalOutdent: boolean; // outdented nodes move after their parent's subtree; following siblings stay
-  keys: boolean; // Tab / Shift+Tab, Mod+Up/Down, Alt+Up/Down, Alt+Shift+Up/Down (a CodeMirror keymap)
+  keys: boolean; // Tab / Shift+Tab, Mod+Up/Down, Alt+Up/Down, Alt+Shift+Up/Down, Home (a CodeMirror keymap)
   dragHandles: boolean;
   deepHeadings: boolean; // style lines of 7+ # as headings
   levelLabels: boolean; // Live Preview: a faint "H3" after each heading
@@ -60,7 +60,7 @@ export class EditorOutlinerTab extends PluginSettingTab {
     );
     this.toggle(
       "Outliner keys",
-      "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+↑/↓ (Cmd+↑/↓ on a Mac) move them, or the selected ones, with their children; Alt+↑ / Alt+↓ expand the selection up / down (word, line, then whole blocks: siblings that way, then the parent) and Alt+Shift+↑ / Alt+Shift+↓ shrink that edge back; a selection of whole items or sections is a node selection (←/→ fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
+      "Tab / Shift+Tab indent and outdent headings and list items; Ctrl+↑/↓ (Cmd+↑/↓ on a Mac) move them, or the selected ones, with their children; Alt+↑ / Alt+↓ expand the selection up / down (word, line, then whole blocks: siblings that way, then the parent) and Alt+Shift+↑ / Alt+Shift+↓ shrink that edge back; Home stops at the start of a heading's or list item's text, then goes to the line's start (in a list one indent per press); a selection of whole items or sections is a node selection (←/→ fold or go to the parent / child, Backspace deletes, copy gives clean Markdown). Elsewhere (text, tables, code) these keys work as usual. Turn off to use only your own hotkeys for the commands (Settings → Hotkeys).",
       "keys",
     );
     this.toggle(

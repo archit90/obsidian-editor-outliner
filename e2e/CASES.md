@@ -36,9 +36,10 @@ Notation:
 | Indent / outdent outside outline mode | 28 |
 | Move outside outline mode | 26 |
 | Expand / shrink selection | 35 |
+| Home in headings and lists | 29 |
 | Node selection: headings and details | 11 |
 | Folding commands | 14 |
-| Heading guides, level labels and H7+ styling | 13 |
+| No heading guides; level labels and H7+ styling | 10 |
 | Inline code and block delimiters | 1 |
 | Drag handles (real mouse drags) | 15 |
 | Where it works and settings | 10 |
@@ -46,7 +47,7 @@ Notation:
 | Item node selection: more cases | 16 |
 | Working with other plugins | 3 |
 | Editor Multiple Lanes cards | 6 |
-| **Total** | 591 |
+| **Total** | 617 |
 
 ## Enter
 
@@ -10315,6 +10316,567 @@ Source mode: in Live Preview a callout is a widget unless the cursor is in it.
 
 Source: SPEC.md → Expand / shrink selection
 
+## Home in headings and lists
+
+### HM1. Heading: Home stops at the start of the text
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+## Tit|le
+````
+
+Keys: Home
+
+Expected: 
+````
+# A
+## |Title
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM2. Heading: Home again goes to the line's start
+
+When: *everywhere*.
+
+Setup:
+````
+# A
+## Tit|le
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+# A
+|## Title
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM3. Heading: at the line's start Home stays
+
+
+Setup:
+````
+# A
+## Tit|le
+````
+
+Keys: Home, Home, Home
+
+Expected: 
+````
+# A
+|## Title
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM4. Top-level item: after the bullet, then the line's start
+
+
+Setup:
+````
+- one
+- tw|o
+````
+
+Keys: Home
+
+Expected: 
+````
+- one
+- |two
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM5. Top-level item: Home again goes to the line's start
+
+
+Setup:
+````
+- one
+- tw|o
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+- one
+|- two
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM6. Nested item: Home stops after the bullet
+
+When: *everywhere*.
+
+Setup:
+````
+- a
+	- b
+		- item|
+````
+
+Keys: Home
+
+Expected: 
+````
+- a
+	- b
+		- |item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM7. Nested item: the second Home stops at the bullet
+
+When: *everywhere*.
+
+Setup:
+````
+- a
+	- b
+		- item|
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+- a
+	- b
+		|- item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM8. Nested item: the third Home goes one indent out
+
+When: *everywhere*.
+
+Setup:
+````
+- a
+	- b
+		- item|
+````
+
+Keys: Home, Home, Home
+
+Expected: 
+````
+- a
+	- b
+	|	- item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM9. Nested item: the fourth Home reaches the line's start, and a fifth stays
+
+
+Setup:
+````
+- a
+	- b
+		- item|
+````
+
+Keys: Home, Home, Home, Home, Home
+
+Expected: 
+````
+- a
+	- b
+|		- item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM10. Space indents: each Home goes to the next ancestor's level
+
+
+Setup:
+````
+- a
+  - b
+      - item|
+````
+
+Keys: Home, Home, Home
+
+Expected: 
+````
+- a
+  - b
+  |    - item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM11. Task: Home stops after the checkbox
+
+
+Setup:
+````
+- a
+	- [ ] ta|sk
+````
+
+Keys: Home
+
+Expected: 
+````
+- a
+	- [ ] |task
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM12. Task: the second Home stops at the bullet
+
+
+Setup:
+````
+- a
+	- [ ] ta|sk
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+- a
+	|- [ ] task
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM13. Numbered item: after the number, then the number, then the indent
+
+
+Setup:
+````
+1. a
+	2. it|em
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+1. a
+	|2. item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM14. From inside the marker: the marker's start
+
+
+Setup:
+````
+- a
+	-| b
+````
+
+Keys: Home
+
+Expected: 
+````
+- a
+	|- b
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM15. An item's second text line: the text's start
+
+
+Setup:
+````
+- a
+	- b
+	  mo|re
+````
+
+Keys: Home
+
+Expected: 
+````
+- a
+	- b
+	  |more
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM16. An item's second text line: then the item's level, then the line's start
+
+
+Setup:
+````
+- a
+	- b
+	  mo|re
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+- a
+	- b
+	|  more
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM17. Shift+Home selects back to the start of the text
+
+When: *everywhere*.
+
+Setup:
+````
+- a
+	- item|
+````
+
+Keys: Shift-Home
+
+Expected: 
+````
+- a
+	- ⟧item⟦
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM18. Shift+Home again extends to the bullet, then the indent
+
+
+Setup:
+````
+- a
+	- item|
+````
+
+Keys: Shift-Home, Shift-Home, Shift-Home
+
+Expected: 
+````
+- a
+⟧	- item⟦
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM19. Shift+Home in a heading: the text, then the whole line
+
+
+Setup:
+````
+## Title|
+````
+
+Keys: Shift-Home, Shift-Home
+
+Expected: 
+````
+⟧## Title⟦
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM20. Home with a selection starts from its head
+
+
+Setup:
+````
+- a
+	- ⟦it⟧em
+````
+
+Keys: Home
+
+Expected: 
+````
+- a
+	- |item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM21. List in a callout: the levels count from the quote prefix
+
+When: Source mode only.
+
+Setup:
+````
+> [!note]
+> - a
+>   - it|em
+````
+
+Keys: Home, Home, Home
+
+Expected: 
+````
+> [!note]
+> - a
+> |  - item
+````
+
+Source mode: in Live Preview a callout is a widget unless the cursor is in it.
+
+Source: SPEC.md → Keys → Home
+
+### HM22. A wrapped item, cursor on a later row: Home goes to that row's start first
+
+
+Setup:
+````
+- word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end|
+````
+
+Keys: Home
+
+Expected: (see checks)
+The cursor is at a row start inside the text, not at the text's start.
+
+Source: SPEC.md → Keys → Home
+
+### HM23. A wrapped item: from a row's start Home goes to the start of the text
+
+
+Setup:
+````
+- word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end|
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+- |word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM24. Body text: Home is Obsidian's
+
+
+Setup:
+````
+- a
+
+  some te|xt
+````
+
+Keys: Home, Home
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md → Keys → Home
+
+### HM25. A code line in an item: Home is Obsidian's
+
+
+Setup:
+````
+- a
+  ```
+    co|de
+  ```
+````
+
+Keys: Home
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md → Keys → Home
+
+### HM26. Several cursors: Home is Obsidian's
+
+
+Setup:
+````
+- a
+	- item|
+	- other
+````
+
+Keys: (a cursor at the end of lines 1 and 2), Home
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md → Keys → Home
+
+### HM27. Outliner keys off: Home is Obsidian's
+
+When: Source mode only; settings {"keys":false}.
+
+Setup:
+````
+- a
+	- item|
+````
+
+Keys: Home, Home
+
+Expected: 
+````
+- a
+|	- item
+````
+
+Source: SPEC.md → Keys → Home
+
+### HM28. Vim normal mode: Home is vim's
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- a
+	- it|em
+````
+
+Keys: wait 200 ms, Home
+
+Expected: = Obsidian (the same keys with outline mode and the Outliner keys off)
+
+Source: SPEC.md → Keys → Home
+
+### HM29. Vim insert mode: Home stops at the start of the text
+
+When: Live Preview only; Obsidian config {"vimMode":true}.
+
+Setup:
+````
+- a
+	- it|em
+````
+
+Keys: wait 200 ms, i, Home
+
+Expected: 
+````
+- a
+	- |item
+````
+
+Source: SPEC.md → Keys → Home
+
 ## Node selection: headings and details
 
 ### NS1. Heading → selects the first sub-section
@@ -10850,86 +11412,27 @@ Folded lines after: 1.
 
 Source: SPEC.md → Folding
 
-## Heading guides, level labels and H7+ styling
+## No heading guides; level labels and H7+ styling
 
-### G1. One guide per section with content; same depth same x, outermost leftmost, 10px apart
+### G1. Headings get no guide lines; nested lists keep Obsidian's own indentation guides
 
-When: *everywhere*.
+When: *everywhere*; Live Preview only.
 
 Setup:
 ````
 # A
 a
 ## B
-b
-## C
-c
-### D
-d
-# E
-e
+- x
+	- y|
 ````
 
 Keys: 
 
 Expected: (see checks)
-5 guides at 3 x positions, 10 px apart.
+No guide drawn by Editor Outliner; the nested list item has Obsidian's indentation guide.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
-
-### G2. A guide runs from under its heading to the section's last non-blank line
-
-
-Setup:
-````
-# A
-a
-
-b
-
-
-# E
-````
-
-Keys: 
-
-Expected: (see checks)
-The guide's top is the heading line's bottom, its bottom the last non-blank line's bottom.
-
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
-
-### G3. Guides use Obsidian's indentation-guide colour
-
-
-Setup:
-````
-# A
-a
-````
-
-Keys: 
-
-Expected: (see checks)
-The guide's background is var(--indentation-guide-color).
-
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
-
-### G4. Heading guides off: no guides
-
-When: settings {"headingGuides":false}.
-
-Setup:
-````
-# A
-a
-````
-
-Keys: 
-
-Expected: (see checks)
-No guide.
-
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G5. Level labels in Live Preview: H2 after a heading off the cursor line, none on it
 
@@ -10947,7 +11450,7 @@ Keys:
 Expected: (see checks)
 ::after reads H1 and H2.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G6. No label on the line being edited
 
@@ -10965,7 +11468,7 @@ Keys:
 Expected: (see checks)
 ::after H1 on line 0, none on the cursor's line.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G7. No labels in Source mode
 
@@ -10983,7 +11486,7 @@ Keys:
 Expected: (see checks)
 No ::after content.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G8. H7+ lines: styled as a heading, labelled H7 / H9
 
@@ -11001,7 +11504,7 @@ Keys:
 Expected: (see checks)
 eo-deep-heading on both, labels H7 and H9.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G9. Style headings beyond H6 off: no H7 styling (the label stays)
 
@@ -11018,7 +11521,7 @@ Keys:
 Expected: (see checks)
 No eo-deep-heading class; ::after H7.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G10. Heading level labels off: none
 
@@ -11035,7 +11538,7 @@ Keys:
 Expected: (see checks)
 No ::after content.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G11. Not headings: setext, in a callout, in code, 4-space indented
 
@@ -11062,9 +11565,9 @@ Keys:
 Expected: (see checks)
 No line has the plugin's heading classes.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
-### G12. Typing a # turns a line into a heading: label and guide follow
+### G12. Typing a # turns a line into a heading: its label follows (and no guide line)
 
 When: Live Preview only.
 
@@ -11077,9 +11580,9 @@ b
 Keys: Home, type "# ", ArrowDown
 
 Expected: (see checks)
-Line 0 is labelled H1 and has a guide.
+Line 0 is labelled H1; no guide line.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ### G13. The label is not selectable and not part of the text
 
@@ -11096,11 +11599,11 @@ Keys:
 Expected: (see checks)
 user-select none; the line's text is unchanged.
 
-Source: SPEC.md → Heading guides; Heading level labels; Outline model (H7+)
+Source: SPEC.md → Heading level labels; Outline model (H7+)
 
 ## Inline code and block delimiters
 
-### G14. Headings after `%%`, `$$` and `<!--` in inline code still get their labels and guides
+### G14. Headings after `%%`, `$$` and `<!--` in inline code still get their labels
 
 When: *everywhere*; Live Preview only.
 
@@ -11115,7 +11618,7 @@ b|
 Keys: 
 
 Expected: (see checks)
-The H2 line has its level label; both sections have a guide.
+The H2 line has its level label.
 
 Source: SPEC.md → Outline model
 
@@ -12330,7 +12833,7 @@ Every one of those commands says it applies (checkCallback).
 
 Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
 
-### LC4. A card closed and opened again: the new editor gets the keys and the guides
+### LC4. A card closed and opened again: the new editor gets the keys and the level labels
 
 When: in lanes; Live Preview only.
 Needs: editor-multiple-lanes.
@@ -12350,7 +12853,7 @@ Expected:
 - a
 	- b|
 ````
-The reopened card's editor has the heading guide.
+The reopened card's editor labels the heading.
 
 Source: SPEC.md → Where it works; Keys (commands act on the focused editor)
 
@@ -12445,6 +12948,6 @@ Setup:
 Keys: 
 
 Expected: (see checks)
-Guides go and come back with the setting; after disabling, no eo- class or element is left in the card.
+Level labels go and come back with the setting; after disabling, no eo- class or element is left in the card.
 
 Source: SPEC.md → Where it works; Keys (commands act on the focused editor)

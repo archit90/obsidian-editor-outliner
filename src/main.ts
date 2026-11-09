@@ -1,7 +1,7 @@
 // Editor Outliner: outliner editing for headings, nested lists and body blocks. See SPEC.md.
 //
 // - parse.ts: the outline model (pure). ops.ts: indent / outdent / move (pure). select.ts: expand steps (pure).
-//   drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
+//   home.ts: Home's stops (pure). drop.ts: drag sources, targets and drops (pure). content.ts: paragraphs and code blocks inside items, the
 //   code-indent rules and the insert commands (pure).
 // - editor.ts: applies an operation to a CodeMirror view as one transaction. folding.ts: fold commands.
 //   view.ts: H7+ styling, drag handles. Outline mode: active.ts (the active state), enter.ts
@@ -20,13 +20,14 @@ import {
 } from "obsidian";
 import { around } from "monkey-around";
 import { Compartment, Extension, Prec } from "@codemirror/state";
-import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
+import { Direction, EditorView, ViewPlugin, keymap } from "@codemirror/view";
 import {
   OpKind,
   codeClipboard,
   codeEnter,
   expandDown,
   expandUp,
+  home,
   insertBlock,
   nested,
   runOp,
@@ -67,6 +68,9 @@ function focusedView(): EditorView | null {
   const ed = el?.closest(".cm-editor");
   return ed ? EditorView.findFromDOM(ed as HTMLElement) : null;
 }
+
+/** Whether the text at the cursor runs left to right. */
+const ltr = (view: EditorView) => view.textDirectionAt(view.state.selection.main.head) === Direction.LTR;
 
 /** The last editor that had focus (commands from the palette run after focus has moved to the palette). */
 let lastFocused: EditorView | null = null;
@@ -224,6 +228,10 @@ export default class EditorOutlinerPlugin extends Plugin {
             { key: "Alt-Shift-ArrowUp", run: shrinkUp },
             { key: "Alt-Shift-ArrowDown", run: shrinkDown },
             { key: "Enter", run: codeEnter },
+            // Home: the text's start first, then stop by stop to the line's start (Shift extends the selection).
+            // A Mac's line-start key is Cmd+← (in right-to-left text it is the line-end key: Obsidian's)
+            { key: "Home", run: v => home(v, false), shift: v => home(v, true) },
+            { mac: "Cmd-ArrowLeft", run: v => ltr(v) && home(v, false), shift: v => ltr(v) && home(v, true) },
           ]),
         ),
       );
