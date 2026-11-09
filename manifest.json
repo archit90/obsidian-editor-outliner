@@ -1,7 +1,7 @@
 {
   "id": "editor-outliner",
   "name": "Editor Outliner",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.15.0",
   "description": "Outliner editing for headings, lists and body blocks: indent, outdent and move with children, expand selection up to whole items and sections, and a Logseq-like outline mode for lists (Enter, Backspace, Delete, paste). List items can hold paragraphs and code blocks. Folding commands, heading guides and drag handles. Works in tabs, Editor Multiple Lanes cards and Canvas cards.",
   "author": "Archit",
