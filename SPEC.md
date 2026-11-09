@@ -484,7 +484,7 @@ contracts; the e2e suite tests each side without the partner (simulating what it
     in items), the active line (`.cm-active`, level labels), the indentation-guide and `--h6-*` variables.
 - **Test hook:** `outlineOffForTests` on the plugin instance turns the outline-mode keys off for the e2e suite
   (to compare with Obsidian's own keys); not saved, no UI. Keep it.
-- **Versions and releases:** the version is 0.1.1, and releases bump the patch version only (0.1.1 → 0.1.2 …);
+- **Versions and releases:** the version is 0.1.0, and releases bump the patch version only (0.1.0 → 0.1.1 …);
   the minor and major stay. `npm run release` (= `npm version patch`) bumps `package.json`, then
   `scripts/version-bump.mjs` copies the version into `manifest.json` and `versions.json`; npm commits and tags it
   (tag = the version, no `v`, `.npmrc`). `scripts/version-bump.mjs` refuses a new minor or major version (and puts
